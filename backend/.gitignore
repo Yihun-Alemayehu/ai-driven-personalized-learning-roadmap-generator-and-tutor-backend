@@ -1,0 +1,6 @@
+# Local env overrides (per-service .env files are also ignored by their own .gitignore)
+.env
+.env.local
+
+# Docker volumes
+postgres_data/

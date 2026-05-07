@@ -1,0 +1,2 @@
+- [User profile - Yegeta](user_yegeta.md) — AASTU SE student, FYP team lead, backend-focused
+- [Backend implementation plan](project_backend_plan.md) — 12-phase plan in BACKEND_PLAN.md, sequential, AI integrations deferred

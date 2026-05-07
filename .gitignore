@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+*.js.map
+
+# Environment variables — never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime / OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Test output
+coverage/
+.nyc_output/
+
+# Prisma generated client (regenerated via `prisma generate`)
+backend/services/learning-service/node_modules/.prisma/
+
+# Docker
+.docker/
