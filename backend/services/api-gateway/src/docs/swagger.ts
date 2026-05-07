@@ -19,6 +19,35 @@ const options: swaggerJsdoc.Options = {
           bearerFormat: 'JWT',
         },
       },
+      schemas: {
+        AuthResponse: {
+          type: 'object',
+          properties: {
+            user: { $ref: '#/components/schemas/UserProfile' },
+            accessToken: { type: 'string' },
+            refreshToken: { type: 'string' },
+          },
+        },
+        TokenPair: {
+          type: 'object',
+          properties: {
+            accessToken: { type: 'string' },
+            refreshToken: { type: 'string' },
+          },
+        },
+        UserProfile: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            email: { type: 'string', format: 'email' },
+            full_name: { type: 'string' },
+            role: { type: 'string', enum: ['learner', 'instructor', 'admin', 'domain_expert'] },
+            avatar_url: { type: 'string', nullable: true },
+            preferred_language: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
     },
   },
   apis: ['./src/routes/**/*.ts', './src/modules/**/*.ts'],

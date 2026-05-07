@@ -38,6 +38,20 @@ const config = {
     learningServiceUrl: optional('LEARNING_SERVICE_URL', 'http://learning-service:3001'),
     aiServiceUrl: optional('AI_SERVICE_URL', 'http://ai-service:3002'),
   },
+
+  oauth: {
+    frontendCallbackUrl: optional('FRONTEND_CALLBACK_URL', 'http://localhost:5173/auth/callback'),
+    google: {
+      clientId: optional('GOOGLE_CLIENT_ID', ''),
+      clientSecret: optional('GOOGLE_CLIENT_SECRET', ''),
+      callbackUrl: optional('GOOGLE_CALLBACK_URL', 'http://localhost:3000/api/v1/auth/oauth/google/callback'),
+    },
+    github: {
+      clientId: optional('GITHUB_CLIENT_ID', ''),
+      clientSecret: optional('GITHUB_CLIENT_SECRET', ''),
+      callbackUrl: optional('GITHUB_CALLBACK_URL', 'http://localhost:3000/api/v1/auth/oauth/github/callback'),
+    },
+  },
 } as const;
 
 export default config;
