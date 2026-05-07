@@ -1,8 +1,22 @@
+import net from 'net';
 import { Router, Request, Response } from 'express';
-import { prisma } from '../lib/prisma';
 import { redis } from '../lib/redis';
+import config from '../config';
 
 const router = Router();
+
+function pgReachable(): Promise<boolean> {
+  const url = new URL(config.db.url);
+  const host = url.hostname;
+  const port = parseInt(url.port || '5432', 10);
+  return new Promise(resolve => {
+    const socket = net.createConnection({ host, port });
+    socket.setTimeout(3000);
+    socket.on('connect', () => { socket.destroy(); resolve(true); });
+    socket.on('error', () => resolve(false));
+    socket.on('timeout', () => { socket.destroy(); resolve(false); });
+  });
+}
 
 /**
  * @swagger
@@ -14,40 +28,21 @@ const router = Router();
  *     responses:
  *       200:
  *         description: All dependencies healthy
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: ok
- *                 db:
- *                   type: string
- *                   example: connected
- *                 redis:
- *                   type: string
- *                   example: connected
  *       503:
  *         description: One or more dependencies unavailable
  */
 router.get('/health', async (_req: Request, res: Response) => {
-  let db: 'connected' | 'disconnected' = 'disconnected';
-  let redisStatus: 'connected' | 'disconnected' = 'disconnected';
+  const [dbOk, redisPong] = await Promise.allSettled([
+    pgReachable(),
+    redis.ping(),
+  ]);
 
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    db = 'connected';
-  } catch {
-    // stays disconnected
-  }
-
-  try {
-    const pong = await redis.ping();
-    if (pong === 'PONG') redisStatus = 'connected';
-  } catch {
-    // stays disconnected
-  }
+  const db: 'connected' | 'disconnected' =
+    dbOk.status === 'fulfilled' && dbOk.value ? 'connected' : 'disconnected';
+  const redisStatus: 'connected' | 'disconnected' =
+    redisPong.status === 'fulfilled' && redisPong.value === 'PONG'
+      ? 'connected'
+      : 'disconnected';
 
   const healthy = db === 'connected' && redisStatus === 'connected';
   res.status(healthy ? 200 : 503).json({

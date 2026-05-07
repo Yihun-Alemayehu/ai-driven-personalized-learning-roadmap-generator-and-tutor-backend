@@ -3,15 +3,15 @@ export type UserRole = 'learner' | 'instructor' | 'admin' | 'domain_expert';
 export interface UserRecord {
   id: string;
   email: string;
-  password_hash: string | null;
-  full_name: string;
+  passwordHash: string | null;
+  fullName: string;
   role: UserRole;
-  avatar_url: string | null;
-  oauth_provider: string | null;
-  oauth_provider_id: string | null;
-  preferred_language: string;
-  created_at: Date;
-  updated_at: Date;
+  avatarUrl: string | null;
+  oauthProvider: string | null;
+  oauthProviderId: string | null;
+  preferredLanguage: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TokenPair {

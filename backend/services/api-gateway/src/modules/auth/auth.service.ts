@@ -20,7 +20,7 @@ function issueTokens(userId: string, role: string): TokenPair {
 async function storeRefreshToken(userId: string, plainToken: string): Promise<void> {
   const expiresAt = new Date(Date.now() + parseDuration(config.jwt.refreshExpiresIn) * 1000);
   await pool.query(
-    'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+    'INSERT INTO refresh_tokens ("userId", "tokenHash", "expiresAt") VALUES ($1, $2, $3)',
     [userId, hashToken(plainToken), expiresAt],
   );
 }
@@ -39,8 +39,8 @@ export async function register(
 
   const passwordHash = await hashPassword(password);
   const { rows } = await pool.query<Pick<UserRecord, 'id' | 'email' | 'role'>>(
-    `INSERT INTO users (email, password_hash, full_name)
-     VALUES ($1, $2, $3)
+    `INSERT INTO users (email, "passwordHash", "fullName", "updatedAt")
+     VALUES ($1, $2, $3, NOW())
      RETURNING id, email, role`,
     [email, passwordHash, fullName],
   );
@@ -55,16 +55,15 @@ export async function login(
   email: string,
   password: string,
 ): Promise<{ user: Pick<UserRecord, 'id' | 'email' | 'role'>; tokens: TokenPair }> {
-  const { rows } = await pool.query<Pick<UserRecord, 'id' | 'email' | 'role' | 'password_hash'>>(
-    'SELECT id, email, role, password_hash FROM users WHERE email = $1',
+  const { rows } = await pool.query<Pick<UserRecord, 'id' | 'email' | 'role' | 'passwordHash'>>(
+    'SELECT id, email, role, "passwordHash" FROM users WHERE email = $1',
     [email],
   );
 
   const user = rows[0];
   const validCredentials =
-    user?.password_hash != null && (await verifyPassword(password, user.password_hash));
+    user?.passwordHash != null && (await verifyPassword(password, user.passwordHash));
 
-  // Same 401 for both "no user" and "wrong password" — no user enumeration
   if (!validCredentials) throw ApiError.unauthorized('Invalid credentials');
 
   const tokens = issueTokens(user.id, user.role);
@@ -74,22 +73,21 @@ export async function login(
 
 export async function refreshTokens(plainToken: string): Promise<TokenPair> {
   const hash = hashToken(plainToken);
-  const { rows } = await pool.query<{ id: string; user_id: string; expires_at: Date }>(
-    'SELECT id, user_id, expires_at FROM refresh_tokens WHERE token_hash = $1',
+  const { rows } = await pool.query<{ id: string; userId: string; expiresAt: Date }>(
+    'SELECT id, "userId", "expiresAt" FROM refresh_tokens WHERE "tokenHash" = $1',
     [hash],
   );
 
   const record = rows[0];
-  if (!record || record.expires_at < new Date()) throw ApiError.unauthorized('Invalid or expired refresh token');
+  if (!record || record.expiresAt < new Date()) throw ApiError.unauthorized('Invalid or expired refresh token');
 
   const { rows: userRows } = await pool.query<Pick<UserRecord, 'id' | 'role'>>(
     'SELECT id, role FROM users WHERE id = $1',
-    [record.user_id],
+    [record.userId],
   );
   const user = userRows[0];
   if (!user) throw ApiError.unauthorized('User not found');
 
-  // Rotate: delete old token, issue new pair
   await pool.query('DELETE FROM refresh_tokens WHERE id = $1', [record.id]);
   const tokens = issueTokens(user.id, user.role);
   await storeRefreshToken(user.id, tokens.refreshToken);
@@ -98,7 +96,7 @@ export async function refreshTokens(plainToken: string): Promise<TokenPair> {
 
 export async function logout(userId: string, plainToken: string): Promise<void> {
   await pool.query(
-    'DELETE FROM refresh_tokens WHERE user_id = $1 AND token_hash = $2',
+    'DELETE FROM refresh_tokens WHERE "userId" = $1 AND "tokenHash" = $2',
     [userId, hashToken(plainToken)],
   );
 }
@@ -116,31 +114,28 @@ interface OAuthProfile {
 async function findOrCreateOAuthUser(
   profile: OAuthProfile,
 ): Promise<{ user: Pick<UserRecord, 'id' | 'email' | 'role'>; tokens: TokenPair }> {
-  // 1. Try to find existing OAuth-linked user
   const { rows: existing } = await pool.query<Pick<UserRecord, 'id' | 'email' | 'role'>>(
-    'SELECT id, email, role FROM users WHERE oauth_provider = $1 AND oauth_provider_id = $2',
+    'SELECT id, email, role FROM users WHERE "oauthProvider" = $1 AND "oauthProviderId" = $2',
     [profile.provider, profile.providerId],
   );
 
   let user = existing[0];
 
   if (!user) {
-    // 2. Try to find by email and link the OAuth account
     const { rows: byEmail } = await pool.query<Pick<UserRecord, 'id' | 'email' | 'role'>>(
       'SELECT id, email, role FROM users WHERE email = $1',
       [profile.email],
     );
     if (byEmail[0]) {
       await pool.query(
-        'UPDATE users SET oauth_provider = $1, oauth_provider_id = $2, updated_at = NOW() WHERE id = $3',
+        'UPDATE users SET "oauthProvider" = $1, "oauthProviderId" = $2, "updatedAt" = NOW() WHERE id = $3',
         [profile.provider, profile.providerId, byEmail[0].id],
       );
       user = byEmail[0];
     } else {
-      // 3. Create new user
       const { rows: created } = await pool.query<Pick<UserRecord, 'id' | 'email' | 'role'>>(
-        `INSERT INTO users (email, full_name, oauth_provider, oauth_provider_id, avatar_url)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO users (email, "fullName", "oauthProvider", "oauthProviderId", "avatarUrl", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, NOW())
          RETURNING id, email, role`,
         [profile.email, profile.fullName, profile.provider, profile.providerId, profile.avatarUrl],
       );

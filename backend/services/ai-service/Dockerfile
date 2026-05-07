@@ -1,10 +1,16 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Copy pre-installed node_modules from host (avoids npm ci network download)
 COPY package*.json ./
-RUN npm ci
+COPY node_modules ./node_modules
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build
+
+# Compile TypeScript using the host's installed compiler
+RUN node node_modules/.bin/tsc
+
+# Strip devDependencies — runs locally, no network needed
 RUN npm prune --production
 
 FROM node:20-alpine AS production
