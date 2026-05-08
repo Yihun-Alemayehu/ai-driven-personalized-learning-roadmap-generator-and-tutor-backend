@@ -56,6 +56,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/learner_roadmap
       REDIS_URL: redis://redis:6379
       AI_SERVICE_URL: http://ai-service:3002
+      JWT_SECRET: dev-secret-change-in-production
     depends_on:
       postgres:
         condition: service_healthy

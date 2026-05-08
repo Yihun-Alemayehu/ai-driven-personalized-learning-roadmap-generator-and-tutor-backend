@@ -50,7 +50,13 @@ const options: swaggerJsdoc.Options = {
       },
     },
   },
-  apis: ['./src/routes/**/*.ts', './src/modules/**/*.ts'],
+  // Include both src (ts-node dev) and dist (compiled container) — only existing files are scanned
+  apis: [
+    './src/routes/**/*.ts',
+    './src/modules/**/*.ts',
+    './dist/routes/**/*.js',
+    './dist/modules/**/*.js',
+  ],
 };
 
 const spec = swaggerJsdoc(options);
