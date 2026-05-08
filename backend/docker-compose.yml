@@ -57,6 +57,8 @@ services:
       REDIS_URL: redis://redis:6379
       AI_SERVICE_URL: http://ai-service:3002
       JWT_SECRET: dev-secret-change-in-production
+      GOOGLE_PSE_API_KEY: ''
+      GOOGLE_PSE_CX: ''
     depends_on:
       postgres:
         condition: service_healthy

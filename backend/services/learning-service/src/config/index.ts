@@ -29,6 +29,11 @@ const config = {
   services: {
     aiServiceUrl: optional('AI_SERVICE_URL', 'http://ai-service:3002'),
   },
+
+  pse: {
+    apiKey: optional('GOOGLE_PSE_API_KEY', ''),
+    cx: optional('GOOGLE_PSE_CX', ''),
+  },
 } as const;
 
 export default config;

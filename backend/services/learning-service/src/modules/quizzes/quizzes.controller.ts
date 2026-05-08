@@ -1,0 +1,73 @@
+import { Request, Response, NextFunction } from 'express';
+import * as svc from './quizzes.service';
+import { submitAttemptSchema, listAttemptsSchema } from './quizzes.validation';
+import { ApiError } from '../../utils/ApiError';
+
+export async function getQuizForNode(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const quiz = await svc.getQuizForNode(req.params.nodeId, req.user!.id);
+    res.json({ quiz });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function submitAttempt(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { error, value } = submitAttemptSchema.validate(req.body);
+    if (error) return next(ApiError.badRequest(error.message));
+    const result = await svc.submitAttempt(req.user!.id, req.params.quizId, value);
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAttempts(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { error, value } = listAttemptsSchema.validate(req.query);
+    if (error) return next(ApiError.badRequest(error.message));
+    const attempts = await svc.listAttempts(req.user!.id, value);
+    res.json({ attempts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAttempt(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const attempt = await svc.getAttempt(req.params.id, req.user!.id);
+    res.json({ attempt });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getChallengeProject(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const project = await svc.getChallengeProject(req.params.nodeId, req.user!.id);
+    res.json({ project });
+  } catch (err) {
+    next(err);
+  }
+}
