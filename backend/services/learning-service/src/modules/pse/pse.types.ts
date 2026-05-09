@@ -1,11 +1,12 @@
-export interface PseItem {
+export interface SerperItem {
   title: string;
   link: string;
   snippet: string;
-  displayLink: string;
+  position: number;
+  date?: string;
 }
 
-export interface PseResponse {
-  items?: PseItem[];
-  error?: { code: number; message: string };
+export interface SerperResponse {
+  organic?: SerperItem[];
+  searchParameters?: { q: string; gl: string; hl: string };
 }

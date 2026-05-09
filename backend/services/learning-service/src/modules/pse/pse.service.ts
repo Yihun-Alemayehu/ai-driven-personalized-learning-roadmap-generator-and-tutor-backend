@@ -4,9 +4,11 @@ import { search } from './pse.client';
 import type { Resource } from '@prisma/client';
 
 const CACHE_TTL = 86_400; // 24 hours
+// Cap per-discovery to 3 whitelist searches to preserve Serper quota
+const MAX_SOURCES = 3;
 
 function cacheKey(nodeId: string): string {
-  return `pse:node:${nodeId}`;
+  return `serper:node:${nodeId}`;
 }
 
 function extractDomain(url: string): string {
@@ -17,12 +19,20 @@ function extractDomain(url: string): string {
   }
 }
 
-function guessModality(sourceDomain: string): 'documentation' | 'tutorial' | 'video' | 'interactive' | 'reference' {
+function guessModality(
+  sourceDomain: string,
+): 'documentation' | 'tutorial' | 'video' | 'interactive' | 'reference' {
   if (['youtube.com', 'youtu.be', 'frontendmasters.com', 'egghead.io'].includes(sourceDomain))
     return 'video';
-  if (['freecodecamp.org', 'css-tricks.com', 'javascript.info', 'web.dev', 'scrimba.com'].includes(sourceDomain))
+  if (
+    ['freecodecamp.org', 'css-tricks.com', 'javascript.info', 'web.dev', 'scrimba.com'].includes(
+      sourceDomain,
+    )
+  )
     return 'tutorial';
-  if (['developer.mozilla.org', 'tc39.es', 'w3.org', 'html.spec.whatwg.org'].includes(sourceDomain))
+  if (
+    ['developer.mozilla.org', 'tc39.es', 'w3.org', 'html.spec.whatwg.org'].includes(sourceDomain)
+  )
     return 'reference';
   if (['codesandbox.io', 'codepen.io', 'stackblitz.com'].includes(sourceDomain))
     return 'interactive';
@@ -30,19 +40,17 @@ function guessModality(sourceDomain: string): 'documentation' | 'tutorial' | 'vi
 }
 
 export async function discoverForNode(nodeId: string, queryOverride?: string): Promise<Resource[]> {
-  // Check cache
+  // Return cached results if available
   const cached = await redis.get(cacheKey(nodeId));
   if (cached) return JSON.parse(cached) as Resource[];
 
-  // Get node + its domain's whitelist
+  // Get node details and its domain's whitelist
   const node = await prisma.learningNode.findUnique({
     where: { id: nodeId },
     select: {
       title: true,
       learningOutcomes: true,
-      ontologyVersion: {
-        select: { domainId: true },
-      },
+      ontologyVersion: { select: { domainId: true } },
     },
   });
   if (!node) return [];
@@ -53,9 +61,10 @@ export async function discoverForNode(nodeId: string, queryOverride?: string): P
   });
 
   const outcomes = Array.isArray(node.learningOutcomes) ? node.learningOutcomes : [];
-  const baseQuery = queryOverride ?? `${node.title} ${outcomes.slice(0, 2).join(' ')} tutorial`;
+  const baseQuery =
+    queryOverride ?? `${node.title} ${outcomes.slice(0, 2).join(' ')} tutorial`;
 
-  // Collect existing URLs to deduplicate
+  // Collect existing URLs to avoid duplicates
   const existing = await prisma.resource.findMany({
     where: { nodeId },
     select: { url: true },
@@ -64,7 +73,11 @@ export async function discoverForNode(nodeId: string, queryOverride?: string): P
 
   const inserted: Resource[] = [];
 
-  const sources = whitelist.length > 0 ? whitelist : [{ sourceDomain: '', defaultModality: 'documentation' as const }];
+  // Limit to MAX_SOURCES whitelist entries to conserve Serper quota
+  const sources =
+    whitelist.length > 0
+      ? whitelist.slice(0, MAX_SOURCES)
+      : [{ sourceDomain: '', defaultModality: 'documentation' as const }];
 
   for (const entry of sources) {
     const items = await search(baseQuery, entry.sourceDomain || undefined);
@@ -83,7 +96,7 @@ export async function discoverForNode(nodeId: string, queryOverride?: string): P
           sourceDomain,
           modality,
           description: item.snippet,
-          fetchedVia: 'pse_api',
+          fetchedVia: 'serper_api',
         },
       });
       inserted.push(resource);
