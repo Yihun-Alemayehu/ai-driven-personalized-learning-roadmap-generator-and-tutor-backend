@@ -71,3 +71,15 @@ export async function getChallengeProject(
     next(err);
   }
 }
+export async function getNodeExplanation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await svc.getNodeExplanation(req.params.nodeId, req.user!.id);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}

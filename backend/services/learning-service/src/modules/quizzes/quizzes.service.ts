@@ -2,7 +2,10 @@ import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { classifyScore, applyGatekeeperOutcome } from '../gatekeeper/gatekeeper.service';
 import { getAdaptedResources } from '../adaptation/adaptation.service';
+import { requestAiQuiz, requestAiExplanation } from '../../lib/aiClient';
 import type { SubmitAttemptInput, AttemptFilters } from './quizzes.types';
+
+const AI_QUIZ_STALE_DAYS = 7;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,27 +24,109 @@ async function assertNodeUnlocked(nodeId: string, userId: string) {
 export async function getQuizForNode(nodeId: string, userId: string) {
   await assertNodeUnlocked(nodeId, userId);
 
-  const quiz = await prisma.quiz.findFirst({
-    where: { nodeId, isMicroQuiz: false },
+  // Return fresh AI quiz if one exists within the staleness window
+  const freshAiQuiz = await prisma.quiz.findFirst({
+    where: {
+      nodeId,
+      isMicroQuiz: false,
+      generatedBy: 'ai_tutor',
+      createdAt: { gte: new Date(Date.now() - AI_QUIZ_STALE_DAYS * 86_400_000) },
+    },
     orderBy: { createdAt: 'desc' },
     include: {
       questions: {
-        select: {
-          id: true,
-          questionType: true,
-          questionText: true,
-          options: true,
-          explanation: true,
-          orderIndex: true,
-          // correctAnswer deliberately omitted
-        },
+        select: { id: true, questionType: true, questionText: true, options: true, explanation: true, orderIndex: true },
         orderBy: { orderIndex: 'asc' },
       },
     },
   });
+  if (freshAiQuiz) return freshAiQuiz;
 
-  if (!quiz) throw ApiError.notFound('No quiz found for this node');
-  return quiz;
+  // Attempt AI generation
+  const node = await prisma.learningNode.findUnique({
+    where: { id: nodeId },
+    select: { title: true, description: true, learningOutcomes: true, difficultyLevel: true },
+  });
+
+  if (node) {
+    const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+    const aiResponse = await requestAiQuiz({
+      nodeId,
+      nodeTitle: node.title,
+      description: node.description ?? undefined,
+      learningOutcomes: outcomes,
+      difficultyLevel: node.difficultyLevel ?? undefined,
+      questionCount: 4,
+    });
+
+    if (aiResponse?.quiz?.questions?.length) {
+      const created = await prisma.quiz.create({
+        data: {
+          nodeId,
+          isMicroQuiz: false,
+          generatedBy: 'ai_tutor',
+          questions: {
+            create: aiResponse.quiz.questions.map((q, i) => ({
+              questionType: 'multiple_choice' as const,
+              questionText: q.questionText,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation,
+              orderIndex: i,
+            })),
+          },
+        },
+        include: {
+          questions: {
+            select: { id: true, questionType: true, questionText: true, options: true, explanation: true, orderIndex: true },
+            orderBy: { orderIndex: 'asc' },
+          },
+        },
+      });
+      return created;
+    }
+  }
+
+  // Fallback to any existing static quiz
+  const staticQuiz = await prisma.quiz.findFirst({
+    where: { nodeId, isMicroQuiz: false },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      questions: {
+        select: { id: true, questionType: true, questionText: true, options: true, explanation: true, orderIndex: true },
+        orderBy: { orderIndex: 'asc' },
+      },
+    },
+  });
+  if (!staticQuiz) throw ApiError.notFound('No quiz found for this node');
+  return staticQuiz;
+}
+
+export async function getNodeExplanation(nodeId: string, userId: string) {
+  await assertNodeUnlocked(nodeId, userId);
+
+  const node = await prisma.learningNode.findUnique({
+    where: { id: nodeId },
+    select: { title: true, description: true, learningOutcomes: true },
+  });
+  if (!node) throw ApiError.notFound('Node not found');
+
+  const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+  const aiResponse = await requestAiExplanation({
+    nodeId,
+    nodeTitle: node.title,
+    description: node.description ?? undefined,
+    learningOutcomes: outcomes,
+  });
+
+  return {
+    nodeId,
+    nodeTitle: node.title,
+    explanation: aiResponse?.explanation ?? null,
+    fallback: !aiResponse?.explanation
+      ? { description: node.description, learningOutcomes: outcomes }
+      : null,
+  };
 }
 
 export async function submitAttempt(

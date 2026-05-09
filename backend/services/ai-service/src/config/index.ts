@@ -12,14 +12,14 @@ const config = {
     url: optional('REDIS_URL', 'redis://localhost:6379'),
   },
 
+  ollama: {
+    baseUrl: optional('OLLAMA_BASE_URL', 'http://host.docker.internal:11434'),
+    model: optional('OLLAMA_MODEL', 'qwen2.5:3b'),
+  },
+
   gemini: {
     apiKey: optional('GEMINI_API_KEY', ''),
     model: optional('GEMINI_MODEL', 'gemini-1.5-flash'),
-  },
-
-  pse: {
-    apiKey: optional('GOOGLE_PSE_API_KEY', ''),
-    engineId: optional('GOOGLE_PSE_ENGINE_ID', ''),
   },
 } as const;
 

@@ -166,4 +166,27 @@ router.get('/quiz-attempts/:id', authenticate, ctrl.getAttempt);
  */
 router.get('/nodes/:nodeId/challenge', authenticate, ctrl.getChallengeProject);
 
+/**
+ * @swagger
+ * /nodes/{nodeId}/explanation:
+ *   get:
+ *     summary: Get AI-generated explanation for a node (Ollama primary, Gemini fallback)
+ *     tags: [Quizzes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: nodeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: AI explanation with summary, key points, and common mistakes
+ *       403:
+ *         description: Node is locked
+ */
+router.get('/nodes/:nodeId/explanation', authenticate, ctrl.getNodeExplanation);
+
 export default router;

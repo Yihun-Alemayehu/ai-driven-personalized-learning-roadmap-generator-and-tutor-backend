@@ -236,7 +236,7 @@ model Quiz {
   questions QuizQuestion[]
   attempts  QuizAttempt[]
 
-  @@index([nodeId])
+  @@index([nodeId, generatedBy, createdAt])
   @@map("quizzes")
 }
 
@@ -344,6 +344,10 @@ model AdaptationEvent {
   node        LearningNode @relation(fields: [nodeId], references: [id])
   quizAttempt QuizAttempt? @relation(fields: [quizAttemptId], references: [id])
 
+  @@index([userId])
+  @@index([nodeId])
+  @@index([adaptationType])
+  @@index([createdAt])
   @@map("adaptation_events")
 }
 
@@ -357,6 +361,7 @@ model ChallengeProject {
 
   node LearningNode @relation(fields: [nodeId], references: [id])
 
+  @@index([nodeId])
   @@map("challenge_projects")
 }
 
@@ -372,8 +377,7 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id])
 
-  // Partial index (WHERE read = false) is added via raw SQL in migration — see prisma/migrations/partial_indexes.sql
-  @@index([userId])
+  @@index([userId, read, createdAt])
   @@map("notifications")
 }
 
