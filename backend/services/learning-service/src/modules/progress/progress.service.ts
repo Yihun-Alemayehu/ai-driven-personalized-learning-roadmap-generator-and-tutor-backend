@@ -7,7 +7,7 @@ import type { MasteryState, ProgressStats, RoadmapNode, RoadmapEdge } from './pr
 async function assertOwnership(enrollmentId: string, userId: string) {
   const enrollment = await prisma.enrollment.findUnique({
     where: { id: enrollmentId },
-    select: { userId: true, ontologyVersionId: true },
+    select: { userId: true, ontologyVersionId: true, selectedBranchPath: true },
   });
   if (!enrollment) throw ApiError.notFound('Enrollment not found');
   if (enrollment.userId !== userId) throw ApiError.forbidden();
@@ -116,7 +116,7 @@ function computeStreak(dates: Date[]): number {
 export async function getRoadmap(
   enrollmentId: string,
   userId: string,
-): Promise<{ nodes: RoadmapNode[]; edges: RoadmapEdge[] }> {
+): Promise<{ nodes: RoadmapNode[]; edges: RoadmapEdge[]; selectedBranchPath: string | null }> {
   const enrollment = await assertOwnership(enrollmentId, userId);
 
   const [nodes, progressRows, edges] = await Promise.all([
@@ -157,7 +157,20 @@ export async function getRoadmap(
 
   const progressMap = new Map(progressRows.map((p) => [p.nodeId, p]));
 
-  const roadmapNodes: RoadmapNode[] = nodes.map((n) => {
+  // Filter nodes to selected path: show shared (branchPath=null), selected path, and convergence nodes
+  const { selectedBranchPath } = enrollment;
+  const visibleNodes = selectedBranchPath
+    ? nodes.filter(
+        (n) => n.branchPath === null || n.branchPath === selectedBranchPath || n.isConvergencePoint,
+      )
+    : nodes;
+
+  const visibleIds = new Set(visibleNodes.map((n) => n.id));
+  const visibleEdges = edges.filter(
+    (e) => visibleIds.has(e.nodeId) && visibleIds.has(e.prerequisiteNodeId),
+  );
+
+  const roadmapNodes: RoadmapNode[] = visibleNodes.map((n) => {
     const p = progressMap.get(n.id);
     return {
       ...n,
@@ -168,7 +181,7 @@ export async function getRoadmap(
     };
   });
 
-  return { nodes: roadmapNodes, edges };
+  return { nodes: roadmapNodes, edges: visibleEdges, selectedBranchPath };
 }
 
 // ── Unlock Logic (called by Phase 6 quiz completion) ─────────────────────────

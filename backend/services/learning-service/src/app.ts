@@ -12,6 +12,9 @@ import resourcesRouter from './modules/resources/resources.routes';
 import whitelistRouter from './modules/whitelist/whitelist.routes';
 import decayRouter from './modules/decay/decay.routes';
 import notificationsRouter from './modules/notifications/notifications.routes';
+import branchingRouter from './modules/branching/branching.routes';
+import adminRouter from './modules/admin/admin.routes';
+import instructorRouter from './modules/instructor/instructor.routes';
 import logger from './utils/logger';
 
 const app = express();
@@ -31,6 +34,9 @@ app.use('/api/v1', resourcesRouter);
 app.use('/api/v1', whitelistRouter);
 app.use('/api/v1', decayRouter);
 app.use('/api/v1', notificationsRouter);
+app.use('/api/v1', branchingRouter);
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/instructor', instructorRouter);
 
 app.use(errorHandler);
 

@@ -6,6 +6,7 @@ import { setupSwagger } from './docs/swagger';
 import healthRouter from './routes/health';
 import authRouter from './modules/auth/auth.routes';
 import usersRouter from './modules/users/users.routes';
+import adminRouter from './modules/admin/admin.routes';
 
 const app = express();
 
@@ -18,6 +19,7 @@ setupSwagger(app);
 app.use('/api/v1', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/admin', adminRouter);
 
 app.use(errorHandler);
 
