@@ -1,0 +1,188 @@
+// ── Core enums ────────────────────────────────────────────────────────────────
+export type UserRole = 'learner' | 'instructor' | 'admin' | 'domain_expert';
+export type MasteryState = 'not_started' | 'in_progress' | 'mastered' | 'review_needed' | 'relearn' | 'locked';
+export type QuizOutcome = 'strong_pass' | 'marginal_pass' | 'fail_low' | 'fail_fundamental' | 'fail_severe';
+export type ResourceModality = 'documentation' | 'tutorial' | 'video' | 'interactive' | 'reference';
+export type BranchPath = 'frontend' | 'backend' | 'data_science';
+export type OntologyStatus = 'draft' | 'in_review' | 'verified' | 'published' | 'archived';
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  avatarUrl?: string;
+  preferredLanguage?: string;
+  createdAt?: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+// API returns tokens flat (not nested under "tokens")
+export interface AuthResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
+// ── Domains ───────────────────────────────────────────────────────────────────
+export interface Domain {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  iconUrl?: string;
+  createdAt?: string;
+}
+
+// ── Enrollments ───────────────────────────────────────────────────────────────
+export interface Enrollment {
+  id: string;
+  userId: string;
+  domainId: string;
+  domain: Domain;
+  enrolledAt: string;
+  selectedBranchPath?: BranchPath;
+}
+
+// ── Learning nodes ────────────────────────────────────────────────────────────
+export interface LearningNode {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  learningOutcomes: string[];
+  estimatedHours?: number;
+  difficultyLevel?: number;
+  isBranchingPoint: boolean;
+  isConvergencePoint: boolean;
+  branchPath?: BranchPath;
+  positionX?: number;
+  positionY?: number;
+}
+
+// ── Roadmap (learner-scoped node) ─────────────────────────────────────────────
+export interface RoadmapNode extends LearningNode {
+  masteryState: MasteryState;
+  unlocked: boolean;
+  bestQuizScore?: number;
+  attemptsCount: number;
+  masteredAt?: string;
+  lastReviewedAt?: string;
+}
+
+export interface RoadmapEdge {
+  nodeId: string;
+  prerequisiteNodeId: string;
+}
+
+export interface RoadmapData {
+  nodes: RoadmapNode[];
+  edges: RoadmapEdge[];
+  selectedBranchPath?: BranchPath;
+}
+
+export interface ProgressStats {
+  masteredCount: number;
+  inProgressCount: number;
+  reviewNeededCount: number;
+  notStartedCount: number;
+  rerelearnCount: number;
+  lockedCount: number;
+  totalNodes: number;
+  completionPercent: number;
+}
+
+// ── Quizzes ───────────────────────────────────────────────────────────────────
+export interface QuizQuestion {
+  id: string;
+  questionType: string;
+  questionText: string;
+  options?: string[];
+  explanation?: string;
+  orderIndex: number;
+}
+
+export interface Quiz {
+  id: string;
+  nodeId: string;
+  isMicroQuiz: boolean;
+  questions: QuizQuestion[];
+}
+
+export interface GatekeeperResult {
+  tier: QuizOutcome;
+  masteryState: MasteryState;
+  nextNodeUnlocked: boolean;
+  unlockedNodeIds?: string[];
+}
+
+export interface AttemptResult {
+  attempt: {
+    id: string;
+    scorePercent: number;
+    correctAnswers: number;
+    totalQuestions: number;
+    completedAt: string;
+  };
+  gatekeeper: GatekeeperResult;
+  challengeProject?: ChallengeProject | null;
+  adaptedResources?: Resource[] | null;
+}
+
+// ── Resources ─────────────────────────────────────────────────────────────────
+export interface Resource {
+  id: string;
+  nodeId: string;
+  title: string;
+  url: string;
+  sourceDomain: string;
+  modality: ResourceModality;
+  description?: string;
+  isPrimary: boolean;
+  avgRating: number;
+  ratingCount: number;
+  isValid: boolean;
+  fetchedVia: string;
+  createdAt?: string;
+}
+
+export interface ChallengeProject {
+  id: string;
+  nodeId: string;
+  title: string;
+  description: string;
+  difficultyLevel?: number;
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body?: string;
+  data?: Record<string, unknown>;
+  read: boolean;
+  createdAt: string;
+}
+
+// ── API pagination ────────────────────────────────────────────────────────────
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// ── API error ─────────────────────────────────────────────────────────────────
+export interface ApiError {
+  error: {
+    message: string;
+    details?: unknown;
+  };
+}
