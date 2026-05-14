@@ -14,7 +14,7 @@ export default function AppShell() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden min-h-0">
         {isDesktop && <Sidebar />}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-hidden flex flex-col min-h-0">
           <Outlet />
         </main>
       </div>

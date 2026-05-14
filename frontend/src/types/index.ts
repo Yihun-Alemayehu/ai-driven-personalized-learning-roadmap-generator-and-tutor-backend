@@ -116,9 +116,10 @@ export interface Quiz {
 
 export interface GatekeeperResult {
   tier: QuizOutcome;
-  masteryState: MasteryState;
-  nextNodeUnlocked: boolean;
-  unlockedNodeIds?: string[];
+  newMasteryState: 'mastered' | 'in_progress';
+  isMarginalPass: boolean;
+  adaptationType?: 'resource_swap' | 'prerequisite_review' | 'instructor_escalation';
+  newlyUnlockedNodes: string[];
 }
 
 export interface AttemptResult {

@@ -260,6 +260,14 @@ export async function getAttempt(attemptId: string, userId: string) {
       adaptationEvents: {
         select: { adaptationType: true, details: true, createdAt: true },
       },
+      quiz: {
+        include: {
+          questions: {
+            select: { id: true, questionText: true, options: true, correctAnswer: true, explanation: true, orderIndex: true },
+            orderBy: { orderIndex: 'asc' },
+          },
+        },
+      },
     },
   });
   if (!attempt) throw ApiError.notFound('Attempt not found');

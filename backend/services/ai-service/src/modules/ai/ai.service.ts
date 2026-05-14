@@ -72,7 +72,10 @@ export async function generateQuiz(input: QuizGenerationInput): Promise<Generate
   const cached = await getCached<GeneratedQuiz>(cacheKey);
   if (cached) return cached;
 
-  const prompt = buildQuizPrompt(input);
+  // Ground the quiz in the explanation if one is already cached — makes questions more specific
+  const cachedExplanation = await getCached<GeneratedExplanation>(cacheKeys.explanation(input.nodeId));
+  const prompt = buildQuizPrompt({ ...input, explanation: cachedExplanation ?? undefined });
+
   const result = await generate(prompt, generatedQuizSchema as never, `quiz:${input.nodeId}`);
   if (!result) return null;
 

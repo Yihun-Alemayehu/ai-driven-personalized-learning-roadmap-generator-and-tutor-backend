@@ -13,6 +13,7 @@ import ProfilePage from '@/pages/ProfilePage';
 
 // ── Lazy-loaded (added per phase) ─────────────────────────────────────────────
 const CatalogPage       = lazy(() => import('@/features/catalog/DomainCatalogPage'));
+const DomainDetailPage  = lazy(() => import('@/features/catalog/DomainDetailPage'));
 const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage'));
 
 // ── Route helpers ──────────────────────────────────────────────────────────────
@@ -51,12 +52,25 @@ export const router = createBrowserRouter([
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'profile',   element: <ProfilePage /> },
       { path: 'catalog',   element: <Lazy><CatalogPage /></Lazy> },
+      { path: 'catalog/:slug', element: <Lazy><DomainDetailPage /></Lazy> },
       { path: 'notifications', element: <Lazy><NotificationsPage /></Lazy> },
 
       // Roadmap + quiz (Phase 4 & 5)
       {
         path: 'enrollments/:id/roadmap',
         lazy: () => import('@/features/roadmap/RoadmapPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'quiz/:nodeId',
+        lazy: () => import('@/features/quiz/QuizPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'quiz-attempts/:id',
+        lazy: () => import('@/features/quiz/AttemptReviewPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'enrollments/:id/learn/:nodeId',
+        lazy: () => import('@/features/learn/LearnPage').then((m) => ({ Component: m.default })),
       },
 
       // Instructor (Phase 8)

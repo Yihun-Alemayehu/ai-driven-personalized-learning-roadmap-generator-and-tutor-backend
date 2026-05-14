@@ -9,14 +9,16 @@ interface PageWrapperProps {
 
 export function PageWrapper({ children, className, full }: PageWrapperProps) {
   return (
-    <div
-      className={cn(
-        'px-6 py-8',
-        !full && 'max-w-5xl mx-auto',
-        className,
-      )}
-    >
-      {children}
+    <div className="flex-1 overflow-y-auto">
+      <div
+        className={cn(
+          'px-6 py-8',
+          !full && 'max-w-5xl mx-auto',
+          className,
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

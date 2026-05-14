@@ -17,14 +17,16 @@ Rules:
 
 Respond with ONLY valid JSON. No markdown, no prose, no code blocks.
 
+CRITICAL: The correctAnswer field MUST be copied verbatim from the options array — not a letter like "A" or a label like "option C".
+
 Required format:
 {
   "questions": [
     {
-      "questionText": "...",
-      "options": ["option A", "option B", "option C", "option D"],
-      "correctAnswer": "option A",
-      "explanation": "..."
+      "questionText": "What does CSS stand for?",
+      "options": ["Cascading Style Sheets", "Creative Style Syntax", "Computer Style System", "Coded Style Sheets"],
+      "correctAnswer": "Cascading Style Sheets",
+      "explanation": "CSS stands for Cascading Style Sheets, used to style HTML documents."
     }
   ]
 }`;

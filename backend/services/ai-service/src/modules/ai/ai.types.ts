@@ -7,6 +7,8 @@ export interface QuizGenerationInput {
   learningOutcomes: string[];
   difficultyLevel?: number;
   questionCount?: number;
+  /** Pre-generated explanation to ground quiz questions in specific content */
+  explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] };
 }
 
 export interface ExplanationInput {
