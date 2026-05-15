@@ -1,7 +1,43 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { MASTERY_CONFIG, masteryStyles } from '@/lib/masteryConfig';
+import { MASTERY_CONFIG } from '@/lib/masteryConfig';
 import type { RoadmapNode } from '@/types';
+
+// Hierarchy-level color palettes
+// level 0 = root topics (warm amber), level 1 = subtopics (sage), level 2+ = deep nodes (slate)
+const LEVEL_STYLES = [
+  // level 0 — main topics
+  {
+    bg:         '#fdecd4',
+    border:     '#d4905c',
+    text:       '#6b3a18',
+    dotBg:      '#d4905c',
+    lockedBg:   '#f5e8d8',
+    lockedBorder: '#d0bfa8',
+  },
+  // level 1 — subtopics
+  {
+    bg:         '#d8f0e0',
+    border:     '#5aaa78',
+    text:       '#1a5532',
+    dotBg:      '#5aaa78',
+    lockedBg:   '#e8f5ee',
+    lockedBorder: '#a8d4b8',
+  },
+  // level 2+ — deep nodes
+  {
+    bg:         '#d8e4f8',
+    border:     '#6080c0',
+    text:       '#1a2e58',
+    dotBg:      '#6080c0',
+    lockedBg:   '#eaeefc',
+    lockedBorder: '#b0c0e0',
+  },
+] as const;
+
+function levelStyle(level: number) {
+  return LEVEL_STYLES[Math.min(level, 2)];
+}
 
 function CheckBadge() {
   return (
@@ -44,18 +80,16 @@ function BranchingNode({ data }: { data: RoadmapNode }) {
         className="w-[90px] h-[90px] rounded-[6px] grid place-items-center"
         style={{
           transform: 'rotate(45deg)',
-          border: `1.5px ${data.unlocked ? 'solid' : 'dashed'} ${data.unlocked ? 'oklch(0.62 0.18 28)' : '#c2b9a6'}`,
-          background: data.unlocked
-            ? 'color-mix(in srgb, oklch(0.62 0.18 28) 8%, #faf7f1)'
-            : '#faf7f1',
+          border: `1.5px ${data.unlocked ? 'solid' : 'dashed'} ${data.unlocked ? '#d4905c' : '#c2b9a6'}`,
+          background: data.unlocked ? '#fdecd4' : '#faf7f1',
           cursor: data.unlocked ? 'pointer' : 'default',
         }}
       >
         <div style={{ transform: 'rotate(-45deg)' }} className="text-center px-1">
-          <div className="text-[11px] font-semibold leading-tight" style={{ color: '#1a1614', fontFamily: "'Crimson Pro', serif" }}>
+          <div className="text-[11px] font-semibold leading-tight" style={{ color: '#6b3a18', fontFamily: "'Crimson Pro', serif" }}>
             {data.title}
           </div>
-          <div className="text-[9px] mt-1 tracking-widest uppercase" style={{ color: '#9a9088', fontFamily: 'JetBrains Mono, monospace' }}>
+          <div className="text-[9px] mt-1 tracking-widest uppercase" style={{ color: '#d4905c', fontFamily: 'JetBrains Mono, monospace' }}>
             branch
           </div>
         </div>
@@ -65,36 +99,52 @@ function BranchingNode({ data }: { data: RoadmapNode }) {
   );
 }
 
-function StandardNode({ data, selected }: { data: RoadmapNode; selected: boolean }) {
+function StandardNode({ data, selected, level }: { data: RoadmapNode; selected: boolean; level: number }) {
   const state = data.masteryState;
   const cfg = MASTERY_CONFIG[state];
+  const lvl = levelStyle(level);
+  const isLocked = state === 'locked';
+
+  // Mastery state overrides the background to its own color but keeps level border for unlocked nodes
+  const bgColor = isLocked ? lvl.lockedBg : (state === 'not_started' ? lvl.bg : cfg.backgroundColor);
+  const borderColor = isLocked ? lvl.lockedBorder : (state === 'not_started' ? lvl.border : cfg.borderColor);
+  const textColor = isLocked ? '#9a9088' : (state === 'not_started' ? lvl.text : cfg.textColor);
 
   return (
     <>
       <Handle type="target" position={Position.Top} className="!opacity-0" />
       <div
-        className="relative w-[130px] rounded-[10px] border-[1.5px] px-3 py-2.5 transition-[transform,box-shadow] duration-[130ms]"
+        className="relative rounded-[10px] border-[1.5px] px-3 py-2.5 transition-[transform,box-shadow] duration-[130ms]"
         style={{
-          ...masteryStyles(state),
+          width: 160,
+          background: bgColor,
+          borderColor,
+          borderStyle: isLocked ? 'dashed' : 'solid',
           ...(state === 'review_needed' && { animation: 'atlasReviewPulse 2.2s ease-in-out infinite' }),
           ...(selected && { boxShadow: '0 0 0 3px rgba(200,97,58,0.35)' }),
-          cursor: state === 'locked' ? 'default' : 'pointer',
-          opacity: state === 'locked' ? 0.72 : 1,
+          cursor: isLocked ? 'default' : 'pointer',
+          opacity: isLocked ? 0.75 : 1,
         }}
       >
+        {/* Level indicator stripe */}
+        <div
+          className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full"
+          style={{ background: isLocked ? '#c2b9a6' : lvl.dotBg, opacity: isLocked ? 0.4 : 0.7 }}
+        />
+
         {state === 'mastered'      && <CheckBadge />}
         {state === 'locked'        && <LockBadge />}
         {state === 'review_needed' && <ReviewBadge />}
 
         <div
-          className="text-[13px] font-semibold leading-tight"
-          style={{ fontFamily: "'Crimson Pro', serif", color: state === 'locked' ? '#6e645a' : '#1a1614' }}
+          className="text-[13px] font-semibold leading-tight pl-2"
+          style={{ fontFamily: "'Crimson Pro', serif", color: isLocked ? '#6e645a' : '#1a1614' }}
         >
           {data.title}
         </div>
         <div
-          className="text-[9.5px] mt-1 tracking-[0.06em]"
-          style={{ fontFamily: 'JetBrains Mono, monospace', color: cfg.textColor }}
+          className="text-[9.5px] mt-1 tracking-[0.06em] pl-2"
+          style={{ fontFamily: 'JetBrains Mono, monospace', color: textColor, opacity: 0.9 }}
         >
           {cfg.label}
         </div>
@@ -105,9 +155,9 @@ function StandardNode({ data, selected }: { data: RoadmapNode; selected: boolean
 }
 
 export const LearningNodeCard = memo(function LearningNodeCard(props: NodeProps) {
-  const data = props.data as unknown as RoadmapNode;
+  const data = props.data as unknown as RoadmapNode & { _level?: number };
   if (data.isBranchingPoint) return <BranchingNode data={data} />;
-  return <StandardNode data={data} selected={!!props.selected} />;
+  return <StandardNode data={data} selected={!!props.selected} level={data._level ?? 0} />;
 });
 
 LearningNodeCard.displayName = 'LearningNodeCard';

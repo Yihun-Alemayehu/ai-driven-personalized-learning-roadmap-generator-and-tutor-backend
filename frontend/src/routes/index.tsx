@@ -4,6 +4,8 @@ import AppShell from '@/components/layout/AppShell';
 import ProtectedRoute from './ProtectedRoute';
 import RoleGuard from './RoleGuard';
 import { PageSpinner } from '@/components/common/Spinner';
+import InstructorLayout from '@/features/instructor/InstructorLayout';
+import AdminLayout from '@/features/admin/AdminLayout';
 
 // ── Pages ─────────────────────────────────────────────────────────────────────
 import DashboardPage from '@/pages/DashboardPage';
@@ -11,17 +13,15 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import UnauthorizedPage from '@/pages/UnauthorizedPage';
 import ProfilePage from '@/pages/ProfilePage';
 
-// ── Lazy-loaded (added per phase) ─────────────────────────────────────────────
+// ── Lazy-loaded ────────────────────────────────────────────────────────────────
 const CatalogPage       = lazy(() => import('@/features/catalog/DomainCatalogPage'));
 const DomainDetailPage  = lazy(() => import('@/features/catalog/DomainDetailPage'));
 const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage'));
 
-// ── Route helpers ──────────────────────────────────────────────────────────────
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageSpinner />}>{children}</Suspense>;
 }
 
-// ── Router ────────────────────────────────────────────────────────────────────
 export const router = createBrowserRouter([
   // Public routes
   {
@@ -39,7 +39,7 @@ export const router = createBrowserRouter([
   { path: '/unauthorized', element: <UnauthorizedPage /> },
   { path: '/404', element: <NotFoundPage /> },
 
-  // Protected shell
+  // Protected shell (AppShell layout)
   {
     path: '/',
     element: (
@@ -49,16 +49,19 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'profile',   element: <ProfilePage /> },
-      { path: 'catalog',   element: <Lazy><CatalogPage /></Lazy> },
+      { path: 'dashboard',  element: <DashboardPage /> },
+      { path: 'profile',    element: <ProfilePage /> },
+      { path: 'settings',   element: <ProfilePage /> },
+      { path: 'catalog',    element: <Lazy><CatalogPage /></Lazy> },
       { path: 'catalog/:slug', element: <Lazy><DomainDetailPage /></Lazy> },
       { path: 'notifications', element: <Lazy><NotificationsPage /></Lazy> },
-
-      // Roadmap + quiz (Phase 4 & 5)
       {
         path: 'enrollments/:id/roadmap',
         lazy: () => import('@/features/roadmap/RoadmapPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'enrollments/:id/learn/:nodeId',
+        lazy: () => import('@/features/learn/LearnPage').then((m) => ({ Component: m.default })),
       },
       {
         path: 'quiz/:nodeId',
@@ -68,33 +71,69 @@ export const router = createBrowserRouter([
         path: 'quiz-attempts/:id',
         lazy: () => import('@/features/quiz/AttemptReviewPage').then((m) => ({ Component: m.default })),
       },
-      {
-        path: 'enrollments/:id/learn/:nodeId',
-        lazy: () => import('@/features/learn/LearnPage').then((m) => ({ Component: m.default })),
-      },
 
-      // Instructor (Phase 8)
-      {
-        path: 'instructor',
-        element: <RoleGuard roles={['instructor', 'admin']}><Suspense fallback={<PageSpinner />}><Navigate to="/instructor/learners" replace /></Suspense></RoleGuard>,
-      },
-      {
-        path: 'instructor/*',
-        element: <RoleGuard roles={['instructor', 'admin']}><Lazy><Navigate to="/instructor/learners" replace /></Lazy></RoleGuard>,
-      },
+    ],
+  },
 
-      // Admin (Phase 9)
+  // Admin layout — has its own sidebar, outside AppShell
+  {
+    path: '/admin',
+    element: (
+      <ProtectedRoute>
+        <RoleGuard roles={['admin']}>
+          <AdminLayout />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <Navigate to="stats" replace /> },
       {
-        path: 'admin',
-        element: <RoleGuard roles={['admin']}><Navigate to="/admin/stats" replace /></RoleGuard>,
+        path: 'stats',
+        lazy: () => import('@/features/admin/SystemStatsPage').then((m) => ({ Component: m.default })),
       },
       {
-        path: 'admin/*',
-        element: <RoleGuard roles={['admin']}><Lazy><Navigate to="/admin/stats" replace /></Lazy></RoleGuard>,
+        path: 'users',
+        lazy: () => import('@/features/admin/UserManagementPage').then((m) => ({ Component: m.default })),
       },
+      {
+        path: 'domains',
+        lazy: () => import('@/features/admin/DomainManagementPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'ontology/:ontologyId',
+        lazy: () => import('@/features/admin/OntologyBuilderPage').then((m) => ({ Component: m.default })),
+      },
+    ],
+  },
 
-      // Settings placeholder
-      { path: 'settings', element: <ProfilePage /> },
+  // Instructor layout — has its own sidebar, wraps outside AppShell
+  {
+    path: '/instructor',
+    element: (
+      <ProtectedRoute>
+        <RoleGuard roles={['instructor', 'admin']}>
+          <InstructorLayout />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <Navigate to="learners" replace /> },
+      {
+        path: 'learners',
+        lazy: () => import('@/features/instructor/LearnerListPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'learners/:userId',
+        lazy: () => import('@/features/instructor/LearnerProgressPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'analytics',
+        lazy: () => import('@/features/instructor/DomainAnalyticsPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'flagged',
+        lazy: () => import('@/features/instructor/FlaggedEventsPage').then((m) => ({ Component: m.default })),
+      },
     ],
   },
 

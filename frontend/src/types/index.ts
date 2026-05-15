@@ -40,6 +40,9 @@ export interface Domain {
 }
 
 // ── Enrollments ───────────────────────────────────────────────────────────────
+export type FamiliarityLevel = 'beginner' | 'intermediate' | 'advanced';
+export type LearningGoal = 'get_job' | 'upskill' | 'hobby' | 'certification';
+
 export interface Enrollment {
   id: string;
   userId: string;
@@ -47,6 +50,10 @@ export interface Enrollment {
   domain: Domain;
   enrolledAt: string;
   selectedBranchPath?: BranchPath;
+  weeklyHours?: number | null;
+  familiarityLevel?: FamiliarityLevel | null;
+  learningGoal?: LearningGoal | null;
+  aboutSelf?: string | null;
 }
 
 // ── Learning nodes ────────────────────────────────────────────────────────────
@@ -170,6 +177,74 @@ export interface Notification {
   data?: Record<string, unknown>;
   read: boolean;
   createdAt: string;
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export interface AdminUser extends User {
+  createdAt: string;
+}
+
+export interface SystemStats {
+  users: number;
+  enrollments: number;
+  quizAttempts: number;
+  masteryBreakdown: Partial<Record<MasteryState, number>>;
+  avgMasteryRate: number;
+  avgQuizScore: number | null;
+}
+
+export interface DomainStat {
+  domainId: string;
+  name: string;
+  enrollmentCount: number;
+  avgCompletion: number;
+  avgQuizScore: number | null;
+}
+
+export interface OntologyVersion {
+  id: string;
+  domainId: string;
+  version: number;
+  status: OntologyStatus;
+  createdAt: string;
+  publishedAt?: string;
+}
+
+export interface OntologyNode {
+  id: string;
+  ontologyId: string;
+  title: string;
+  slug: string;
+  description?: string;
+  learningOutcomes: string[];
+  estimatedHours?: number;
+  difficultyLevel?: number;
+  isBranchingPoint: boolean;
+  isConvergencePoint: boolean;
+  branchPath?: BranchPath;
+  positionX?: number;
+  positionY?: number;
+}
+
+export interface OntologyEdge {
+  id: string;
+  nodeId: string;
+  prerequisiteNodeId: string;
+}
+
+export interface OntologyDetail {
+  id: string;
+  domainId: string;
+  version: number;
+  status: OntologyStatus;
+  nodes: OntologyNode[];
+  edges: OntologyEdge[];
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
 }
 
 // ── API pagination ────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { PageWrapper } from '@/components/layout/PageWrapper';
 import { useAuth } from '@/hooks/useAuth';
 import { useEnrollmentsQuery } from '@/api/enrollments';
 import { EnrolledDomainCard } from '@/features/dashboard/components/EnrolledDomainCard';
+import { DecayStatusPanel } from '@/features/decay/DecayStatusPanel';
 
 function EnrollmentsSkeleton() {
   return (
@@ -99,21 +100,22 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* Decay Alerts placeholder (Phase 7) */}
-      <section>
-        <h2
-          className="text-[20px] mb-3"
-          style={{ fontFamily: "'Cormorant Garamond', serif", color: '#3d342a' }}
-        >
-          Review Reminders
-        </h2>
-        <div
-          className="border rounded-2xl px-6 py-4 text-sm"
-          style={{ background: '#faf7f1', borderColor: '#d6cfbf', color: '#9a9088', fontFamily: "'Crimson Pro', serif" }}
-        >
-          Decay alerts will appear here once you start mastering nodes.
-        </div>
-      </section>
+      {/* Decay Alerts — one panel per enrollment */}
+      {enrollments && enrollments.length > 0 && (
+        <section className="mb-6">
+          <h2
+            className="text-[20px] mb-3"
+            style={{ fontFamily: "'Cormorant Garamond', serif", color: '#3d342a' }}
+          >
+            Review Reminders
+          </h2>
+          <div className="flex flex-col gap-4">
+            {enrollments.map((enrollment) => (
+              <DecayStatusPanel key={enrollment.id} enrollmentId={enrollment.id} />
+            ))}
+          </div>
+        </section>
+      )}
     </PageWrapper>
   );
 }

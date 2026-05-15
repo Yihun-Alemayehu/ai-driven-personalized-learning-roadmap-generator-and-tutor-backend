@@ -4,9 +4,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { useRoadmapQuery, useProgressStatsQuery, type ProgressStats } from '@/api/progress';
 import { useEnrollmentsQuery } from '@/api/enrollments';
 import { useBreadcrumbStore } from '@/store/breadcrumbStore';
+import { useBranchingPointsQuery } from '@/api/branching';
 import { RoadmapCanvas } from './components/RoadmapCanvas';
 import { NodeDetailDrawer } from './components/NodeDetailDrawer';
 import { ProgressSidebar } from './components/ProgressSidebar';
+import { BranchingPointBanner } from '@/features/branching/components/BranchingPointBanner';
 import type { RoadmapNode, BranchPath } from '@/types';
 
 const EMPTY_STATS: ProgressStats = {
@@ -40,6 +42,7 @@ export default function RoadmapPage() {
   const { data: roadmap, isLoading: roadmapLoading } = useRoadmapQuery(enrollmentId);
   const { data: stats } = useProgressStatsQuery(enrollmentId);
   const { data: enrollments } = useEnrollmentsQuery();
+  const { data: branchingPoints } = useBranchingPointsQuery(enrollmentId);
 
   const enrollment = enrollments?.find((e) => e.id === enrollmentId);
 
@@ -71,11 +74,23 @@ export default function RoadmapPage() {
     return () => clearBreadcrumbs();
   }, [enrollment, setBreadcrumbs, clearBreadcrumbs]);
 
+  // Show banner for the first reached (unlocked) branching point
+  const activeBranchingPoint = branchingPoints?.find((bp) => bp.isReached);
+
   return (
     <div
       className="flex flex-col h-full overflow-hidden"
       style={{ fontFamily: "'Crimson Pro', Georgia, serif", color: '#1a1614' }}
     >
+      {/* Branching point banner — shown above the canvas */}
+      {activeBranchingPoint && (
+        <BranchingPointBanner
+          enrollmentId={enrollmentId}
+          branchingPoint={activeBranchingPoint}
+          currentPath={enrollment?.selectedBranchPath}
+        />
+      )}
+
       {/* Body */}
       <div className="flex flex-1 overflow-hidden min-h-0">
         <ProgressSidebar

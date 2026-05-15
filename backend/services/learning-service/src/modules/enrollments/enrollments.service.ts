@@ -42,6 +42,10 @@ export async function enroll(userId: string, data: EnrollInput) {
       domainId: data.domainId,
       ontologyVersionId: ontology.id,
       selectedBranchPath: (data.selectedBranchPath as BranchPath) ?? null,
+      weeklyHours: data.weeklyHours ?? null,
+      familiarityLevel: data.familiarityLevel ?? null,
+      learningGoal: data.learningGoal ?? null,
+      aboutSelf: data.aboutSelf ?? null,
     },
   });
 

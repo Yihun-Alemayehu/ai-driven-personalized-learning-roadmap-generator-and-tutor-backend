@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
+import { BottomNav } from './BottomNav';
 import { useIsDesktop } from '@/hooks/useMediaQuery';
 
 export default function AppShell() {
@@ -14,10 +15,14 @@ export default function AppShell() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden min-h-0">
         {isDesktop && <Sidebar />}
-        <main className="flex-1 overflow-hidden flex flex-col min-h-0">
+        <main
+          className="flex-1 overflow-hidden flex flex-col min-h-0"
+          style={{ paddingBottom: isDesktop ? 0 : 60 }}
+        >
           <Outlet />
         </main>
       </div>
+      {!isDesktop && <BottomNav />}
     </div>
   );
 }

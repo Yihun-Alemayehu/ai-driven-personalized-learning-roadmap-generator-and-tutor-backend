@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
-import type { Enrollment } from '@/types';
+import type { Enrollment, FamiliarityLevel, LearningGoal } from '@/types';
+
+export interface EnrollPayload {
+  domainId: string;
+  weeklyHours?: number;
+  familiarityLevel?: FamiliarityLevel;
+  learningGoal?: LearningGoal;
+  aboutSelf?: string;
+}
 
 // API response for GET /enrollments — extends Enrollment with live counts
 export interface EnrollmentWithCounts extends Enrollment {
@@ -33,9 +41,9 @@ export function useEnrollmentsQuery() {
 export function useEnrollMutation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (domainId: string) =>
+    mutationFn: (payload: EnrollPayload) =>
       apiClient
-        .post<EnrollResult>('/enrollments', { domainId })
+        .post<EnrollResult>('/enrollments', payload)
         .then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: enrollmentKeys.all }),
   });

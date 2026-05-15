@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom';
-import { BellIcon } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 import { useAuth } from '@/hooks/useAuth';
 import { useBreadcrumbStore } from '@/store/breadcrumbStore';
+import { NotificationBell } from '@/features/notifications/components/NotificationDropdown';
 
 export function Navbar() {
   const { user } = useAuth();
   const breadcrumbs = useBreadcrumbStore((s) => s.breadcrumbs);
-  const unreadCount = 0;
 
   const initials = user?.fullName
     ? user.fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -56,23 +55,8 @@ export function Navbar() {
 
       <div className="flex-1" />
 
-      {/* Notification bell */}
-      <Link
-        to="/notifications"
-        className="relative w-8.5 h-8.5 rounded-lg border grid place-items-center transition-colors hover:bg-muted"
-        style={{ borderColor: '#d6cfbf', color: '#6e645a' }}
-        title="Notifications"
-      >
-        <BellIcon size={17} strokeWidth={1.6} />
-        {unreadCount > 0 && (
-          <span
-            className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold text-white leading-none px-0.75"
-            style={{ background: 'oklch(0.60 0.18 28)', fontFamily: 'JetBrains Mono, monospace' }}
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </Link>
+      {/* Notification bell with live unread count */}
+      <NotificationBell />
 
       {/* Avatar */}
       <Link
