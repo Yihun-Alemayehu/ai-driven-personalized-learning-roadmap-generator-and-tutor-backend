@@ -19,7 +19,7 @@ function truncate(str: string, n: number) {
 }
 
 export function MasteryRateChart({ data }: Props) {
-  const sorted = [...data].sort((a, b) => a.masteryRate - b.masteryRate);
+  const sorted = [...data].sort((a, b) => (a.masteryRate ?? 0) - (b.masteryRate ?? 0));
 
   return (
     <ResponsiveContainer width="100%" height={Math.max(220, sorted.length * 36)}>
@@ -63,9 +63,9 @@ export function MasteryRateChart({ data }: Props) {
             <Cell
               key={entry.nodeId}
               fill={
-                entry.masteryRate >= 70
+                (entry.masteryRate ?? 0) >= 70
                   ? 'oklch(0.60 0.13 150)'
-                  : entry.masteryRate >= 40
+                  : (entry.masteryRate ?? 0) >= 40
                   ? 'oklch(0.72 0.13 70)'
                   : 'oklch(0.62 0.18 28)'
               }

@@ -1,5 +1,7 @@
+import { useMutation } from '@tanstack/react-query';
 import { apiClient } from './client';
 import type { User, AuthTokens, AuthResponse } from '@/types';
+import { useAuthStore } from '@/store/auth.store';
 
 export const authApi = {
   login: (data: { email: string; password: string }) =>
@@ -15,4 +17,23 @@ export const authApi = {
     apiClient.post('/auth/logout', { refreshToken }),
 
   getMe: () => apiClient.get<{ user: User }>('/users/me').then((r) => r.data.user),
+
+  updateMe: (data: { fullName?: string; avatarUrl?: string | null; preferredLanguage?: string }) =>
+    apiClient.patch<{ user: User }>('/users/me', data).then((r) => r.data.user),
 };
+
+export function useUpdateProfileMutation() {
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
+
+  return useMutation({
+    mutationFn: (data: { fullName?: string; avatarUrl?: string | null; preferredLanguage?: string }) =>
+      authApi.updateMe(data),
+    onSuccess: (updatedUser) => {
+      if (accessToken && refreshToken) {
+        setAuth(updatedUser, accessToken, refreshToken);
+      }
+    },
+  });
+}

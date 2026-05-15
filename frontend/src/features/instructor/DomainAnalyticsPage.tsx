@@ -66,7 +66,7 @@ export default function DomainAnalyticsPage() {
           {/* Stat cards */}
           <div className="grid grid-cols-3 gap-4">
             <StatCard label="Enrollments" value={analytics.enrollmentCount} />
-            <StatCard label="Overall mastery" value={`${analytics.overallMasteryRate.toFixed(0)}%`} />
+            <StatCard label="Overall mastery" value={`${(analytics.overallMasteryRate ?? 0).toFixed(0)}%`} />
             <StatCard label="Total nodes" value={analytics.nodeAnalytics.length} />
           </div>
 

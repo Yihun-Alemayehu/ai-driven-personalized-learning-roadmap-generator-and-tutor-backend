@@ -122,12 +122,38 @@ export function useDomainAnalyticsQuery(domainId: string) {
       apiClient
         .get<{
           domain: { id: string; name: string };
-          enrollmentCount: number;
-          overallMasteryRate: number;
-          nodeAnalytics: NodeAnalytic[];
-          problemNodes: NodeAnalytic[];
+          enrollmentCount?: number;
+          overallMasteryRate?: number;
+          nodeAnalytics?: NodeAnalytic[];
+          problemNodes?: NodeAnalytic[];
+          // Backward-compatible shape returned when no ontology exists
+          nodes?: NodeAnalytic[];
         }>(`/instructor/domains/${domainId}/analytics`)
-        .then((r) => r.data),
+        .then((r) => {
+          const raw = r.data;
+          const nodeAnalytics = raw.nodeAnalytics ?? raw.nodes ?? [];
+          const problemNodes =
+            raw.problemNodes ??
+            [...nodeAnalytics]
+              .filter((n) => (n.learnerCount ?? 0) > 0)
+              .sort((a, b) => (a.masteryRate ?? 0) - (b.masteryRate ?? 0))
+              .slice(0, 5);
+
+          const overallMasteryRate =
+            typeof raw.overallMasteryRate === 'number'
+              ? raw.overallMasteryRate
+              : nodeAnalytics.length > 0
+                ? nodeAnalytics.reduce((sum, n) => sum + (n.masteryRate ?? 0), 0) / nodeAnalytics.length
+                : 0;
+
+          return {
+            domain: raw.domain,
+            enrollmentCount: raw.enrollmentCount ?? 0,
+            overallMasteryRate,
+            nodeAnalytics,
+            problemNodes,
+          };
+        }),
     enabled: Boolean(domainId),
   });
 }

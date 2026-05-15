@@ -30,16 +30,16 @@ export function ProblemNodesTable({ nodes }: Props) {
               <td className="px-4 py-2.5">
                 <span
                   className="text-[13px] font-mono font-semibold"
-                  style={{ color: n.masteryRate >= 70 ? 'oklch(0.60 0.13 150)' : n.masteryRate >= 40 ? 'oklch(0.72 0.13 70)' : 'oklch(0.62 0.18 28)' }}
+                  style={{ color: (n.masteryRate ?? 0) >= 70 ? 'oklch(0.60 0.13 150)' : (n.masteryRate ?? 0) >= 40 ? 'oklch(0.72 0.13 70)' : 'oklch(0.62 0.18 28)' }}
                 >
-                  {n.masteryRate.toFixed(0)}%
+                  {(n.masteryRate ?? 0).toFixed(0)}%
                 </span>
               </td>
               <td className="px-4 py-2.5 text-[12px] font-mono" style={{ color: '#6e645a' }}>
                 {n.avgQuizScore != null ? `${n.avgQuizScore.toFixed(0)}%` : '—'}
               </td>
               <td className="px-4 py-2.5 text-[12px] font-mono" style={{ color: '#6e645a' }}>
-                {n.avgAttempts.toFixed(1)}
+                {(n.avgAttempts ?? 0).toFixed(1)}
               </td>
             </tr>
           ))}
