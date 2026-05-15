@@ -1,11 +1,12 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboardIcon, BookOpenIcon, BellIcon,
   UsersIcon, BarChart2Icon, FlagIcon,
-  ShieldIcon, GlobeIcon, SettingsIcon, UserIcon,
+  ShieldIcon, GlobeIcon, SettingsIcon, UserIcon, BookMarkedIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useMyLearningStore } from '@/store/myLearning.store';
 
 interface NavItem {
   to: string;
@@ -55,6 +56,68 @@ function SidebarGroup({ label, items }: { label: string; items: NavItem[] }) {
   );
 }
 
+function MyLearningSection() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { entries, remove } = useMyLearningStore();
+
+  // Extract active enrollmentId from /enrollments/:id/learn/:nodeId
+  const activeEnrollmentId = location.pathname.match(/\/enrollments\/([^/]+)\//)?.[1];
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div
+        className="text-[9px] tracking-[0.14em] uppercase px-3 mb-1"
+        style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
+      >
+        My Learning
+      </div>
+      {entries.map((entry) => {
+        const isActive = entry.enrollmentId === activeEnrollmentId;
+        return (
+          <div
+            key={entry.enrollmentId}
+            className="group flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+            style={{
+              background: isActive
+                ? 'color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)'
+                : 'transparent',
+            }}
+            onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#ebe6db'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? 'color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)' : 'transparent'; }}
+            onClick={() => navigate(`/enrollments/${entry.enrollmentId}/learn/${entry.lastNodeId}`)}
+          >
+            <BookMarkedIcon
+              size={13}
+              style={{ color: isActive ? 'oklch(0.62 0.18 28)' : '#9a9088', flexShrink: 0 }}
+            />
+            <span
+              className="flex-1 min-w-0 truncate text-[13px]"
+              style={{
+                fontFamily: "'Crimson Pro', serif",
+                color: isActive ? 'oklch(0.62 0.18 28)' : '#3a342e',
+                fontWeight: isActive ? 600 : 400,
+              }}
+            >
+              {entry.domainName}
+            </span>
+            <button
+              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center rounded text-[11px]"
+              style={{ color: '#9a9088' }}
+              onClick={(e) => { e.stopPropagation(); remove(entry.enrollmentId); }}
+              title="Remove"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Sidebar() {
   const { isAdmin, isInstructor } = useAuth();
 
@@ -71,6 +134,8 @@ export function Sidebar() {
           { to: '/notifications', label: 'Notifications', icon: <BellIcon size={15} /> },
         ]}
       />
+
+      <MyLearningSection />
 
       {isInstructor && (
         <SidebarGroup

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MASTERY_CONFIG } from '@/lib/masteryConfig';
+import { useMyLearningStore } from '@/store/myLearning.store';
 import type { RoadmapNode, MasteryState } from '@/types';
 
 interface LearnSidebarProps {
@@ -53,6 +54,7 @@ function NodeRow({
         style={{
           fontFamily: "'Crimson Pro', serif",
           color: active ? '#f3efe7' : isLocked ? '#9a9088' : '#3a342e',
+          fontWeight: active ? 600 : 400,
         }}
       >
         {node.title}
@@ -89,6 +91,8 @@ export function LearnSidebar({ nodes, activeNodeId, enrollmentId }: LearnSidebar
   const navigate = useNavigate();
   const sections = groupNodes(nodes);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [myLearningOpen, setMyLearningOpen] = useState(true);
+  const { entries, remove } = useMyLearningStore();
 
   const toggle = (label: string) =>
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -98,6 +102,76 @@ export function LearnSidebar({ nodes, activeNodeId, enrollmentId }: LearnSidebar
 
   return (
     <div className="flex flex-col h-full" style={{ background: '#f3efe7' }}>
+      {/* My Learning panel */}
+      {entries.length > 0 && (
+        <div className="border-b" style={{ borderColor: '#d6cfbf' }}>
+          <button
+            className="w-full flex items-center justify-between px-4 pt-3 pb-2"
+            onClick={() => setMyLearningOpen((v) => !v)}
+          >
+            <span
+              className="text-[10px] tracking-[0.12em] uppercase"
+              style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
+            >
+              My Learning
+            </span>
+            <span
+              className="text-[10px] font-mono transition-transform"
+              style={{ color: '#9a9088', display: 'inline-block', transform: myLearningOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+            >
+              ▾
+            </span>
+          </button>
+
+          {myLearningOpen && (
+            <div className="pb-2 px-2 flex flex-col gap-0.5">
+              {entries.map((entry) => {
+                const isActive = entry.enrollmentId === enrollmentId;
+                return (
+                  <div
+                    key={entry.enrollmentId}
+                    className="flex items-center gap-1.5 rounded-[8px] px-2 py-2 group"
+                    style={{ background: isActive ? 'rgba(26,22,20,0.08)' : 'transparent' }}
+                  >
+                    <button
+                      className="flex-1 text-left min-w-0"
+                      onClick={() =>
+                        navigate(`/enrollments/${entry.enrollmentId}/learn/${entry.lastNodeId}`)
+                      }
+                    >
+                      <span
+                        className="block text-[12px] leading-snug truncate"
+                        style={{
+                          fontFamily: "'Crimson Pro', serif",
+                          color: isActive ? '#1a1614' : '#5a524a',
+                          fontWeight: isActive ? 600 : 400,
+                        }}
+                      >
+                        {entry.domainName}
+                      </span>
+                      <span
+                        className="text-[10px] font-mono"
+                        style={{ color: '#9a9088' }}
+                      >
+                        {new Date(entry.lastAccessedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </span>
+                    </button>
+                    <button
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center rounded"
+                      style={{ color: '#9a9088' }}
+                      onClick={(e) => { e.stopPropagation(); remove(entry.enrollmentId); }}
+                      title="Remove from My Learning"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: '#d6cfbf' }}>
         <div

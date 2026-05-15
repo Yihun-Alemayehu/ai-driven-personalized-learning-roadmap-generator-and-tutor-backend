@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useRoadmapQuery } from '@/api/progress';
 import { useEnrollmentsQuery } from '@/api/enrollments';
 import { useBreadcrumbStore } from '@/store/breadcrumbStore';
+import { useMyLearningStore } from '@/store/myLearning.store';
 import { LearnSidebar } from './components/LearnSidebar';
 import { LearnContent } from './components/LearnContent';
 import type { RoadmapNode } from '@/types';
@@ -29,6 +30,8 @@ export default function LearnPage() {
   const { data: enrollments } = useEnrollmentsQuery();
 
   const { setBreadcrumbs, clearBreadcrumbs } = useBreadcrumbStore();
+  const addToMyLearning = useMyLearningStore((s) => s.add);
+  const updateLastNode = useMyLearningStore((s) => s.updateLastNode);
   const enrollment = enrollments?.find((e) => e.id === enrollmentId);
 
   useEffect(() => {
@@ -52,6 +55,11 @@ export default function LearnPage() {
       navigate(`/enrollments/${enrollmentId}/learn/${first.id}`, { replace: true });
     }
   }, [roadmapLoading, nodes, activeNode, enrollmentId, navigate]);
+
+  // Track last visited node in My Learning store (only updates entries already added)
+  useEffect(() => {
+    if (nodeId) updateLastNode(enrollmentId, nodeId);
+  }, [enrollmentId, nodeId, updateLastNode]);
 
   if (roadmapLoading) return <Spinner />;
 
@@ -91,7 +99,21 @@ export default function LearnPage() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 overflow-hidden flex flex-col">
-        <LearnContent node={activeNode} enrollmentId={enrollmentId} />
+        <LearnContent
+          key={activeNode.id}
+          node={activeNode}
+          enrollmentId={enrollmentId}
+          onExplanationRequested={() => {
+            if (enrollment) {
+              addToMyLearning({
+                enrollmentId,
+                domainName: enrollment.domain.name,
+                domainSlug: enrollment.domain.slug,
+                lastNodeId: activeNode.id,
+              });
+            }
+          }}
+        />
       </main>
     </div>
   );

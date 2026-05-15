@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExplanationQuery } from '@/api/explanation';
 import { MASTERY_CONFIG } from '@/lib/masteryConfig';
+import { InlineQuiz } from './InlineQuiz';
 import type { RoadmapNode } from '@/types';
 
 interface LearnContentProps {
   node: RoadmapNode;
   enrollmentId: string;
+  onExplanationRequested: () => void;
 }
 
 function Skeleton() {
@@ -45,13 +47,18 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function LearnContent({ node, enrollmentId }: LearnContentProps) {
+export function LearnContent({ node, enrollmentId, onExplanationRequested }: LearnContentProps) {
   const navigate = useNavigate();
   const [enabled, setEnabled] = useState(false);
+  const [view, setView] = useState<'explanation' | 'quiz'>('explanation');
   const { data, isLoading, isError } = useExplanationQuery(node.id, enabled);
 
   const cfg = MASTERY_CONFIG[node.masteryState];
   const canTakeQuiz = node.unlocked && node.masteryState !== 'locked';
+
+  if (view === 'quiz') {
+    return <InlineQuiz nodeId={node.id} enrollmentId={enrollmentId} onBack={() => setView('explanation')} />;
+  }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -143,7 +150,10 @@ export function LearnContent({ node, enrollmentId }: LearnContentProps) {
                 background: '#1a1614',
                 color: '#f3efe7',
               }}
-              onClick={() => setEnabled(true)}
+              onClick={() => {
+                setEnabled(true);
+                onExplanationRequested();
+              }}
             >
               Generate explanation
             </button>
@@ -290,7 +300,7 @@ export function LearnContent({ node, enrollmentId }: LearnContentProps) {
             color: canTakeQuiz ? '#f3efe7' : '#9a9088',
           }}
           disabled={!canTakeQuiz}
-          onClick={() => canTakeQuiz && navigate(`/quiz/${node.id}?enrollment=${enrollmentId}`)}
+          onClick={() => canTakeQuiz && setView('quiz')}
         >
           Take quiz →
         </button>

@@ -7,6 +7,7 @@ interface OutcomeScreenProps {
   enrollmentId: string;
   attemptId: string;
   onRetry: () => void;
+  onContinue?: () => void;
 }
 
 function ScoreStars({ score }: { score: number }) {
@@ -33,8 +34,9 @@ const TIER_CONFIG = {
   fail_severe:      { emoji: '✗', label: 'Need more work', subLabel: 'Consider reaching out for help', accent: 'oklch(0.50 0.20 25)', bg: 'color-mix(in srgb, oklch(0.50 0.20 25) 8%, #faf7f1)'  },
 } as const;
 
-export function OutcomeScreen({ result, enrollmentId, attemptId, onRetry }: OutcomeScreenProps) {
+export function OutcomeScreen({ result, enrollmentId, attemptId, onRetry, onContinue }: OutcomeScreenProps) {
   const navigate = useNavigate();
+  const handleContinue = () => (onContinue ? onContinue() : navigate(-1));
   const { attempt, gatekeeper, challengeProject, adaptedResources } = result;
   const tier = gatekeeper.tier;
   const cfg = TIER_CONFIG[tier];
@@ -132,7 +134,7 @@ export function OutcomeScreen({ result, enrollmentId, attemptId, onRetry }: Outc
             <Button
               className="w-full rounded-full h-10 text-[15px]"
               style={{ background: '#1a1614', color: '#f3efe7', fontFamily: "'Crimson Pro', serif" }}
-              onClick={() => navigate(-1)}
+              onClick={handleContinue}
             >
               Continue →
             </Button>
@@ -166,9 +168,9 @@ export function OutcomeScreen({ result, enrollmentId, attemptId, onRetry }: Outc
               variant="ghost"
               className="w-full rounded-full h-9 text-[14px]"
               style={{ fontFamily: "'Crimson Pro', serif", color: '#6e645a' }}
-              onClick={() => navigate(-1)}
+              onClick={handleContinue}
             >
-              Back to roadmap
+              {onContinue ? 'Back to explanation' : 'Back to roadmap'}
             </Button>
           </>
         )}
