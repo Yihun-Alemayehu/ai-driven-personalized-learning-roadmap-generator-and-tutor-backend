@@ -12,6 +12,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import UnauthorizedPage from '@/pages/UnauthorizedPage';
 import ProfilePage from '@/pages/ProfilePage';
+import SettingsPage from '@/pages/SettingsPage';
 
 // ── Lazy-loaded ────────────────────────────────────────────────────────────────
 const CatalogPage       = lazy(() => import('@/features/catalog/DomainCatalogPage'));
@@ -51,7 +52,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard',  element: <DashboardPage /> },
       { path: 'profile',    element: <ProfilePage /> },
-      { path: 'settings',   element: <ProfilePage /> },
+      { path: 'settings',   element: <SettingsPage /> },
       { path: 'catalog',    element: <Lazy><CatalogPage /></Lazy> },
       { path: 'catalog/:slug', element: <Lazy><DomainDetailPage /></Lazy> },
       { path: 'notifications', element: <Lazy><NotificationsPage /></Lazy> },

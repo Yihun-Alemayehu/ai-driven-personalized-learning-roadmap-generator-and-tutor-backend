@@ -14,6 +14,7 @@ interface MyLearningState {
   add: (entry: Omit<MyLearningEntry, 'lastAccessedAt'>) => void;
   updateLastNode: (enrollmentId: string, nodeId: string) => void;
   remove: (enrollmentId: string) => void;
+  clear: () => void;
 }
 
 export const useMyLearningStore = create<MyLearningState>()(
@@ -54,6 +55,8 @@ export const useMyLearningStore = create<MyLearningState>()(
         set((state) => ({
           entries: state.entries.filter((e) => e.enrollmentId !== enrollmentId),
         })),
+
+      clear: () => set({ entries: [] }),
     }),
     { name: 'atlas-my-learning' },
   ),

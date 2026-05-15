@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
 import { useEnrollMutation } from '@/api/enrollments';
 import { getDomainMeta } from '../lib/domainIcons';
 import type { Domain, FamiliarityLevel, LearningGoal } from '@/types';
+import { useAtlasSettingsStore } from '@/store/settings.store';
 
 interface EnrollDialogProps {
   domain: Domain;
@@ -22,6 +23,19 @@ interface PersonalizationForm {
   learningGoal: LearningGoal | '';
   weeklyHours: string;
   aboutSelf: string;
+}
+
+function createInitialForm(defaults: {
+  weeklyHoursGoal: number;
+  familiarityLevel: FamiliarityLevel;
+  learningGoal: LearningGoal;
+}): PersonalizationForm {
+  return {
+    familiarityLevel: defaults.familiarityLevel,
+    learningGoal: defaults.learningGoal,
+    weeklyHours: String(defaults.weeklyHoursGoal),
+    aboutSelf: '',
+  };
 }
 
 const FAMILIARITY_OPTIONS: { value: FamiliarityLevel; label: string; desc: string }[] = [
@@ -240,14 +254,18 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
   const navigate = useNavigate();
   const meta = getDomainMeta(domain.slug);
   const enroll = useEnrollMutation();
+  const learningDefaults = useAtlasSettingsStore((s) => s.learningDefaults);
   const [step, setStep] = useState<1 | 2>(1);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<PersonalizationForm>({
-    familiarityLevel: '',
-    learningGoal: '',
-    weeklyHours: '',
-    aboutSelf: '',
-  });
+  const [form, setForm] = useState<PersonalizationForm>(() => createInitialForm(learningDefaults));
+
+  useEffect(() => {
+    if (open) {
+      setStep(1);
+      setError(null);
+      setForm(createInitialForm(learningDefaults));
+    }
+  }, [open, learningDefaults]);
 
   const onChange = (patch: Partial<PersonalizationForm>) =>
     setForm((prev) => ({ ...prev, ...patch }));
@@ -255,6 +273,7 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
   const handleClose = () => {
     setStep(1);
     setError(null);
+    setForm(createInitialForm(learningDefaults));
     onClose();
   };
 

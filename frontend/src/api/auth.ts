@@ -20,6 +20,11 @@ export const authApi = {
 
   updateMe: (data: { fullName?: string; avatarUrl?: string | null; preferredLanguage?: string }) =>
     apiClient.patch<{ user: User }>('/users/me', data).then((r) => r.data.user),
+
+  changePassword: (data: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
+    apiClient.post<{ message: string }>('/users/me/change-password', data).then((r) => r.data),
+
+  deleteMe: () => apiClient.delete('/users/me'),
 };
 
 export function useUpdateProfileMutation() {
@@ -35,5 +40,18 @@ export function useUpdateProfileMutation() {
         setAuth(updatedUser, accessToken, refreshToken);
       }
     },
+  });
+}
+
+export function useChangePasswordMutation() {
+  return useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
+      authApi.changePassword(data),
+  });
+}
+
+export function useDeleteAccountMutation() {
+  return useMutation({
+    mutationFn: () => authApi.deleteMe(),
   });
 }

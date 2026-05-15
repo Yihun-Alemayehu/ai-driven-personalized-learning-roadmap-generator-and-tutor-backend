@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import * as usersService from './users.service';
 import { ApiError } from '../../utils/ApiError';
-import { updateMeSchema, listUsersSchema } from './users.validation';
+import { updateMeSchema, listUsersSchema, changePasswordSchema } from './users.validation';
 
 function validate<T>(schema: Joi.ObjectSchema<T>, data: unknown): T {
   const { error, value } = schema.validate(data, { abortEarly: false, stripUnknown: true });
@@ -47,6 +47,29 @@ export async function listUsers(req: Request, res: Response, next: NextFunction)
     const { page, limit, role } = validate(listUsersSchema, req.query);
     const { users, total } = await usersService.listUsers(page, limit, role);
     res.json({ users, total, page, limit });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function changeMyPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { currentPassword, newPassword } = validate(changePasswordSchema, req.body);
+    await usersService.changePassword(req.user!.id, currentPassword, newPassword);
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await usersService.deleteMe(req.user!.id);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

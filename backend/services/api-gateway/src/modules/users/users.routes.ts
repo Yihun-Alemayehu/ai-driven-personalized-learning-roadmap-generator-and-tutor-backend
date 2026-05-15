@@ -59,6 +59,50 @@ router.patch('/me', ctrl.updateMe);
 
 /**
  * @openapi
+ * /users/me/change-password:
+ *   post:
+ *     tags: [Users]
+ *     summary: Change current user's password
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword, confirmPassword]
+ *             properties:
+ *               currentPassword: { type: string, minLength: 8 }
+ *               newPassword: { type: string, minLength: 8 }
+ *               confirmPassword: { type: string, minLength: 8 }
+ *     responses:
+ *       200:
+ *         description: Password changed
+ *       400: { description: Validation error }
+ *       401: { description: Unauthorized or wrong current password }
+ */
+router.post('/me/change-password', ctrl.changeMyPassword);
+
+/**
+ * @openapi
+ * /users/me:
+ *   delete:
+ *     tags: [Users]
+ *     summary: Delete current user account
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       204:
+ *         description: Account deleted
+ *       400:
+ *         description: Account cannot be deleted due to ownership constraints
+ *       401: { description: Unauthorized }
+ */
+router.delete('/me', ctrl.deleteMe);
+
+/**
+ * @openapi
  * /users/{id}:
  *   get:
  *     tags: [Users]
