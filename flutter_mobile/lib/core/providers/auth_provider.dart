@@ -1,0 +1,246 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../api/api_client.dart';
+import '../api/auth_api.dart';
+import '../models/user.dart';
+
+class AuthState {
+  const AuthState({
+    required this.user,
+    required this.tokens,
+    required this.isLoading,
+    this.error,
+  });
+
+  final User? user;
+  final AuthTokens? tokens;
+  final bool isLoading;
+  final String? error;
+
+  bool get isAuthenticated => user != null && tokens != null;
+
+  static const AuthState loading = AuthState(
+    user: null,
+    tokens: null,
+    isLoading: true,
+  );
+
+  static const AuthState unauthenticated = AuthState(
+    user: null,
+    tokens: null,
+    isLoading: false,
+  );
+
+  AuthState copyWith({
+    User? user,
+    AuthTokens? tokens,
+    bool? isLoading,
+    String? error,
+    bool clearError = false,
+    bool clearSession = false,
+  }) {
+    return AuthState(
+      user: clearSession ? null : (user ?? this.user),
+      tokens: clearSession ? null : (tokens ?? this.tokens),
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
+}
+
+final secureStorageProvider = Provider<FlutterSecureStorage>(
+  (ref) => const FlutterSecureStorage(),
+);
+
+final authApiProvider = Provider<AuthApi>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return AuthApi(dio: apiClient.dio, apiClient: apiClient);
+});
+
+final authProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);
+
+class AuthNotifier extends AsyncNotifier<AuthState> {
+  static const String _accessTokenKey = 'accessToken';
+  static const String _refreshTokenKey = 'refreshToken';
+  bool _isLoggingOut = false;
+
+  FlutterSecureStorage get _storage => ref.read(secureStorageProvider);
+  AuthApi get _authApi => ref.read(authApiProvider);
+
+  @override
+  Future<AuthState> build() async {
+    final apiClient = ref.read(apiClientProvider);
+    apiClient.bindAuth(
+      accessTokenGetter: () => state.valueOrNull?.tokens?.accessToken,
+      refreshTokenHandler: refreshTokensFromInterceptor,
+      onRefreshFailure: logout,
+    );
+
+    return _initialize();
+  }
+
+  Future<AuthState> _initialize() async {
+    final accessToken = await _storage.read(key: _accessTokenKey);
+    final refreshToken = await _storage.read(key: _refreshTokenKey);
+
+    if (accessToken == null || refreshToken == null) {
+      return AuthState.unauthenticated;
+    }
+
+    final seed = AuthTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
+
+    state = AsyncData(AuthState(user: null, tokens: seed, isLoading: true));
+
+    try {
+      final user = await _authApi.me();
+      return AuthState(user: user, tokens: seed, isLoading: false);
+    } catch (_) {
+      try {
+        final tokens = await _authApi.refresh(refreshToken);
+        await _persistTokens(tokens);
+        final user = await _authApi.me();
+        return AuthState(user: user, tokens: tokens, isLoading: false);
+      } catch (_) {
+        await _clearTokens();
+        return AuthState.unauthenticated;
+      }
+    }
+  }
+
+  Future<void> login(String email, String password) async {
+    final previous = state.valueOrNull ?? AuthState.unauthenticated;
+    state = AsyncData(previous.copyWith(isLoading: true, clearError: true));
+
+    try {
+      final result = await _authApi.login(email: email, password: password);
+      await _persistTokens(result.$2);
+      state = AsyncData(
+        AuthState(user: result.$1, tokens: result.$2, isLoading: false),
+      );
+    } catch (error) {
+      state = AsyncData(
+        previous.copyWith(
+          isLoading: false,
+          error: _extractApiMessage(
+            error,
+            fallback: 'Unable to log in. Check your credentials and try again.',
+          ),
+          clearSession: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> register(String fullName, String email, String password) async {
+    final previous = state.valueOrNull ?? AuthState.unauthenticated;
+    state = AsyncData(previous.copyWith(isLoading: true, clearError: true));
+
+    try {
+      final result = await _authApi.register(
+        fullName: fullName,
+        email: email,
+        password: password,
+      );
+      await _persistTokens(result.$2);
+      state = AsyncData(
+        AuthState(user: result.$1, tokens: result.$2, isLoading: false),
+      );
+    } catch (error) {
+      final errorMessage = _extractApiMessage(
+        error,
+        fallback: 'Unable to create account. Try a different email.',
+      );
+      state = AsyncData(
+        previous.copyWith(isLoading: false, error: errorMessage),
+      );
+    }
+  }
+
+  Future<void> refreshTokens() async {
+    await refreshTokensFromInterceptor();
+  }
+
+  Future<String?> refreshTokensFromInterceptor() async {
+    final current = state.valueOrNull;
+    final refreshToken = current?.tokens?.refreshToken;
+
+    if (refreshToken == null) {
+      return null;
+    }
+
+    final refreshed = await _authApi.refresh(refreshToken);
+    await _persistTokens(refreshed);
+
+    state = AsyncData(
+      (current ?? AuthState.unauthenticated).copyWith(
+        tokens: refreshed,
+        isLoading: false,
+        clearError: true,
+      ),
+    );
+
+    return refreshed.accessToken;
+  }
+
+  Future<void> logout() async {
+    if (_isLoggingOut) {
+      return;
+    }
+
+    _isLoggingOut = true;
+    final refreshToken = state.valueOrNull?.tokens?.refreshToken;
+    try {
+      if (refreshToken != null) {
+        try {
+          await _authApi.logout(refreshToken);
+        } catch (_) {
+          // Intentionally ignored because local logout should still succeed.
+        }
+      }
+
+      await _clearTokens();
+      state = const AsyncData(AuthState.unauthenticated);
+    } finally {
+      _isLoggingOut = false;
+    }
+  }
+
+  Future<void> _persistTokens(AuthTokens tokens) async {
+    await _storage.write(key: _accessTokenKey, value: tokens.accessToken);
+    await _storage.write(key: _refreshTokenKey, value: tokens.refreshToken);
+  }
+
+  Future<void> _clearTokens() async {
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+  }
+
+  String _extractApiMessage(Object error, {required String fallback}) {
+    if (error is DioException) {
+      final payload = error.response?.data;
+      if (payload is Map<String, dynamic>) {
+        final nested = payload['error'];
+        if (nested is Map<String, dynamic>) {
+          final message = nested['message'];
+          if (message is String && message.trim().isNotEmpty) {
+            return message;
+          }
+        }
+
+        final directMessage = payload['message'];
+        if (directMessage is String && directMessage.trim().isNotEmpty) {
+          return directMessage;
+        }
+      }
+    }
+
+    return fallback;
+  }
+}
