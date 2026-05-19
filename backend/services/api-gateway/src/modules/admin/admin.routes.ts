@@ -26,7 +26,7 @@ router.use(authenticate, authorize('admin'));
  *         name: role
  *         schema:
  *           type: string
- *           enum: [learner, instructor, admin, domain_expert]
+ *           enum: [learner, domain_expert, admin]
  *     responses:
  *       200:
  *         description: Paginated user list
@@ -57,7 +57,7 @@ router.get('/users', ctrl.listUsers);
  *             properties:
  *               role:
  *                 type: string
- *                 enum: [learner, instructor, admin, domain_expert]
+ *                 enum: [learner, domain_expert, admin]
  *     responses:
  *       200:
  *         description: Updated user with new role

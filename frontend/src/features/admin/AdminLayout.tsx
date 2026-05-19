@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useMatch } from 'react-router-dom';
 
 const NAV_ITEMS = [
   { to: '/admin/stats',   icon: '📊', label: 'System Stats'    },
@@ -27,6 +27,7 @@ function SidebarLink({ to, icon, label }: { to: string; icon: string; label: str
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const isBuilder = Boolean(useMatch('/admin/ontology/:id'));
 
   return (
     <div className="flex h-screen min-h-screen overflow-hidden" style={{ background: '#faf7f1' }}>
@@ -68,8 +69,8 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 min-w-0 overflow-y-auto px-8 py-8">
+      {/* Main content — no padding/scroll on builder so the canvas fills the space */}
+      <main className={`flex-1 min-w-0 ${isBuilder ? 'overflow-hidden' : 'overflow-y-auto px-8 py-8'}`}>
         <Outlet />
       </main>
     </div>

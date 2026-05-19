@@ -6,7 +6,7 @@ import { listUsersSchema } from '../users/users.validation';
 
 const changeRoleSchema = Joi.object({
   role: Joi.string()
-    .valid('learner', 'instructor', 'admin', 'domain_expert')
+    .valid('learner', 'domain_expert', 'admin')
     .required(),
 });
 

@@ -13,9 +13,7 @@ export function OntologyVersionList({ domainId }: Props) {
 
   function handleCreate() {
     create.mutate(domainId, {
-      onSuccess: (ontology) => {
-        navigate(`/admin/ontology/${ontology.id}`);
-      },
+      onSuccess: (version) => navigate(`/admin/ontology/${version.id}`),
     });
   }
 
@@ -28,6 +26,9 @@ export function OntologyVersionList({ domainId }: Props) {
       </div>
     );
   }
+
+  const hasPublished = versions?.some((v) => v.status === 'published');
+  const hasDraft = versions?.some((v) => v.status === 'draft');
 
   return (
     <div className="flex flex-col gap-2">
@@ -68,14 +69,26 @@ export function OntologyVersionList({ domainId }: Props) {
         </p>
       )}
 
-      <button
-        onClick={handleCreate}
-        disabled={create.isPending}
-        className="mt-1 self-start px-3 py-1.5 rounded-[8px] text-[12px] transition-colors hover:bg-[#ebe6db] disabled:opacity-50"
-        style={{ fontFamily: 'JetBrains Mono, monospace', color: '#6e645a', border: '1px solid #d6cfbf' }}
-      >
-        {create.isPending ? '…' : '+ New version'}
-      </button>
+      <div className="flex items-center gap-2 mt-1">
+        <button
+          onClick={handleCreate}
+          disabled={create.isPending || hasDraft}
+          className="self-start px-3 py-1.5 rounded-[8px] text-[12px] transition-colors hover:bg-[#ebe6db] disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ fontFamily: 'JetBrains Mono, monospace', color: '#6e645a', border: '1px solid #d6cfbf' }}
+          title={hasDraft ? 'A draft version already exists — open it to edit' : undefined}
+        >
+          {create.isPending
+            ? '…'
+            : hasPublished
+            ? '+ New version (copy from published)'
+            : '+ New version'}
+        </button>
+        {hasDraft && (
+          <span className="text-[11px]" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>
+            Draft already exists
+          </span>
+        )}
+      </div>
     </div>
   );
 }

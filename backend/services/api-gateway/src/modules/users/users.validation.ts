@@ -17,5 +17,5 @@ export const changePasswordSchema = Joi.object({
 export const listUsersSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
-  role: Joi.string().valid('learner', 'instructor', 'admin', 'domain_expert'),
+  role: Joi.string().valid('learner', 'domain_expert', 'admin'),
 });

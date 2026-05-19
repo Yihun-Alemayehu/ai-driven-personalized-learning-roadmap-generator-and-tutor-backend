@@ -315,9 +315,8 @@ model RefreshToken {
 
 enum UserRole {
   learner
-  instructor
-  admin
   domain_expert
+  admin
 }
 
 enum MasteryState {

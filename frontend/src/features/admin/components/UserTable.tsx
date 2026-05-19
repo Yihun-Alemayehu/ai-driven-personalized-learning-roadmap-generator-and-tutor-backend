@@ -6,7 +6,6 @@ import { useAuthStore } from '@/store/auth.store';
 
 const ROLE_COLORS: Record<string, string> = {
   admin:        'oklch(0.85 0.12 285)',
-  instructor:   'oklch(0.88 0.10 200)',
   domain_expert:'oklch(0.88 0.10 145)',
   learner:      '#ebe6db',
 };

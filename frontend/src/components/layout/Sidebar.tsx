@@ -139,7 +139,7 @@ export function Sidebar() {
 
       {isInstructor && (
         <SidebarGroup
-          label="Instructor"
+          label="Domain Expert"
           items={[
             { to: '/instructor/learners', label: 'Learners', icon: <UsersIcon size={15} /> },
             { to: '/instructor/flagged', label: 'Flagged', icon: <FlagIcon size={15} /> },

@@ -33,7 +33,7 @@ describe('RoleGuard', () => {
   it('renders children when user matches one of multiple allowed roles', () => {
     useAuthStore.setState({ user: mockUser, accessToken: 'token', refreshToken: 'rt' });
     renderWithProviders(
-      <RoleGuard roles={['learner', 'instructor']}>
+      <RoleGuard roles={['learner', 'domain_expert']}>
         <div data-testid="content">Content</div>
       </RoleGuard>,
     );

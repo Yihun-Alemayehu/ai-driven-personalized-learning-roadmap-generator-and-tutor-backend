@@ -9,7 +9,7 @@ export function useAuth() {
     user,
     isAuthenticated: Boolean(accessToken),
     isAdmin: user?.role === 'admin',
-    isInstructor: user?.role === 'instructor' || user?.role === 'admin',
+    isInstructor: user?.role === 'domain_expert' || user?.role === 'admin',
     isDomainExpert: user?.role === 'domain_expert' || user?.role === 'admin',
     logout,
   };

@@ -41,7 +41,7 @@ const options: swaggerJsdoc.Options = {
             id: { type: 'string', format: 'uuid' },
             email: { type: 'string', format: 'email' },
             full_name: { type: 'string' },
-            role: { type: 'string', enum: ['learner', 'instructor', 'admin', 'domain_expert'] },
+            role: { type: 'string', enum: ['learner', 'domain_expert', 'admin'] },
             avatar_url: { type: 'string', nullable: true },
             preferred_language: { type: 'string' },
             created_at: { type: 'string', format: 'date-time' },
