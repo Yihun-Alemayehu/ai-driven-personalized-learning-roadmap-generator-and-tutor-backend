@@ -9,7 +9,7 @@ export interface Domain {
 
 export interface CreateDomainInput {
   name: string;
-  slug: string;
+  slug?: string;
   description?: string;
   iconUrl?: string;
 }

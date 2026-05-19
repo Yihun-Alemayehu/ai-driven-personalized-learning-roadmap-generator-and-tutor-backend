@@ -4,7 +4,7 @@ const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const createDomainSchema = Joi.object({
   name: Joi.string().max(100).required(),
-  slug: Joi.string().max(100).pattern(slugPattern).required(),
+  slug: Joi.string().max(100).pattern(slugPattern).optional(),
   description: Joi.string().optional(),
   iconUrl: Joi.string().uri().optional(),
 });

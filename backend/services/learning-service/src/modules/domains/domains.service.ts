@@ -13,14 +13,18 @@ export async function getDomainBySlug(slug: string): Promise<Domain> {
 }
 
 export async function createDomain(data: CreateDomainInput): Promise<Domain> {
+  // Auto-generate slug from name if not provided
+  const slug = data.slug || data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const dataWithSlug = { ...data, slug };
+  
   const existing = await prisma.domain.findFirst({
-    where: { OR: [{ name: data.name }, { slug: data.slug }] },
+    where: { OR: [{ name: data.name }, { slug }] },
   });
   if (existing) {
     const field = existing.name === data.name ? 'name' : 'slug';
     throw ApiError.conflict(`Domain with this ${field} already exists`);
   }
-  return prisma.domain.create({ data });
+  return prisma.domain.create({ data: dataWithSlug });
 }
 
 export async function updateDomain(id: string, data: UpdateDomainInput): Promise<Domain> {

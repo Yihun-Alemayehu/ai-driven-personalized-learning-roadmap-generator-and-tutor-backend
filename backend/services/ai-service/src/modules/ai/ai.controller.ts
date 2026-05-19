@@ -10,7 +10,7 @@ const nodeContextSchema = Joi.object({
   nodeId: Joi.string().required(),
   nodeTitle: Joi.string().required(),
   description: Joi.string().allow('').optional(),
-  learningOutcomes: Joi.array().items(Joi.string()).min(1).required(),
+  learningOutcomes: Joi.array().items(Joi.string()).min(0).required(),
   difficultyLevel: Joi.number().integer().min(1).max(5).optional(),
   questionCount: Joi.number().integer().min(2).max(8).optional(),
 });

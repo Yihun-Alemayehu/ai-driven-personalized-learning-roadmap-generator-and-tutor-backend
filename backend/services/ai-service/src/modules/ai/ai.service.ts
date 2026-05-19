@@ -21,11 +21,46 @@ function parseAndValidate<T>(
   schema: { validate: (v: unknown) => { error?: unknown; value: T } },
 ): T | null {
   if (!raw) return null;
+
+  const parseCandidates: string[] = [raw.trim()];
+  const unwrapped = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+  if (unwrapped !== raw.trim()) parseCandidates.push(unwrapped);
+
+  const firstBrace = unwrapped.indexOf('{');
+  const lastBrace = unwrapped.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    parseCandidates.push(unwrapped.slice(firstBrace, lastBrace + 1));
+  }
+
   try {
-    const parsed = JSON.parse(raw) as unknown;
-    const { error, value } = schema.validate(parsed);
-    if (error) return null;
-    return value;
+    for (const candidateText of parseCandidates) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(candidateText) as unknown;
+      } catch {
+        continue;
+      }
+
+      // LLMs sometimes wrap the payload (e.g. { explanation: {...} } or { quiz: {...} }).
+      // Try a few common shapes before giving up.
+      const candidates: unknown[] = [parsed];
+      if (parsed && typeof parsed === 'object') {
+        const obj = parsed as Record<string, unknown>;
+        if (obj.explanation) candidates.push(obj.explanation);
+        if (obj.quiz) candidates.push(obj.quiz);
+        if (obj.data) candidates.push(obj.data);
+      }
+
+      for (const candidate of candidates) {
+        const { error, value } = schema.validate(candidate);
+        if (!error) return value;
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
