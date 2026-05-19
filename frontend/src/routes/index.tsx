@@ -112,7 +112,7 @@ export const router = createBrowserRouter([
     path: '/instructor',
     element: (
       <ProtectedRoute>
-        <RoleGuard roles={['instructor', 'admin']}>
+        <RoleGuard roles={['domain_expert', 'admin']}>
           <InstructorLayout />
         </RoleGuard>
       </ProtectedRoute>

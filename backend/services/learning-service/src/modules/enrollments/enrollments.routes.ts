@@ -42,7 +42,7 @@ const router = Router();
  *       409:
  *         description: Already enrolled
  */
-router.post('/enrollments', authenticate, authorize('learner', 'instructor', 'admin'), ctrl.enroll);
+router.post('/enrollments', authenticate, authorize('learner', 'domain_expert', 'admin'), ctrl.enroll);
 
 /**
  * @swagger

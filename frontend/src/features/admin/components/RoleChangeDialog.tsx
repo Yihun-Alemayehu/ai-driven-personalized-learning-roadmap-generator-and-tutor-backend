@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { AdminUser, UserRole } from '@/types';
 import { useChangeRoleMutation } from '@/api/admin';
 
-const ROLES: UserRole[] = ['learner', 'instructor', 'admin', 'domain_expert'];
+const ROLES: UserRole[] = ['learner', 'domain_expert', 'admin'];
 
 interface Props {
   user: AdminUser;

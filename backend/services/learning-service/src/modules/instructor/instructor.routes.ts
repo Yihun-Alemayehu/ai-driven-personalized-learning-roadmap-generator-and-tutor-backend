@@ -5,13 +5,13 @@ import * as ctrl from './instructor.controller';
 
 const router = Router();
 
-router.use(authenticate, authorize('instructor', 'admin'));
+router.use(authenticate, authorize('domain_expert', 'admin'));
 
 /**
  * @swagger
  * tags:
  *   name: Instructor
- *   description: Learner progress views and class management (instructor/admin role required)
+ *   description: Learner progress views and class management (domain_expert/admin role required)
  */
 
 /**

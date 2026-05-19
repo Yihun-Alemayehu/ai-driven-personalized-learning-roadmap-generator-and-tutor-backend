@@ -5,7 +5,7 @@ import type { UserRole } from '../auth/auth.types';
 const SELECT_PUBLIC =
   `id, email, "fullName", role, "avatarUrl", "preferredLanguage", "createdAt"`;
 
-const VALID_ROLES: UserRole[] = ['learner', 'instructor', 'admin', 'domain_expert'];
+const VALID_ROLES: UserRole[] = ['learner', 'domain_expert', 'admin'];
 
 export async function changeUserRole(adminId: string, targetId: string, role: string) {
   if (!VALID_ROLES.includes(role as UserRole)) {

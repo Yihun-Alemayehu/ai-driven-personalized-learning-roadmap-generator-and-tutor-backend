@@ -6,9 +6,8 @@ import type { UserRole } from '@/types';
 const ROLE_FILTERS: { value: UserRole | ''; label: string }[] = [
   { value: '', label: 'All roles' },
   { value: 'learner', label: 'Learner' },
-  { value: 'instructor', label: 'Instructor' },
-  { value: 'admin', label: 'Admin' },
   { value: 'domain_expert', label: 'Domain Expert' },
+  { value: 'admin', label: 'Admin' },
 ];
 
 const PAGE_SIZE = 20;

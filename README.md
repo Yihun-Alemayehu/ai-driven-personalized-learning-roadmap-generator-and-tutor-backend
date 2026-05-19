@@ -18,7 +18,7 @@
 - [Environment Variables](#environment-variables)
 - [Seeding the Database](#seeding-the-database)
 - [Frontend Pages](#frontend-pages)
-- [Admin & Instructor Panels](#admin--instructor-panels)
+- [Admin & Domain Expert Panels](#admin--domain-expert-panels)
 - [Flutter Mobile App](#flutter-mobile-app)
 - [Roadmap](#roadmap)
 
@@ -28,7 +28,7 @@
 
 Atlas is an adaptive e-learning system built as a final-year project. Learners enrol in a domain (Frontend Development, Backend Development, Data Science, or DevOps Engineering), receive a personalised learning roadmap as a Directed Acyclic Graph (DAG), study topics with AI-generated explanations, take AI-generated quizzes, and unlock the next node only after demonstrating mastery.
 
-The platform adapts in real-time: failed quizzes trigger resource swaps, prerequisite reviews, or instructor escalation. Knowledge decay is tracked — nodes go stale over time and prompt micro-quiz reviews. Instructors get analytics dashboards, and admins can build and publish new ontology versions through a visual React Flow canvas.
+The platform adapts in real-time: failed quizzes trigger resource swaps, prerequisite reviews, or domain expert escalation. Knowledge decay is tracked — nodes go stale over time and prompt micro-quiz reviews. Domain experts get analytics dashboards, and admins can build and publish new ontology versions through a visual React Flow canvas.
 
 ---
 
@@ -45,7 +45,7 @@ The platform adapts in real-time: failed quizzes trigger resource swaps, prerequ
 | **Resource Discovery** | SERP API integration serves curated resources per node (videos, docs, tutorials, interactive) |
 | **Resource Adaptation** | Repeated quiz failures swap resource modality (e.g. video → interactive) |
 | **My Learning** | Persistent sidebar tracking of active courses with last-visited node state |
-| **Instructor Analytics** | Per-domain mastery rate bar charts, problem nodes, learner cohort progress, flagged events |
+| **Domain Expert Analytics** | Per-domain mastery rate bar charts, problem nodes, learner cohort progress, flagged events |
 | **Admin Ontology Builder** | Visual React Flow canvas to build/edit domain knowledge graphs with DAG validation and version pipeline |
 | **Notifications** | In-app notifications for quiz results, decay reminders, and mastery achievements |
 | **Challenge Projects** | Optional project prompts unlocked on strong pass |
@@ -90,7 +90,7 @@ The platform adapts in real-time: failed quizzes trigger resource swaps, prerequ
 │  • Knowledge decay      │
 │  • Resources & ratings  │
 │  • Path branching       │
-│  • Instructor analytics │
+│  • Domain expert analytics │
 │  • Admin CRUD           │
 │  • Notifications        │
 └────────────┬────────────┘
@@ -257,7 +257,7 @@ QuizOutcome:     strong_pass | marginal_pass | fail_low | fail_fundamental | fai
 OntologyStatus:  draft | in_review | verified | published | archived
 AdaptationType:  resource_swap | prerequisite_review | instructor_escalation | decay_micro_quiz
 BranchPath:      frontend | backend | data_science
-UserRole:        learner | instructor | admin | domain_expert
+UserRole:        learner | domain_expert | admin
 ResourceModality: video | tutorial | documentation | interactive | reference
 ```
 
@@ -395,16 +395,16 @@ All routes are prefixed `/api/v1/` and proxied through the Nginx reverse proxy.
 | `POST` | `/nodes/:id/resources/discover` | Bearer | Trigger SERP resource discovery |
 | `POST` | `/resources/:id/rate` | Bearer | Rate a resource |
 
-**Instructor**
+**Domain Expert**
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/instructor/learners` | Instructor | List enrolled learners |
-| `GET` | `/instructor/learners/:id/progress` | Instructor | Per-learner node progress |
-| `GET` | `/instructor/learners/:id/quiz-history` | Instructor | Learner quiz history |
-| `GET` | `/instructor/domains/:domainId/analytics` | Instructor | Mastery rate chart data |
-| `GET` | `/instructor/flagged` | Instructor | Flagged adaptation events |
-| `PATCH` | `/instructor/flagged/:id/resolve` | Instructor | Resolve flagged event |
+| `GET` | `/instructor/learners` | Domain Expert | List enrolled learners |
+| `GET` | `/instructor/learners/:id/progress` | Domain Expert | Per-learner node progress |
+| `GET` | `/instructor/learners/:id/quiz-history` | Domain Expert | Learner quiz history |
+| `GET` | `/instructor/domains/:domainId/analytics` | Domain Expert | Mastery rate chart data |
+| `GET` | `/instructor/flagged` | Domain Expert | Flagged adaptation events |
+| `PATCH` | `/instructor/flagged/:id/resolve` | Domain Expert | Resolve flagged event |
 
 **Notifications**
 
@@ -552,7 +552,7 @@ All ontology seeds are idempotent — re-running skips already-seeded versions.
 | `/settings` | Settings | Password change, learning defaults, danger zone |
 | `/notifications` | Notifications | In-app notification centre |
 | `/admin/*` | Admin | Stats, user management, domain & ontology management |
-| `/instructor/*` | Instructor | Learner cohort, analytics, flagged events |
+| `/instructor/*` | Domain Expert | Learner cohort, analytics, flagged events |
 
 ### My Learning (sidebar)
 
@@ -560,7 +560,7 @@ After a learner generates their first AI explanation, the course is added to a p
 
 ---
 
-## Admin & Instructor Panels
+## Admin & Domain Expert Panels
 
 ### Admin — Ontology Builder
 
@@ -580,9 +580,9 @@ Creating a new version copies all nodes and edges from the latest published vers
 **Validation:**
 The **Validate DAG** button runs server-side checks for: self-referencing nodes, cycles, and orphan nodes (unreachable from any root).
 
-### Instructor — Analytics
+### Domain Expert — Analytics
 
-Instructors see per-domain mastery rate bar charts with colour-coded thresholds (green ≥ 70%, amber ≥ 40%, red < 40%), problem node lists, enrollment counts, and a resolution workflow for flagged adaptation events.
+Domain experts see per-domain mastery rate bar charts with colour-coded thresholds (green ≥ 70%, amber ≥ 40%, red < 40%), problem node lists, enrollment counts, and a resolution workflow for flagged adaptation events.
 
 ---
 
@@ -616,7 +616,7 @@ The Flutter app uses **Riverpod** for state management, **go_router** for naviga
 - [x] Knowledge decay tracking and micro-quiz reminders
 - [x] Path branching and convergence
 - [x] SERP resource discovery and resource adaptation
-- [x] Instructor analytics dashboard
+- [x] Domain expert analytics dashboard
 - [x] Admin ontology builder (React Flow canvas, version pipeline)
 - [x] My Learning persistent sidebar
 - [x] In-app notification system

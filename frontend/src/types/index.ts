@@ -1,5 +1,5 @@
 // ── Core enums ────────────────────────────────────────────────────────────────
-export type UserRole = 'learner' | 'instructor' | 'admin' | 'domain_expert';
+export type UserRole = 'learner' | 'domain_expert' | 'admin';
 export type MasteryState = 'not_started' | 'in_progress' | 'mastered' | 'review_needed' | 'relearn' | 'locked';
 export type QuizOutcome = 'strong_pass' | 'marginal_pass' | 'fail_low' | 'fail_fundamental' | 'fail_severe';
 export type ResourceModality = 'documentation' | 'tutorial' | 'video' | 'interactive' | 'reference';

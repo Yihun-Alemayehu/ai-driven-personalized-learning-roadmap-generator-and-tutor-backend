@@ -146,7 +146,7 @@ router.get('/:id', authorize('admin'), ctrl.getUserById);
  *         name: role
  *         schema:
  *           type: string
- *           enum: [learner, instructor, admin, domain_expert]
+ *           enum: [learner, domain_expert, admin]
  *     responses:
  *       200:
  *         description: Paginated user list

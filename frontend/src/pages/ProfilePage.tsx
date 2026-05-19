@@ -12,14 +12,12 @@ import type { EnrollmentWithCounts } from '@/api/enrollments';
 
 const ROLE_LABELS: Record<string, string> = {
   learner:       'Learner',
-  instructor:    'Instructor',
-  admin:         'Admin',
   domain_expert: 'Domain Expert',
+  admin:         'Admin',
 };
 
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
   admin:         { bg: 'oklch(0.88 0.08 285)', color: 'oklch(0.35 0.15 285)' },
-  instructor:    { bg: 'oklch(0.90 0.08 200)', color: 'oklch(0.35 0.12 200)' },
   domain_expert: { bg: 'oklch(0.90 0.08 145)', color: 'oklch(0.35 0.12 145)' },
   learner:       { bg: '#ebe6db', color: '#6e645a' },
 };
