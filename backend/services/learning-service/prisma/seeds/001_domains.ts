@@ -20,6 +20,12 @@ export async function seedDomains(prisma: PrismaClient) {
       description: 'Analyze data and build machine learning models with Python.',
       iconUrl: null,
     },
+    {
+      name: 'DevOps Engineering',
+      slug: 'devops-engineering',
+      description: 'Automate infrastructure, CI/CD pipelines, and cloud deployments.',
+      iconUrl: null,
+    },
   ];
 
   for (const d of domains) {
