@@ -170,11 +170,11 @@ export function RoadmapCanvas({ roadmapNodes, roadmapEdges, onNodeClick }: Roadm
         />
         <MiniMap
           nodeColor={(n) => {
-            const d = n.data as unknown as { _level?: number; masteryState?: string };
+            const d = n.data as unknown as { _level?: number; masteryState?: string; unlocked?: boolean };
+            if (d.unlocked === false)                return '#d0c8b8';
             if (d.masteryState === 'mastered')      return '#60a870';
             if (d.masteryState === 'in_progress')   return '#4a7fc1';
             if (d.masteryState === 'review_needed') return '#c9a030';
-            if (d.masteryState === 'locked')        return '#d0c8b8';
             // Use level color for not_started
             const levelColors = ['#d4905c', '#5aaa78', '#6080c0'];
             return levelColors[Math.min(d._level ?? 0, 2)];

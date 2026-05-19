@@ -6,6 +6,44 @@ import type {
   OntologyNode, BranchPath, ValidationResult,
 } from '@/types';
 
+type BackendOntologyNode = OntologyNode & {
+  prerequisites?: Array<{ id: string; nodeId: string; prerequisiteNodeId: string }>;
+};
+
+type BackendOntologyVersionDetail = {
+  version: {
+    id: string;
+    domainId: string;
+    versionNumber: number;
+    status: OntologyStatus;
+    nodes: BackendOntologyNode[];
+  };
+};
+
+function normalizeOntologyDetail(response: BackendOntologyVersionDetail): OntologyDetail {
+  const version = response.version;
+  const edges = version.nodes.flatMap((node) =>
+    (node.prerequisites ?? []).map((edge) => ({
+      id: edge.id,
+      nodeId: edge.nodeId,
+      prerequisiteNodeId: edge.prerequisiteNodeId,
+    })),
+  );
+
+  return {
+    id: version.id,
+    domainId: version.domainId,
+    version: version.versionNumber,
+    status: version.status,
+    nodes: version.nodes.map(({ prerequisites: _prerequisites, ...node }) => ({
+      ...node,
+      ontologyId: version.id,
+      learningOutcomes: Array.isArray(node.learningOutcomes) ? node.learningOutcomes : [],
+    })),
+    edges,
+  };
+}
+
 // ── Query keys ────────────────────────────────────────────────────────────────
 
 export const adminKeys = {
@@ -107,8 +145,8 @@ export function useOntologyVersionsQuery(domainId: string) {
     queryKey: adminKeys.ontologyVersions(domainId),
     queryFn: () =>
       apiClient
-        .get<{ ontologies: OntologyVersion[] }>(`/domains/${domainId}/ontologies`)
-        .then((r) => r.data.ontologies),
+        .get<{ versions: OntologyVersion[] }>(`/domains/${domainId}/ontologies`)
+        .then((r) => r.data.versions),
     enabled: Boolean(domainId),
   });
 }
@@ -117,7 +155,9 @@ export function useOntologyDetailQuery(ontologyId: string) {
   return useQuery({
     queryKey: adminKeys.ontologyDetail(ontologyId),
     queryFn: () =>
-      apiClient.get<OntologyDetail>(`/ontologies/${ontologyId}`).then((r) => r.data),
+      apiClient.get<BackendOntologyVersionDetail>(`/ontologies/${ontologyId}`).then((r) =>
+        normalizeOntologyDetail(r.data),
+      ),
     enabled: Boolean(ontologyId),
   });
 }

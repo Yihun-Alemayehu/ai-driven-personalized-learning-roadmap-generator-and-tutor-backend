@@ -29,7 +29,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: '#faf7f1' }}>
+    <div className="flex h-screen min-h-screen overflow-hidden" style={{ background: '#faf7f1' }}>
       {/* Sidebar */}
       <aside
         className="shrink-0 flex flex-col border-r overflow-y-auto"

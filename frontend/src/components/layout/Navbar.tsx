@@ -1,11 +1,17 @@
 import { Link } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import { BrandMark } from './BrandMark';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/auth.store';
+import { apiClient } from '@/api/client';
 import { useBreadcrumbStore } from '@/store/breadcrumbStore';
 import { NotificationBell } from '@/features/notifications/components/NotificationDropdown';
 
 export function Navbar() {
   const { user } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useMenuHandlers(menuRef, () => setMenuOpen(false));
   const breadcrumbs = useBreadcrumbStore((s) => s.breadcrumbs);
 
   const initials = user?.fullName
@@ -59,14 +65,48 @@ export function Navbar() {
       <NotificationBell />
 
       {/* Avatar */}
-      <Link
-        to="/profile"
-        className="w-8 h-8 rounded-full grid place-items-center cursor-pointer shrink-0 transition-opacity hover:opacity-80"
-        style={{ background: '#1a1614', color: '#f3efe7', fontFamily: "'Cormorant Garamond', serif", fontSize: 15 }}
-        title="Profile"
-      >
-        {initials}
-      </Link>
+      <div className="relative" ref={menuRef}>
+        <button
+          aria-label="Profile menu"
+          onClick={() => setMenuOpen((s) => !s)}
+          className="w-8 h-8 rounded-full grid place-items-center cursor-pointer shrink-0 transition-opacity hover:opacity-80"
+          style={{ background: '#1a1614', color: '#f3efe7', fontFamily: "'Cormorant Garamond', serif", fontSize: 15 }}
+          title="Profile"
+        >
+          {initials}
+        </button>
+
+        {menuOpen && (
+          <div className="absolute right-0 mt-2 w-40 bg-white rounded shadow-md text-sm z-50" style={{ color: '#1a1614' }}>
+            <Link to="/profile" className="block px-3 py-2 hover:bg-gray-50">Profile</Link>
+            <Link to="/settings" className="block px-3 py-2 hover:bg-gray-50">Settings</Link>
+            <button onClick={() => void handleLogout()} className="w-full text-left px-3 py-2 hover:bg-gray-50">Logout</button>
+          </div>
+        )}
+      </div>
     </header>
   );
+}
+
+async function handleLogout() {
+  // call server to revoke refresh token if present, then clear local auth
+  try {
+    const rt = useAuthStore.getState().refreshToken;
+    if (rt) await apiClient.post('/auth/logout', { refreshToken: rt });
+  } catch (e) {
+    // ignore network errors
+  } finally {
+    useAuthStore.getState().logout();
+  }
+}
+
+function useMenuHandlers(ref: React.RefObject<HTMLElement>, onClose: () => void) {
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [ref, onClose]);
 }

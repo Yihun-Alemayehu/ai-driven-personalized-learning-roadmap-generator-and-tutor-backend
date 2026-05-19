@@ -12,7 +12,11 @@ export function OntologyVersionList({ domainId }: Props) {
   const create = useCreateOntologyMutation();
 
   function handleCreate() {
-    create.mutate(domainId);
+    create.mutate(domainId, {
+      onSuccess: (ontology) => {
+        navigate(`/admin/ontology/${ontology.id}`);
+      },
+    });
   }
 
   if (isLoading) {

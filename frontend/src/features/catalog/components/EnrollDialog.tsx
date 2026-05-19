@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import {
   Dialog,
   DialogContent,
@@ -259,6 +260,16 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<PersonalizationForm>(() => createInitialForm(learningDefaults));
 
+  function getErrorMessage(err: unknown): string {
+    if (axios.isAxiosError(err)) {
+      const backendMessage = err.response?.data?.error?.message;
+      if (typeof backendMessage === 'string' && backendMessage.trim()) {
+        return backendMessage;
+      }
+    }
+    return 'Enrollment failed. Please try again.';
+  }
+
   useEffect(() => {
     if (open) {
       setStep(1);
@@ -289,8 +300,8 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
       });
       handleClose();
       navigate(`/enrollments/${result.enrollment.id}/roadmap`);
-    } catch {
-      setError('Enrollment failed. You may already be enrolled in this domain.');
+    } catch (err) {
+      setError(getErrorMessage(err));
     }
   };
 

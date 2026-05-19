@@ -29,8 +29,8 @@ function NodeRow({
   onClick: () => void;
 }) {
   const cfg = MASTERY_CONFIG[node.masteryState];
-  const icon = STATE_ICON[node.masteryState];
-  const isLocked = node.masteryState === 'locked';
+  const isLocked = !node.unlocked;
+  const icon = isLocked ? '🔒' : STATE_ICON[node.masteryState];
 
   return (
     <button
