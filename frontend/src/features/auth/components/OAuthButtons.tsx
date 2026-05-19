@@ -1,5 +1,13 @@
 const GATEWAY = (import.meta.env.VITE_GATEWAY_URL as string) ?? '';
 
+export function buildOAuthUrl(provider: 'google' | 'github', gatewayBase = GATEWAY) {
+  const base = gatewayBase.trim().replace(/\/$/, '');
+  const path = `/auth/oauth/${provider}`;
+
+  if (base) return `${base}${path}`;
+  return `/api/v1${path}`;
+}
+
 function OAuthButton({
   provider,
   icon,
@@ -10,7 +18,7 @@ function OAuthButton({
   label: string;
 }) {
   const handleClick = () => {
-    window.location.href = `${GATEWAY}/api/v1/auth/oauth/${provider}`;
+    window.location.assign(buildOAuthUrl(provider));
   };
 
   return (

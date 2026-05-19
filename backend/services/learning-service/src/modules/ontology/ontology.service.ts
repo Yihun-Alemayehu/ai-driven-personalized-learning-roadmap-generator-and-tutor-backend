@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { ApiError } from '../../utils/ApiError';
 import { validateDAG, detectCycle, type DagEdge } from './dag.utils';
 import type {
@@ -79,7 +80,7 @@ export async function createVersion(domainId: string, createdById: string) {
           title: node.title,
           slug: node.slug,
           description: node.description,
-          learningOutcomes: node.learningOutcomes,
+          learningOutcomes: (node.learningOutcomes as unknown) as Prisma.InputJsonValue,
           estimatedHours: node.estimatedHours,
           difficultyLevel: node.difficultyLevel,
           isBranchingPoint: node.isBranchingPoint,
