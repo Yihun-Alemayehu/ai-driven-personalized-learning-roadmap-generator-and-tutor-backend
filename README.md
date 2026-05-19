@@ -19,7 +19,7 @@
 - [Seeding the Database](#seeding-the-database)
 - [Frontend Pages](#frontend-pages)
 - [Admin & Instructor Panels](#admin--instructor-panels)
-- [Flutter Mobile Plan](#flutter-mobile-plan)
+- [Flutter Mobile App](#flutter-mobile-app)
 - [Roadmap](#roadmap)
 
 ---
@@ -37,12 +37,12 @@ The platform adapts in real-time: failed quizzes trigger resource swaps, prerequ
 | Category | Feature |
 |---|---|
 | **Personalised Roadmap** | DAG generated from the domain ontology, filtered to the learner's branch path and familiarity level |
-| **AI Explanations** | Gemini-powered multi-section explanations per topic node, with caching and circuit-breaker fallback |
-| **AI Quizzes** | Gemini generates 4-question MCQs grounded in the node's learning outcomes; never invents new facts |
+| **AI Explanations** | Ollama-powered multi-section explanations per topic node (Gemini as fallback), with caching and circuit-breaker |
+| **AI Quizzes** | Ollama generates 4-question MCQs grounded in the node's learning outcomes; never invents new facts |
 | **Gatekeeper** | 5-tier scoring system (strong pass → fail severe) unlocks next nodes or triggers adaptation |
 | **Knowledge Decay** | Mastered nodes degrade over time; decay-due nodes surface as micro-quiz reminders |
 | **Path Branching** | Learners choose a specialisation at branching points (e.g. Frontend / Backend / Data Science) |
-| **Resource Discovery** | Google PSE integration serves curated resources per node (videos, docs, tutorials, interactive) |
+| **Resource Discovery** | SERP API integration serves curated resources per node (videos, docs, tutorials, interactive) |
 | **Resource Adaptation** | Repeated quiz failures swap resource modality (e.g. video → interactive) |
 | **My Learning** | Persistent sidebar tracking of active courses with last-visited node state |
 | **Instructor Analytics** | Per-domain mastery rate bar charts, problem nodes, learner cohort progress, flagged events |
@@ -57,7 +57,7 @@ The platform adapts in real-time: failed quizzes trigger resource swaps, prerequ
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Browser / Mobile                          │
-│                  React (Vite) · Flutter (planned)               │
+│                  React (Vite) · Flutter (mobile)                │
 └──────────────────────────────┬──────────────────────────────────┘
                                │  HTTP / REST  (all via /api/v1/*)
                                ▼
@@ -70,12 +70,12 @@ The platform adapts in real-time: failed quizzes trigger resource swaps, prerequ
 ┌────────────────────────┐          ┌───────────────────────────┐
 │     api-gateway :3000  │          │    ai-service :3002        │
 │                        │          │                            │
-│  • JWT auth (RS256)    │          │  • Gemini explanations     │
-│  • Refresh tokens      │◄────────►│  • Gemini quiz generation  │
-│  • RBAC middleware     │  HTTP    │  • Google PSE discovery    │
+│  • JWT auth (RS256)    │          │  • Ollama explanations     │
+│  • Refresh tokens      │◄────────►│  • Ollama quiz generation  │
+│  • RBAC middleware     │  HTTP    │  • SERP resource discovery │
 │  • User management     │          │  • Redis response cache    │
 │  • Admin user ops      │          │  • Circuit breaker         │
-│  • Request proxying    │          │  • Ollama fallback (local) │
+│  • Request proxying    │          │  • Gemini fallback (API)   │
 └────────────┬───────────┘          └───────────────────────────┘
              │ HTTP
              ▼
@@ -119,8 +119,8 @@ All three services are built with **Express + TypeScript**, containerised with D
 | ORM | Prisma 5 (PostgreSQL) |
 | Auth | JWT (access + refresh tokens), bcrypt |
 | Validation | Joi |
-| AI | Google Gemini API (`@google/generative-ai`) |
-| Resource search | Google Programmable Search Engine (PSE) |
+| AI | Ollama (primary) · Google Gemini API fallback (`@google/generative-ai`) |
+| Resource search | SERP API (`serpapi`) |
 | Caching | Redis via ioredis |
 | Logging | Pino + pino-http |
 | API Docs | Swagger (swagger-jsdoc + swagger-ui-express) |
@@ -185,14 +185,14 @@ fyp/
 │       │           ├── notifications/  # In-app notification dispatch
 │       │           ├── ontology/       # Version pipeline, nodes, edges, DAG utils
 │       │           ├── progress/       # Per-node mastery state machine
-│       │           ├── pse/            # Google PSE resource discovery
+│       │           ├── serp/           # SERP resource discovery
 │       │           ├── quizzes/        # Quiz fetch + attempt submission
 │       │           └── resources/      # Manual resources + ratings
-│       └── ai-service/           # Gemini AI wrapper with caching
+│       └── ai-service/           # AI wrapper (Ollama primary, Gemini fallback)
 │           └── src/
 │               └── modules/ai/
-│                   ├── gemini.client.ts
-│                   ├── ollama.client.ts   # Local fallback
+│                   ├── ollama.client.ts   # Primary inference
+│                   ├── gemini.client.ts   # Fallback
 │                   ├── ai.cache.ts
 │                   ├── ai.circuit-breaker.ts
 │                   └── prompts/           # Typed prompt builders
@@ -311,18 +311,18 @@ The **ai-service** is isolated and stateless:
 ```
 Request → Cache lookup (Redis, 24h TTL)
         → Circuit breaker (open after 3 failures, 30s reset)
-        → Gemini API  (primary)
-        → Ollama local (fallback, optional)
+        → Ollama      (primary, local)
+        → Gemini API  (fallback)
         → Structured response validation
         → Cache write
         → Response
 ```
 
-Prompt builders are typed TypeScript functions that inject `nodeTitle`, `description`, `learningOutcomes`, and `difficultyLevel` — ensuring Gemini cannot hallucinate beyond the defined curriculum.
+Prompt builders are typed TypeScript functions that inject `nodeTitle`, `description`, `learningOutcomes`, and `difficultyLevel` — ensuring the model cannot hallucinate beyond the defined curriculum.
 
 ### 6. Resource Discovery
 
-The **pse module** queries Google Programmable Search Engine with the node title + domain context. Results are normalised into `Resource` records with detected modality, stored per-node, and served with learner ratings.
+The **serp module** queries the SERP API with the node title + domain context. Results are normalised into `Resource` records with detected modality, stored per-node, and served with learner ratings.
 
 ---
 
@@ -392,7 +392,7 @@ All routes are prefixed `/api/v1/` and proxied through the Nginx reverse proxy.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/nodes/:id/resources` | Bearer | List resources for node |
-| `POST` | `/nodes/:id/resources/discover` | Bearer | Trigger PSE resource discovery |
+| `POST` | `/nodes/:id/resources/discover` | Bearer | Trigger SERP resource discovery |
 | `POST` | `/resources/:id/rate` | Bearer | Rate a resource |
 
 **Instructor**
@@ -431,8 +431,9 @@ All routes are prefixed `/api/v1/` and proxied through the Nginx reverse proxy.
 
 - Docker ≥ 24 and Docker Compose v2
 - Node.js 20 (for local frontend development)
-- A Google Gemini API key
-- (Optional) A Google Programmable Search Engine ID + API key
+- Ollama running locally (primary AI inference)
+- A SERP API key (resource discovery)
+- (Optional) A Google Gemini API key (AI fallback)
 
 ### 1. Clone and configure
 
@@ -501,11 +502,10 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 
 ```env
 NODE_ENV=development
-GEMINI_API_KEY=your-gemini-api-key
-SERPER_API_KEY=your-serper-api-key        # Google PSE
-GOOGLE_PSE_CX=your-custom-search-engine-id
+OLLAMA_BASE_URL=http://localhost:11434    # Primary AI inference
+SERPER_API_KEY=your-serper-api-key        # SERP resource discovery
+GEMINI_API_KEY=your-gemini-api-key        # Fallback AI (optional)
 REDIS_URL=redis://redis:6379
-OLLAMA_BASE_URL=http://localhost:11434    # Optional local fallback
 ```
 
 ---
@@ -520,7 +520,7 @@ The seed pipeline in `backend/services/learning-service/prisma/seeds/` loads all
 | `002_frontend_ontology.ts` | ~30 nodes for Frontend Development (published) |
 | `003_frontend_quizzes.ts` | Manually authored quiz questions for frontend nodes |
 | `004_challenge_projects.ts` | Challenge project prompts per node |
-| `005_domain_whitelist.ts` | Allowed domain slugs for PSE queries |
+| `005_domain_whitelist.ts` | Allowed domain slugs for SERP queries |
 | `006_manual_resources.ts` | Curated initial resources per node |
 | `007_backend_ontology.ts` | 30 nodes for Backend Development (published) |
 | `008_data_science_ontology.ts` | 19 nodes for Data Science (published) |
@@ -546,7 +546,7 @@ All ontology seeds are idempotent — re-running skips already-seeded versions.
 | `/catalog` | Catalog | Domain browser with enrolment sheet |
 | `/enrollments/:id/roadmap` | Roadmap | Interactive DAG with mastery badges |
 | `/enrollments/:id/learn/:nodeId` | Learn | AI explanation + inline quiz |
-| `/enrollments/:id/resources/:nodeId` | Resources | PSE-discovered resources with ratings |
+| `/enrollments/:id/resources/:nodeId` | Resources | SERP-discovered resources with ratings |
 | `/enrollments/:id/quiz-history` | Quiz History | Attempt table with scores and outcomes |
 | `/profile` | Profile | Edit name, avatar, preferred language |
 | `/settings` | Settings | Password change, learning defaults, danger zone |
@@ -586,9 +586,9 @@ Instructors see per-domain mastery rate bar charts with colour-coded thresholds 
 
 ---
 
-## Flutter Mobile Plan
+## Flutter Mobile App
 
-A complete phase-by-phase Flutter mobile implementation plan is documented in [`docs/frontend-mobile/`](docs/frontend-mobile/), covering 10 phases from scaffold through polish and CI/CD:
+The Flutter mobile app is implemented in [`/flutter_mobile`](flutter_mobile/). A phase-by-phase implementation plan is documented in [`docs/frontend-mobile/`](docs/frontend-mobile/), covering 10 phases from scaffold through polish and CI/CD:
 
 | Phase | Focus |
 |---|---|
@@ -615,12 +615,12 @@ The Flutter app uses **Riverpod** for state management, **go_router** for naviga
 - [x] Gatekeeper 5-tier scoring and node unlocking
 - [x] Knowledge decay tracking and micro-quiz reminders
 - [x] Path branching and convergence
-- [x] Google PSE resource discovery and resource adaptation
+- [x] SERP resource discovery and resource adaptation
 - [x] Instructor analytics dashboard
 - [x] Admin ontology builder (React Flow canvas, version pipeline)
 - [x] My Learning persistent sidebar
 - [x] In-app notification system
-- [ ] Flutter mobile app (planned — see [`docs/frontend-mobile/`](docs/frontend-mobile/))
+- [x] Flutter mobile app (see [`/flutter_mobile`](flutter_mobile/))
 - [ ] WebSocket real-time notifications
 - [ ] Export progress report (PDF)
 - [ ] LTI integration for institutional use
