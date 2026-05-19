@@ -3,8 +3,40 @@ import { apiClient } from './client';
 import type {
   AdminUser, UserRole, SystemStats, DomainStat,
   Domain, OntologyVersion, OntologyDetail, OntologyStatus,
-  OntologyNode, BranchPath, ValidationResult,
+  OntologyNode, OntologyEdge, BranchPath, ValidationResult,
 } from '@/types';
+
+// ── Response-shape helpers ────────────────────────────────────────────────────
+
+function toOntologyVersion(v: Record<string, unknown>): OntologyVersion {
+  return { ...(v as OntologyVersion), version: v.versionNumber as number };
+}
+
+function toOntologyDetail(raw: Record<string, unknown>): OntologyDetail {
+  const nodes = (raw.nodes as Array<Record<string, unknown>>).map((n) => ({
+    ...n,
+    ontologyId: raw.id as string,
+    learningOutcomes: Array.isArray(n.learningOutcomes) ? n.learningOutcomes as string[] : [],
+    prerequisites: undefined,
+  })) as OntologyNode[];
+
+  const edges: OntologyEdge[] = (raw.nodes as Array<Record<string, unknown>>).flatMap((n) =>
+    ((n.prerequisites ?? []) as Array<Record<string, unknown>>).map((p) => ({
+      id: p.id as string,
+      nodeId: p.nodeId as string,
+      prerequisiteNodeId: p.prerequisiteNodeId as string,
+    })),
+  );
+
+  return {
+    id: raw.id as string,
+    domainId: raw.domainId as string,
+    version: raw.versionNumber as number,
+    status: raw.status as OntologyStatus,
+    nodes,
+    edges,
+  };
+}
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 
@@ -107,8 +139,8 @@ export function useOntologyVersionsQuery(domainId: string) {
     queryKey: adminKeys.ontologyVersions(domainId),
     queryFn: () =>
       apiClient
-        .get<{ ontologies: OntologyVersion[] }>(`/domains/${domainId}/ontologies`)
-        .then((r) => r.data.ontologies),
+        .get<{ versions: Array<Record<string, unknown>> }>(`/domains/${domainId}/ontologies`)
+        .then((r) => r.data.versions.map(toOntologyVersion)),
     enabled: Boolean(domainId),
   });
 }
@@ -117,7 +149,9 @@ export function useOntologyDetailQuery(ontologyId: string) {
   return useQuery({
     queryKey: adminKeys.ontologyDetail(ontologyId),
     queryFn: () =>
-      apiClient.get<OntologyDetail>(`/ontologies/${ontologyId}`).then((r) => r.data),
+      apiClient
+        .get<{ version: Record<string, unknown> }>(`/ontologies/${ontologyId}`)
+        .then((r) => toOntologyDetail(r.data.version)),
     enabled: Boolean(ontologyId),
   });
 }
@@ -127,8 +161,8 @@ export function useCreateOntologyMutation() {
   return useMutation({
     mutationFn: (domainId: string) =>
       apiClient
-        .post<OntologyVersion>(`/domains/${domainId}/ontologies`, {})
-        .then((r) => r.data),
+        .post<{ version: Record<string, unknown> }>(`/domains/${domainId}/ontologies`, {})
+        .then((r) => toOntologyVersion(r.data.version)),
     onSuccess: (_data, domainId) =>
       qc.invalidateQueries({ queryKey: adminKeys.ontologyVersions(domainId) }),
   });
@@ -139,8 +173,8 @@ export function useUpdateOntologyStatusMutation() {
   return useMutation({
     mutationFn: ({ ontologyId, status }: { ontologyId: string; status: OntologyStatus }) =>
       apiClient
-        .patch<OntologyVersion>(`/ontologies/${ontologyId}/status`, { status })
-        .then((r) => r.data),
+        .patch<{ version: Record<string, unknown> }>(`/ontologies/${ontologyId}/status`, { status })
+        .then((r) => toOntologyVersion(r.data.version)),
     onSuccess: (_data, { ontologyId }) => {
       qc.invalidateQueries({ queryKey: adminKeys.ontologyDetail(ontologyId) });
       qc.invalidateQueries({ queryKey: ['admin', 'ontologies'] });
@@ -153,8 +187,12 @@ export function useValidateOntologyQuery(ontologyId: string, enabled: boolean) {
     queryKey: adminKeys.ontologyValidation(ontologyId),
     queryFn: () =>
       apiClient
-        .get<ValidationResult>(`/ontologies/${ontologyId}/validate`)
-        .then((r) => r.data),
+        .get<{ valid: boolean; issues: string[] }>(`/ontologies/${ontologyId}/validate`)
+        .then((r) => ({
+          valid: r.data.valid,
+          errors: r.data.issues,
+          warnings: [],
+        } as ValidationResult)),
     enabled: enabled && Boolean(ontologyId),
     staleTime: 0,
   });
@@ -167,14 +205,16 @@ export function useAddNodeMutation(ontologyId: string) {
   return useMutation({
     mutationFn: (data: {
       title: string;
+      slug: string;
+      learningOutcomes: string[];
       description?: string;
       branchPath?: BranchPath;
       positionX?: number;
       positionY?: number;
     }) =>
       apiClient
-        .post<OntologyNode>(`/ontologies/${ontologyId}/nodes`, data)
-        .then((r) => r.data),
+        .post<{ node: OntologyNode }>(`/ontologies/${ontologyId}/nodes`, data)
+        .then((r) => r.data.node),
     onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.ontologyDetail(ontologyId) }),
   });
 }
@@ -183,7 +223,7 @@ export function useUpdateNodeMutation(ontologyId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ nodeId, ...data }: Partial<OntologyNode> & { nodeId: string }) =>
-      apiClient.patch<OntologyNode>(`/nodes/${nodeId}`, data).then((r) => r.data),
+      apiClient.patch<{ node: OntologyNode }>(`/nodes/${nodeId}`, data).then((r) => r.data.node),
     onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.ontologyDetail(ontologyId) }),
   });
 }

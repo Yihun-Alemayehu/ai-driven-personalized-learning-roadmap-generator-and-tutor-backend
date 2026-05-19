@@ -47,7 +47,20 @@ export async function createVersion(domainId: string, createdById: string) {
     select: { versionNumber: true },
   });
 
-  return prisma.ontologyVersion.create({
+  // Find the latest published version to copy nodes from
+  const publishedVersion = await prisma.ontologyVersion.findFirst({
+    where: { domainId, status: 'published' },
+    orderBy: { versionNumber: 'desc' },
+    include: {
+      nodes: {
+        include: {
+          prerequisites: { select: { nodeId: true, prerequisiteNodeId: true } },
+        },
+      },
+    },
+  });
+
+  const newVersion = await prisma.ontologyVersion.create({
     data: {
       domainId,
       versionNumber: (latest?.versionNumber ?? 0) + 1,
@@ -55,6 +68,44 @@ export async function createVersion(domainId: string, createdById: string) {
       status: 'draft',
     },
   });
+
+  if (publishedVersion && publishedVersion.nodes.length > 0) {
+    const idMap = new Map<string, string>();
+
+    for (const node of publishedVersion.nodes) {
+      const newNode = await prisma.learningNode.create({
+        data: {
+          ontologyVersionId: newVersion.id,
+          title: node.title,
+          slug: node.slug,
+          description: node.description,
+          learningOutcomes: node.learningOutcomes,
+          estimatedHours: node.estimatedHours,
+          difficultyLevel: node.difficultyLevel,
+          isBranchingPoint: node.isBranchingPoint,
+          isConvergencePoint: node.isConvergencePoint,
+          branchPath: node.branchPath,
+          positionX: node.positionX,
+          positionY: node.positionY,
+        },
+      });
+      idMap.set(node.id, newNode.id);
+    }
+
+    for (const node of publishedVersion.nodes) {
+      for (const prereq of node.prerequisites) {
+        const newNodeId = idMap.get(prereq.nodeId);
+        const newPrereqId = idMap.get(prereq.prerequisiteNodeId);
+        if (newNodeId && newPrereqId) {
+          await prisma.nodePrerequisite.create({
+            data: { nodeId: newNodeId, prerequisiteNodeId: newPrereqId },
+          });
+        }
+      }
+    }
+  }
+
+  return newVersion;
 }
 
 export async function listVersions(domainId: string) {

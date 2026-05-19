@@ -26,8 +26,73 @@ import {
   useValidateOntologyQuery,
   useUpdateNodeMutation,
 } from '@/api/admin';
-import type { OntologyNode, OntologyStatus } from '@/types';
+import type { OntologyNode, OntologyEdge, OntologyStatus } from '@/types';
 import { OntologyStatusBadge } from './components/OntologyStatusBadge';
+
+// ── Auto-layout (topological level-based) ─────────────────────────────────────
+
+const NODE_W = 180;
+const NODE_H = 70;
+const H_GAP  = 50;
+const V_GAP  = 110;
+
+function computeAutoLayout(
+  nodeIds: string[],
+  edges: OntologyEdge[],
+): Map<string, { x: number; y: number }> {
+  // Build: prerequisiteNodeId → [nodeIds that depend on it]
+  const children = new Map<string, string[]>();
+  const inDegree  = new Map<string, number>();
+  for (const id of nodeIds) { children.set(id, []); inDegree.set(id, 0); }
+
+  for (const e of edges) {
+    children.get(e.prerequisiteNodeId)?.push(e.nodeId);
+    inDegree.set(e.nodeId, (inDegree.get(e.nodeId) ?? 0) + 1);
+  }
+
+  // BFS from roots to assign max depth per node
+  const depth = new Map<string, number>();
+  const queue: string[] = [];
+  for (const id of nodeIds) {
+    if ((inDegree.get(id) ?? 0) === 0) { depth.set(id, 0); queue.push(id); }
+  }
+  while (queue.length) {
+    const cur = queue.shift()!;
+    const d   = depth.get(cur) ?? 0;
+    for (const child of (children.get(cur) ?? [])) {
+      if ((depth.get(child) ?? -1) < d + 1) {
+        depth.set(child, d + 1);
+        queue.push(child);
+      }
+    }
+  }
+
+  // Group by depth level
+  const byLevel = new Map<number, string[]>();
+  for (const id of nodeIds) {
+    const lvl = depth.get(id) ?? 0;
+    if (!byLevel.has(lvl)) byLevel.set(lvl, []);
+    byLevel.get(lvl)!.push(id);
+  }
+
+  // Compute positions — centre each level horizontally
+  const maxCount  = Math.max(...Array.from(byLevel.values()).map((g) => g.length));
+  const totalW    = maxCount * (NODE_W + H_GAP) - H_GAP;
+  const positions = new Map<string, { x: number; y: number }>();
+
+  for (const [lvl, ids] of byLevel) {
+    const rowW   = ids.length * (NODE_W + H_GAP) - H_GAP;
+    const startX = (totalW - rowW) / 2;
+    ids.forEach((id, i) => {
+      positions.set(id, {
+        x: startX + i * (NODE_W + H_GAP),
+        y: lvl * (NODE_H + V_GAP),
+      });
+    });
+  }
+
+  return positions;
+}
 import { NodeEditPanel } from './components/NodeEditPanel';
 import { AddNodeDialog } from './components/AddNodeDialog';
 import { ValidationResultBanner } from './components/ValidationResultBanner';
@@ -131,10 +196,16 @@ export default function OntologyBuilderPage() {
   useEffect(() => {
     if (!ontology) return;
 
+    // Auto-layout when no nodes have saved positions
+    const needsLayout = ontology.nodes.every((n) => n.positionX == null && n.positionY == null);
+    const autoPositions = needsLayout
+      ? computeAutoLayout(ontology.nodes.map((n) => n.id), ontology.edges)
+      : null;
+
     const nodes: Node[] = ontology.nodes.map((n) => ({
       id: n.id,
       type: 'editableNode',
-      position: { x: n.positionX ?? 0, y: n.positionY ?? 0 },
+      position: autoPositions?.get(n.id) ?? { x: n.positionX ?? 0, y: n.positionY ?? 0 },
       data: {
         label: n.title,
         branchPath: n.branchPath,
