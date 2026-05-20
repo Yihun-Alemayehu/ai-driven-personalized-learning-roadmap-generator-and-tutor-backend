@@ -1,4 +1,6 @@
 import logger from '../../utils/logger';
+import config from '../../config';
+import { phi4Generate } from './phi4.client';
 import { ollamaGenerate } from './ollama.client';
 import { geminiGenerate } from './gemini.client';
 import { isCircuitOpen, recordSuccess, recordFailure } from './ai.circuit-breaker';
@@ -45,7 +47,6 @@ function parseAndValidate<T>(
       }
 
       // LLMs sometimes wrap the payload (e.g. { explanation: {...} } or { quiz: {...} }).
-      // Try a few common shapes before giving up.
       const candidates: unknown[] = [parsed];
       if (parsed && typeof parsed === 'object') {
         const obj = parsed as Record<string, unknown>;
@@ -71,26 +72,42 @@ async function generate<T>(
   schema: { validate: (v: unknown) => { error?: unknown; value: T } },
   logContext: string,
 ): Promise<T | null> {
-  const circuitOpen = await isCircuitOpen();
 
-  if (!circuitOpen) {
-    // Try Ollama first
-    const raw = await ollamaGenerate(prompt);
-    const result = parseAndValidate<T>(raw, schema);
-
-    if (result) {
-      await recordSuccess();
-      return result;
+  // ── 1. Phi-4 (primary) ───────────────────────────────────────────────────────
+  if (config.phi4.baseUrl) {
+    const phi4Open = await isCircuitOpen('phi4');
+    if (!phi4Open) {
+      const raw = await phi4Generate(prompt);
+      const result = parseAndValidate<T>(raw, schema);
+      if (result) {
+        await recordSuccess('phi4');
+        logger.info({ logContext }, 'Phi-4 succeeded');
+        return result;
+      }
+      await recordFailure('phi4');
+      logger.warn({ logContext }, 'Phi-4 output invalid — falling back to Ollama');
+    } else {
+      logger.warn({ logContext }, 'Phi-4 circuit open — skipping to Ollama');
     }
-
-    // Ollama produced invalid/no output
-    await recordFailure();
-    logger.warn({ logContext }, 'Ollama output invalid — trying Gemini fallback');
-  } else {
-    logger.warn({ logContext }, 'Circuit breaker open — skipping Ollama, trying Gemini');
   }
 
-  // Gemini fallback
+  // ── 2. Ollama (secondary fallback) ───────────────────────────────────────────
+  const ollamaOpen = await isCircuitOpen('ollama');
+  if (!ollamaOpen) {
+    const raw = await ollamaGenerate(prompt);
+    const result = parseAndValidate<T>(raw, schema);
+    if (result) {
+      await recordSuccess('ollama');
+      logger.info({ logContext }, 'Ollama fallback succeeded');
+      return result;
+    }
+    await recordFailure('ollama');
+    logger.warn({ logContext }, 'Ollama output invalid — falling back to Gemini');
+  } else {
+    logger.warn({ logContext }, 'Ollama circuit open — skipping to Gemini');
+  }
+
+  // ── 3. Gemini (last resort) ──────────────────────────────────────────────────
   const geminiRaw = await geminiGenerate(prompt);
   const geminiResult = parseAndValidate<T>(geminiRaw, schema);
   if (geminiResult) {
@@ -98,7 +115,7 @@ async function generate<T>(
     return geminiResult;
   }
 
-  logger.warn({ logContext }, 'Both Ollama and Gemini failed — caller will use static content');
+  logger.warn({ logContext }, 'All providers (Phi-4, Ollama, Gemini) failed — returning null');
   return null;
 }
 
@@ -107,7 +124,6 @@ export async function generateQuiz(input: QuizGenerationInput): Promise<Generate
   const cached = await getCached<GeneratedQuiz>(cacheKey);
   if (cached) return cached;
 
-  // Ground the quiz in the explanation if one is already cached — makes questions more specific
   const cachedExplanation = await getCached<GeneratedExplanation>(cacheKeys.explanation(input.nodeId));
   const prompt = buildQuizPrompt({ ...input, explanation: cachedExplanation ?? undefined });
 

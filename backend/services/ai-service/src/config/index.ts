@@ -12,11 +12,18 @@ const config = {
     url: optional('REDIS_URL', 'redis://localhost:6379'),
   },
 
+  // Primary: Phi-4 Multimodal running on Kaggle, exposed via ngrok
+  phi4: {
+    baseUrl: optional('PHI4_BASE_URL', ''), // e.g. https://xxxx.ngrok-free.app
+  },
+
+  // Secondary fallback: local Ollama
   ollama: {
     baseUrl: optional('OLLAMA_BASE_URL', 'http://host.docker.internal:11434'),
     model: optional('OLLAMA_MODEL', 'qwen2.5:3b'),
   },
 
+  // Last-resort fallback: Gemini API
   gemini: {
     apiKey: optional('GEMINI_API_KEY', ''),
     model: optional('GEMINI_MODEL', 'gemini-1.5-flash'),

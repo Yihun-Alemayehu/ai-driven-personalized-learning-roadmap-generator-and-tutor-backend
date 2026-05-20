@@ -83,6 +83,7 @@ services:
     environment:
       NODE_ENV: development
       REDIS_URL: redis://redis:6379
+      PHI4_BASE_URL: ${PHI4_BASE_URL:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: qwen2.5:3b
       GEMINI_API_KEY: 'AIzaSyA-36tnuEosM8YP_AYDDWGGCuN1LRS-Z2Q'
