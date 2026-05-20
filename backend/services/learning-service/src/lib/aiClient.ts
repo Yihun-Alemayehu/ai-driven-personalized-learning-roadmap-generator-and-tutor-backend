@@ -56,3 +56,20 @@ export async function requestAiExplanation(ctx: NodeContext): Promise<AiExplanat
 export async function requestAiMicroQuiz(ctx: NodeContext): Promise<AiQuizResponse | null> {
   return post<AiQuizResponse>('/api/v1/ai/generate-micro-quiz', ctx);
 }
+
+export interface AiAskPayload {
+  nodeId: string;
+  nodeTitle: string;
+  question: string;
+  description?: string;
+  learningOutcomes?: string[];
+  explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] } | null;
+}
+
+export interface AiAskResponse {
+  answer: string | null;
+}
+
+export async function requestAiAsk(payload: AiAskPayload): Promise<AiAskResponse | null> {
+  return post<AiAskResponse>('/api/v1/ai/ask-question', payload);
+}

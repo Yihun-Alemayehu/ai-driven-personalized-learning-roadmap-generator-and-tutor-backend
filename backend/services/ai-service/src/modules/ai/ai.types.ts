@@ -18,6 +18,15 @@ export interface ExplanationInput {
   learningOutcomes: string[];
 }
 
+export interface AskQuestionInput {
+  nodeId: string;
+  nodeTitle: string;
+  question: string;
+  description?: string;
+  learningOutcomes?: string[];
+  explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] } | null;
+}
+
 export interface MicroQuizInput {
   nodeId: string;
   nodeTitle: string;

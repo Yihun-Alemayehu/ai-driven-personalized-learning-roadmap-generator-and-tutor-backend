@@ -60,6 +60,34 @@ export async function generateMicroQuiz(
   }
 }
 
+const askQuestionSchema = Joi.object({
+  nodeId: Joi.string().required(),
+  nodeTitle: Joi.string().required(),
+  question: Joi.string().min(3).max(1000).required(),
+  description: Joi.string().allow('').optional(),
+  learningOutcomes: Joi.array().items(Joi.string()).optional(),
+  explanation: Joi.object({
+    summary: Joi.string().required(),
+    keyPoints: Joi.array().items(Joi.string()).required(),
+    commonMistakes: Joi.array().items(Joi.string()).optional(),
+  }).allow(null).optional(),
+});
+
+export async function askQuestion(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { error, value } = askQuestionSchema.validate(req.body);
+    if (error) return next(ApiError.badRequest(error.message));
+    const answer = await svc.askQuestion(value);
+    res.json({ answer });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function healthDetail(
   _req: Request,
   res: Response,

@@ -189,4 +189,35 @@ router.get('/nodes/:nodeId/challenge', authenticate, ctrl.getChallengeProject);
  */
 router.get('/nodes/:nodeId/explanation', authenticate, ctrl.getNodeExplanation);
 
+/**
+ * @swagger
+ * /nodes/{nodeId}/ask:
+ *   post:
+ *     summary: Ask the AI instructor a question about a node
+ *     tags: [Quizzes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: nodeId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [question]
+ *             properties:
+ *               question: { type: string }
+ *               explanation: { type: object }
+ *     responses:
+ *       200:
+ *         description: AI instructor answer
+ *       403:
+ *         description: Node is locked
+ */
+router.post('/nodes/:nodeId/ask', authenticate, ctrl.askNodeQuestion);
+
 export default router;

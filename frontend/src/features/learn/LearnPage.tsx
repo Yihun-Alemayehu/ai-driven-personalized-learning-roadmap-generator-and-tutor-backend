@@ -6,7 +6,14 @@ import { useBreadcrumbStore } from '@/store/breadcrumbStore';
 import { useMyLearningStore } from '@/store/myLearning.store';
 import { LearnSidebar } from './components/LearnSidebar';
 import { LearnContent } from './components/LearnContent';
+import { AiInstructorPanel } from './components/AiInstructorPanel';
 import type { RoadmapNode } from '@/types';
+
+interface Explanation {
+  summary: string;
+  keyPoints: string[];
+  commonMistakes?: string[];
+}
 
 function Spinner() {
   return (
@@ -25,6 +32,8 @@ export default function LearnPage() {
   const { id: enrollmentId = '', nodeId = '' } = useParams<{ id: string; nodeId: string }>();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showInstructor, setShowInstructor] = useState(true);
+  const [explanation, setExplanation] = useState<Explanation | null>(null);
 
   const { data: roadmap, isLoading: roadmapLoading } = useRoadmapQuery(enrollmentId);
   const { data: enrollments } = useEnrollmentsQuery();
@@ -60,6 +69,12 @@ export default function LearnPage() {
   useEffect(() => {
     if (nodeId) updateLastNode(enrollmentId, nodeId);
   }, [enrollmentId, nodeId, updateLastNode]);
+
+  // Reset explanation context when the active node changes
+  useEffect(() => {
+    setExplanation(null);
+    setShowInstructor(true);
+  }, [nodeId]);
 
   if (roadmapLoading) return <Spinner />;
 
@@ -113,8 +128,18 @@ export default function LearnPage() {
               });
             }
           }}
+          onExplanationData={setExplanation}
         />
       </main>
+
+      {/* AI Instructor right panel */}
+      {showInstructor && (
+        <AiInstructorPanel
+          node={activeNode}
+          explanation={explanation}
+          onClose={() => setShowInstructor(false)}
+        />
+      )}
     </div>
   );
 }
