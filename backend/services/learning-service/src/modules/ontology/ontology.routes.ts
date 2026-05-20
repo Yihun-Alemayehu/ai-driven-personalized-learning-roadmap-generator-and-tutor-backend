@@ -181,6 +181,54 @@ router.post(
 
 /**
  * @swagger
+ * /ontologies/{ontologyId}/nodes/import:
+ *   post:
+ *     summary: Bulk import nodes and prerequisites from a JSON payload
+ *     tags: [Ontology]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ontologyId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nodes]
+ *             properties:
+ *               nodes:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [title, learningOutcomes]
+ *               prerequisites:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     node: { type: string }
+ *                     requires: { type: string }
+ *     responses:
+ *       201:
+ *         description: Import summary with created nodes, edge count, and warnings
+ *       400:
+ *         description: Validation error or duplicate titles
+ *       409:
+ *         description: Nodes already exist
+ */
+router.post(
+  '/ontologies/:ontologyId/nodes/import',
+  authenticate,
+  authorize('admin', 'domain_expert'),
+  ctrl.importNodes,
+);
+
+/**
+ * @swagger
  * /nodes/{id}:
  *   patch:
  *     summary: Update a learning node (draft ontology only)

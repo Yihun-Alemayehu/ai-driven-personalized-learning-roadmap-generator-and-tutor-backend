@@ -41,7 +41,7 @@ export default function InstructorLayout() {
   const unresolvedCount = flaggedData?.flaggedEvents.filter((e) => !e.details?.resolved).length ?? 0;
 
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: '#faf7f1' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: '#faf7f1' }}>
       {/* Sidebar */}
       <aside
         className="shrink-0 flex flex-col border-r overflow-y-auto"
@@ -53,7 +53,7 @@ export default function InstructorLayout() {
             className="text-[11px] tracking-[0.12em] uppercase mb-0.5"
             style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
           >
-            Instructor
+            Domain Expert
           </div>
           <div
             className="text-[18px]"

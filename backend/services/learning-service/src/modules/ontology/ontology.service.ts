@@ -6,6 +6,7 @@ import type {
   STATUS_TRANSITIONS,
   CreateNodeInput,
   UpdateNodeInput,
+  ImportInput,
 } from './ontology.types';
 import { STATUS_TRANSITIONS as TRANSITIONS } from './ontology.types';
 
@@ -79,7 +80,7 @@ export async function createVersion(domainId: string, createdById: string) {
           title: node.title,
           slug: node.slug,
           description: node.description,
-          learningOutcomes: node.learningOutcomes,
+          learningOutcomes: node.learningOutcomes as never,
           estimatedHours: node.estimatedHours,
           difficultyLevel: node.difficultyLevel,
           isBranchingPoint: node.isBranchingPoint,
@@ -204,6 +205,93 @@ export async function createNode(ontologyVersionId: string, data: CreateNodeInpu
   return prisma.learningNode.create({
     data: { ...data, ontologyVersionId, learningOutcomes: data.learningOutcomes },
   });
+}
+
+export async function importNodes(ontologyVersionId: string, data: ImportInput) {
+  await assertDraftStatus(ontologyVersionId);
+
+  const toSlug = (t: string) =>
+    t.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+  // Reject duplicate titles within the payload
+  const importTitles = data.nodes.map((n) => n.title);
+  const dupTitle = importTitles.find((t, i) => importTitles.indexOf(t) !== i);
+  if (dupTitle) throw ApiError.badRequest(`Duplicate title in import: "${dupTitle}"`);
+
+  // Load existing nodes to detect clashes
+  const existing = await prisma.learningNode.findMany({
+    where: { ontologyVersionId },
+    select: { id: true, title: true, slug: true },
+  });
+  const existingSlugSet = new Set(existing.map((n) => n.slug));
+  const existingTitleSet = new Set(existing.map((n) => n.title));
+
+  const clashingTitles = data.nodes.filter((n) => existingTitleSet.has(n.title)).map((n) => n.title);
+  if (clashingTitles.length > 0) {
+    throw ApiError.conflict(`These titles already exist: ${clashingTitles.join(', ')}`);
+  }
+  // Check slugs against existing and within the payload itself
+  const payloadSlugs = new Set<string>();
+  for (const node of data.nodes) {
+    const slug = toSlug(node.title);
+    if (existingSlugSet.has(slug)) {
+      throw ApiError.conflict(`Slug "${slug}" already exists. Rename "${node.title}".`);
+    }
+    if (payloadSlugs.has(slug)) {
+      throw ApiError.badRequest(`Two nodes produce the same slug "${slug}". Use distinct titles.`);
+    }
+    payloadSlugs.add(slug);
+  }
+
+  // Create all nodes in a single transaction
+  const createdNodes = await prisma.$transaction(async (tx) => {
+    const created = [];
+    for (const n of data.nodes) {
+      const node = await tx.learningNode.create({
+        data: {
+          ontologyVersionId,
+          title: n.title,
+          slug: toSlug(n.title),
+          description: n.description ?? null,
+          learningOutcomes: n.learningOutcomes,
+          estimatedHours: n.estimatedHours ?? null,
+          difficultyLevel: n.difficultyLevel ?? null,
+          isBranchingPoint: n.isBranchingPoint ?? false,
+          isConvergencePoint: n.isConvergencePoint ?? false,
+          branchPath: (n.branchPath ?? null) as never,
+        },
+      });
+      created.push(node);
+    }
+    return created;
+  });
+
+  // Build title → id map (new nodes + existing ones for cross-references)
+  const titleToId = new Map<string, string>();
+  for (const n of existing) titleToId.set(n.title, n.id);
+  for (const n of createdNodes) titleToId.set(n.title, n.id);
+
+  const warnings: string[] = [];
+  let edgesCreated = 0;
+
+  for (const prereq of data.prerequisites ?? []) {
+    const nodeId = titleToId.get(prereq.node);
+    const prereqNodeId = titleToId.get(prereq.requires);
+
+    if (!nodeId) { warnings.push(`Unknown node: "${prereq.node}"`); continue; }
+    if (!prereqNodeId) { warnings.push(`Unknown node: "${prereq.requires}"`); continue; }
+    if (nodeId === prereqNodeId) { warnings.push(`Self-reference skipped: "${prereq.node}"`); continue; }
+
+    const dup = await prisma.nodePrerequisite.findUnique({
+      where: { nodeId_prerequisiteNodeId: { nodeId, prerequisiteNodeId: prereqNodeId } },
+    });
+    if (dup) { warnings.push(`Edge already exists: "${prereq.requires}" → "${prereq.node}"`); continue; }
+
+    await prisma.nodePrerequisite.create({ data: { nodeId, prerequisiteNodeId: prereqNodeId } });
+    edgesCreated++;
+  }
+
+  return { nodes: createdNodes, edgesCreated, warnings };
 }
 
 export async function updateNode(nodeId: string, data: UpdateNodeInput) {

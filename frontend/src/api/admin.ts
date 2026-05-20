@@ -248,6 +248,39 @@ export function useAddPrerequisiteMutation(ontologyId: string) {
   });
 }
 
+export interface ImportNodePayload {
+  title: string;
+  description?: string;
+  learningOutcomes: string[];
+  estimatedHours?: number;
+  difficultyLevel?: number;
+  isBranchingPoint?: boolean;
+  isConvergencePoint?: boolean;
+  branchPath?: BranchPath | null;
+}
+
+export interface ImportOntologyPayload {
+  nodes: ImportNodePayload[];
+  prerequisites: Array<{ node: string; requires: string }>;
+}
+
+export interface ImportOntologyResult {
+  nodes: OntologyNode[];
+  edgesCreated: number;
+  warnings: string[];
+}
+
+export function useImportNodesMutation(ontologyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ImportOntologyPayload) =>
+      apiClient
+        .post<ImportOntologyResult>(`/ontologies/${ontologyId}/nodes/import`, payload)
+        .then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.ontologyDetail(ontologyId) }),
+  });
+}
+
 export function useDeletePrerequisiteMutation(ontologyId: string) {
   const qc = useQueryClient();
   return useMutation({

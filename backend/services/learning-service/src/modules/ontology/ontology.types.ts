@@ -58,6 +58,22 @@ export interface CreateNodeInput {
   positionY?: number;
 }
 
+export interface ImportNodeItem {
+  title: string;
+  description?: string;
+  learningOutcomes: string[];
+  estimatedHours?: number;
+  difficultyLevel?: number;
+  isBranchingPoint?: boolean;
+  isConvergencePoint?: boolean;
+  branchPath?: BranchPath | null;
+}
+
+export interface ImportInput {
+  nodes: ImportNodeItem[];
+  prerequisites: Array<{ node: string; requires: string }>;
+}
+
 export interface UpdateNodeInput {
   title?: string;
   slug?: string;

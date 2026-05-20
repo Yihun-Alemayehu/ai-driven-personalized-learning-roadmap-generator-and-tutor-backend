@@ -95,6 +95,7 @@ function computeAutoLayout(
 }
 import { NodeEditPanel } from './components/NodeEditPanel';
 import { AddNodeDialog } from './components/AddNodeDialog';
+import { ImportJsonDialog } from './components/ImportJsonDialog';
 import { ValidationResultBanner } from './components/ValidationResultBanner';
 
 // ── Editable node type ────────────────────────────────────────────────────────
@@ -183,6 +184,7 @@ export default function OntologyBuilderPage() {
 
   const [selectedNode, setSelectedNode] = useState<OntologyNode | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [addPosition, setAddPosition] = useState({ x: 100, y: 100 });
   const [runValidation, setRunValidation] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
@@ -196,16 +198,19 @@ export default function OntologyBuilderPage() {
   useEffect(() => {
     if (!ontology) return;
 
-    // Auto-layout when no nodes have saved positions
-    const needsLayout = ontology.nodes.every((n) => n.positionX == null && n.positionY == null);
-    const autoPositions = needsLayout
+    // Auto-layout whenever any node lacks a saved position (handles bulk imports)
+    const hasUnpositioned = ontology.nodes.some((n) => n.positionX == null && n.positionY == null);
+    const autoPositions = hasUnpositioned
       ? computeAutoLayout(ontology.nodes.map((n) => n.id), ontology.edges)
       : null;
 
     const nodes: Node[] = ontology.nodes.map((n) => ({
       id: n.id,
       type: 'editableNode',
-      position: autoPositions?.get(n.id) ?? { x: n.positionX ?? 0, y: n.positionY ?? 0 },
+      position:
+        n.positionX != null && n.positionY != null
+          ? { x: n.positionX, y: n.positionY }
+          : (autoPositions?.get(n.id) ?? { x: 0, y: 0 }),
       data: {
         label: n.title,
         branchPath: n.branchPath,
@@ -349,13 +354,22 @@ export default function OntologyBuilderPage() {
         {/* Actions */}
         <div className="flex items-center gap-2">
           {isDraft && (
-            <button
-              onClick={() => setShowAddDialog(true)}
-              className="px-3 py-1.5 rounded-[8px] text-[12px] hover:bg-[#ebe6db] transition-colors"
-              style={{ fontFamily: 'JetBrains Mono, monospace', color: '#1a1614', border: '1px solid #d6cfbf' }}
-            >
-              + Add Node
-            </button>
+            <>
+              <button
+                onClick={() => setShowAddDialog(true)}
+                className="px-3 py-1.5 rounded-[8px] text-[12px] hover:bg-[#ebe6db] transition-colors"
+                style={{ fontFamily: 'JetBrains Mono, monospace', color: '#1a1614', border: '1px solid #d6cfbf' }}
+              >
+                + Add Node
+              </button>
+              <button
+                onClick={() => setShowImportDialog(true)}
+                className="px-3 py-1.5 rounded-[8px] text-[12px] hover:bg-[#ebe6db] transition-colors"
+                style={{ fontFamily: 'JetBrains Mono, monospace', color: '#1a1614', border: '1px solid #d6cfbf' }}
+              >
+                ↑ Import JSON
+              </button>
+            </>
           )}
           <button
             onClick={handleValidate}
@@ -451,6 +465,14 @@ export default function OntologyBuilderPage() {
           ontologyId={ontologyId}
           defaultPosition={addPosition}
           onClose={() => setShowAddDialog(false)}
+        />
+      )}
+
+      {/* Import JSON dialog */}
+      {showImportDialog && (
+        <ImportJsonDialog
+          ontologyId={ontologyId}
+          onClose={() => setShowImportDialog(false)}
         />
       )}
     </div>

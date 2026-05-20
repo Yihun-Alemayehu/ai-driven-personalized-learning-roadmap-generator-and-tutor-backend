@@ -30,7 +30,7 @@ export default function AdminLayout() {
   const isBuilder = Boolean(useMatch('/admin/ontology/:id'));
 
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: '#faf7f1' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: '#faf7f1' }}>
       {/* Sidebar */}
       <aside
         className="shrink-0 flex flex-col border-r overflow-y-auto"

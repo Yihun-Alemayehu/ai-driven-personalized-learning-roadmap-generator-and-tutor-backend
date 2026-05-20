@@ -5,6 +5,7 @@ import {
   updateNodeSchema,
   addPrerequisiteSchema,
   transitionStatusSchema,
+  importNodesSchema,
 } from './ontology.validation';
 import { ApiError } from '../../utils/ApiError';
 import type { OntologyStatus } from './ontology.types';
@@ -57,6 +58,17 @@ export async function createNode(req: Request, res: Response, next: NextFunction
     if (error) return next(ApiError.badRequest(error.message));
     const node = await svc.createNode(req.params.ontologyId, value);
     res.status(201).json({ node });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function importNodes(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { error, value } = importNodesSchema.validate(req.body);
+    if (error) return next(ApiError.badRequest(error.message));
+    const result = await svc.importNodes(req.params.ontologyId, value);
+    res.status(201).json(result);
   } catch (err) {
     next(err);
   }
