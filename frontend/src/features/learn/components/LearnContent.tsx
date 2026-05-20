@@ -54,7 +54,8 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested }: Lea
   const { data, isLoading, isError } = useExplanationQuery(node.id, enabled);
 
   const cfg = MASTERY_CONFIG[node.masteryState];
-  const canTakeQuiz = node.unlocked && node.masteryState !== 'locked';
+  const isLocked = !node.unlocked;
+  const canTakeQuiz = node.unlocked;
 
   if (view === 'quiz') {
     return <InlineQuiz nodeId={node.id} enrollmentId={enrollmentId} onBack={() => setView('explanation')} />;
@@ -134,28 +135,32 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested }: Lea
                 className="text-[18px] mb-1"
                 style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1a1614' }}
               >
-                AI-powered explanation
+                {isLocked ? 'This node is locked' : 'AI-powered explanation'}
               </p>
               <p
                 className="text-[14px]"
                 style={{ fontFamily: "'Crimson Pro', serif", color: '#6e645a' }}
               >
-                Get a clear, concise explanation of this topic tailored for learners.
+                {isLocked
+                  ? 'Complete prerequisite nodes first to unlock learning content and explanation generation.'
+                  : 'Get a clear, concise explanation of this topic tailored for learners.'}
               </p>
             </div>
             <button
-              className="px-6 py-2.5 rounded-full text-[15px] transition-all hover:opacity-90"
+              className="px-6 py-2.5 rounded-full text-[15px] transition-all hover:opacity-90 disabled:opacity-45 disabled:cursor-not-allowed"
               style={{
                 fontFamily: "'Crimson Pro', serif",
-                background: '#1a1614',
-                color: '#f3efe7',
+                background: isLocked ? '#ebe6db' : '#1a1614',
+                color: isLocked ? '#9a9088' : '#f3efe7',
               }}
+              disabled={isLocked}
               onClick={() => {
+                if (isLocked) return;
                 setEnabled(true);
                 onExplanationRequested();
               }}
             >
-              Generate explanation
+              {isLocked ? '🔒 Locked until prerequisites are done' : 'Generate explanation'}
             </button>
           </div>
         )}

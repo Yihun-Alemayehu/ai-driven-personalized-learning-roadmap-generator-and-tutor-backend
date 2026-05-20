@@ -56,7 +56,7 @@ function LockBadge() {
       className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full grid place-items-center text-[8px] font-bold shadow-sm"
       style={{ background: '#9a9088', color: '#faf7f1' }}
     >
-      ⌬
+      🔒
     </span>
   );
 }
@@ -103,7 +103,7 @@ function StandardNode({ data, selected, level }: { data: RoadmapNode; selected: 
   const state = data.masteryState;
   const cfg = MASTERY_CONFIG[state];
   const lvl = levelStyle(level);
-  const isLocked = state === 'locked';
+  const isLocked = !data.unlocked;
 
   // Mastery state overrides the background to its own color but keeps level border for unlocked nodes
   const bgColor = isLocked ? lvl.lockedBg : (state === 'not_started' ? lvl.bg : cfg.backgroundColor);
@@ -146,7 +146,7 @@ function StandardNode({ data, selected, level }: { data: RoadmapNode; selected: 
           className="text-[9.5px] mt-1 tracking-[0.06em] pl-2"
           style={{ fontFamily: 'JetBrains Mono, monospace', color: textColor, opacity: 0.9 }}
         >
-          {cfg.label}
+          {isLocked ? 'locked' : cfg.label}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />

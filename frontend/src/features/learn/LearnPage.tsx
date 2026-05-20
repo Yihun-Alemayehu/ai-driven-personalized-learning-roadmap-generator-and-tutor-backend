@@ -48,9 +48,9 @@ export default function LearnPage() {
   const nodes = (roadmap?.nodes ?? []) as RoadmapNode[];
   const activeNode = nodes.find((n) => n.id === nodeId) ?? null;
 
-  // If the nodeId isn't in the roadmap, redirect to first unlocked node
+  // If node is missing or locked, redirect to the first unlocked node.
   useEffect(() => {
-    if (!roadmapLoading && nodes.length > 0 && !activeNode) {
+    if (!roadmapLoading && nodes.length > 0 && (!activeNode || !activeNode.unlocked)) {
       const first = nodes.find((n) => n.unlocked) ?? nodes[0];
       navigate(`/enrollments/${enrollmentId}/learn/${first.id}`, { replace: true });
     }

@@ -67,7 +67,8 @@ export function NodeDetailDrawer({ node, open, onClose, enrollmentId }: NodeDeta
 
   if (!node) return null;
 
-  const canTakeQuiz = node.unlocked && node.masteryState !== 'locked';
+  const isLocked = !node.unlocked;
+  const canTakeQuiz = node.unlocked;
   const hours = node.estimatedHours != null ? Number(node.estimatedHours) : null;
   const quizPath = `/quiz/${node.id}${enrollmentId ? `?enrollment=${enrollmentId}` : ''}`;
 
@@ -206,10 +207,10 @@ export function NodeDetailDrawer({ node, open, onClose, enrollmentId }: NodeDeta
               variant="ghost"
               className="w-full rounded-full h-8 text-[14px]"
               style={{ fontFamily: "'Crimson Pro', serif", color: '#6e645a' }}
-              onClick={() => enrollmentId && navigate(`/enrollments/${enrollmentId}/learn/${node.id}`)}
-              disabled={!enrollmentId}
+              onClick={() => !isLocked && enrollmentId && navigate(`/enrollments/${enrollmentId}/learn/${node.id}`)}
+              disabled={!enrollmentId || isLocked}
             >
-              Get AI explanation ↗
+              {isLocked ? '🔒 Explanation locked' : 'Get AI explanation ↗'}
             </Button>
           </div>
         )}

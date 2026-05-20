@@ -25,6 +25,23 @@ async function storeRefreshToken(userId: string, plainToken: string): Promise<vo
   );
 }
 
+// Retry helper for transient network errors (used by OAuth exchanges)
+async function retryRequest<T>(fn: () => Promise<T>, attempts = 3, delayMs = 300): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      // small backoff
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, delayMs * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function register(
@@ -151,22 +168,40 @@ async function findOrCreateOAuthUser(
 export async function handleGoogleCallback(
   code: string,
 ): Promise<{ user: Pick<UserRecord, 'id' | 'email' | 'role'>; tokens: TokenPair }> {
-  const tokenRes = await superagent
-    .post('https://oauth2.googleapis.com/token')
-    .type('form')
-    .send({
-      code,
-      client_id: config.oauth.google.clientId,
-      client_secret: config.oauth.google.clientSecret,
-      redirect_uri: config.oauth.google.callbackUrl,
-      grant_type: 'authorization_code',
-    });
+  // Exchange authorization code for tokens
+  let tokenRes;
+  try {
+    tokenRes = await retryRequest(() =>
+      superagent
+        .post('https://oauth2.googleapis.com/token')
+        .type('form')
+        .send({
+          code,
+          client_id: config.oauth.google.clientId,
+          client_secret: config.oauth.google.clientSecret,
+          redirect_uri: config.oauth.google.callbackUrl,
+          grant_type: 'authorization_code',
+        }),
+    );
+  } catch (err: unknown) {
+    // Surface a clearer error to help debugging transient DNS/network issues
+    throw ApiError.internal(`Failed to exchange Google OAuth code: ${(err as Error).message}`);
+  }
 
-  const userRes = await superagent
-    .get('https://www.googleapis.com/oauth2/v2/userinfo')
-    .set('Authorization', `Bearer ${tokenRes.body.access_token as string}`);
+  // Fetch user profile
+  let userRes;
+  try {
+    userRes = await retryRequest(() =>
+      superagent
+        .get('https://www.googleapis.com/oauth2/v2/userinfo')
+        .set('Authorization', `Bearer ${tokenRes.body.access_token as string}`),
+    );
+  } catch (err: unknown) {
+    throw ApiError.internal(`Failed to fetch Google user info: ${(err as Error).message}`);
+  }
 
   const g = userRes.body as { id: string; email: string; name: string; picture: string };
+  if (!g?.email) throw ApiError.badRequest('Google account has no email');
   return findOrCreateOAuthUser({
     provider: 'google',
     providerId: g.id,
@@ -179,27 +214,46 @@ export async function handleGoogleCallback(
 export async function handleGithubCallback(
   code: string,
 ): Promise<{ user: Pick<UserRecord, 'id' | 'email' | 'role'>; tokens: TokenPair }> {
-  const tokenRes = await superagent
-    .post('https://github.com/login/oauth/access_token')
-    .accept('application/json')
-    .send({
-      client_id: config.oauth.github.clientId,
-      client_secret: config.oauth.github.clientSecret,
-      code,
-    });
+  // Exchange code for access token with retry
+  let tokenRes;
+  try {
+    tokenRes = await retryRequest(() =>
+      superagent
+        .post('https://github.com/login/oauth/access_token')
+        .accept('application/json')
+        .send({
+          client_id: config.oauth.github.clientId,
+          client_secret: config.oauth.github.clientSecret,
+          code,
+        }),
+    );
+  } catch (err: unknown) {
+    throw ApiError.internal(`Failed to exchange GitHub OAuth code: ${(err as Error).message}`);
+  }
 
   const accessToken = tokenRes.body.access_token as string;
 
-  const [userRes, emailsRes] = await Promise.all([
-    superagent
-      .get('https://api.github.com/user')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .set('User-Agent', 'learner-roadmap-app'),
-    superagent
-      .get('https://api.github.com/user/emails')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .set('User-Agent', 'learner-roadmap-app'),
-  ]);
+  // Fetch profile and emails with retry
+  let userRes;
+  let emailsRes;
+  try {
+    [userRes, emailsRes] = await Promise.all([
+      retryRequest(() =>
+        superagent
+          .get('https://api.github.com/user')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .set('User-Agent', 'learner-roadmap-app'),
+      ),
+      retryRequest(() =>
+        superagent
+          .get('https://api.github.com/user/emails')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .set('User-Agent', 'learner-roadmap-app'),
+      ),
+    ]);
+  } catch (err: unknown) {
+    throw ApiError.internal(`Failed to fetch GitHub profile/emails: ${(err as Error).message}`);
+  }
 
   const gh = userRes.body as { id: number; name: string; avatar_url: string; login: string };
   const emails = emailsRes.body as { email: string; primary: boolean; verified: boolean }[];

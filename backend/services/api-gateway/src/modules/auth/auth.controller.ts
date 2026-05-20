@@ -57,6 +57,10 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
 }
 
 export function googleRedirect(_req: Request, res: Response): void {
+  if (!config.oauth.google.clientId) {
+    throw ApiError.internal('Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
+  }
+
   const params = new URLSearchParams({
     client_id: config.oauth.google.clientId,
     redirect_uri: config.oauth.google.callbackUrl,
@@ -81,6 +85,10 @@ export async function googleCallback(req: Request, res: Response, next: NextFunc
 }
 
 export function githubRedirect(_req: Request, res: Response): void {
+  if (!config.oauth.github.clientId) {
+    throw ApiError.internal('GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.');
+  }
+
   const params = new URLSearchParams({
     client_id: config.oauth.github.clientId,
     redirect_uri: config.oauth.github.callbackUrl,

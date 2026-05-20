@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { ApiError } from '../../utils/ApiError';
 import { validateDAG, detectCycle, type DagEdge } from './dag.utils';
 import type {
