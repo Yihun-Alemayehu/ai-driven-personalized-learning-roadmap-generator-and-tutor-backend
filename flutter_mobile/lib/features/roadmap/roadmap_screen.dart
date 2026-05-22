@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -95,66 +96,72 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
                     child: ProgressStatsBar(stats: bundle.stats),
                   ),
                 ),
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: InteractiveViewer(
-                    key: _viewerKey,
-                    transformationController: _transformationController,
-                    constrained: false,
-                    boundaryMargin: const EdgeInsets.all(320),
-                    minScale: 0.3,
-                    maxScale: 2.5,
-                    child: SizedBox(
-                      width: 2400,
-                      height: 1800,
-                      child: GraphView(
-                        graph: _graph,
-                        algorithm: _algorithm,
-                        paint: Paint()
-                          ..color = const Color(0xFFB9B1A4)
-                          ..strokeWidth = 1.5
-                          ..style = PaintingStyle.stroke,
-                        builder: (Node node) {
-                          final mapped = node.key?.value as RoadmapNode;
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 500, // Fixed height for the graph area
+                    child: InteractiveViewer(
+                      key: _viewerKey,
+                      transformationController: _transformationController,
+                      constrained: false,
+                      boundaryMargin: const EdgeInsets.all(100),
+                      minScale: 0.3,
+                      maxScale: 2.5,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: GraphView(
+                          graph: _graph,
+                          algorithm: _algorithm,
+                          paint: Paint()
+                            ..color = const Color(0xFFB9B1A4)
+                            ..strokeWidth = 1.5
+                            ..style = PaintingStyle.stroke,
+                          builder: (Node node) {
+                            final mapped = node.key?.value as RoadmapNode?;
+                            
+                            if (mapped == null) {
+                              debugPrint('[ROADMAP] WARNING: Node has null data, key=${node.key}');
+                              return const SizedBox.shrink();
+                            }
 
-                          return RoadmapNodeWidget(
-                            node: mapped,
-                            isActive: _activeNodeId == mapped.id,
-                            onTap: mapped.unlocked
-                                ? () {
-                                    setState(() {
-                                      _activeNodeId = mapped.id;
-                                    });
+                            return RoadmapNodeWidget(
+                              node: mapped,
+                              isActive: _activeNodeId == mapped.id,
+                              onTap: mapped.unlocked
+                                  ? () {
+                                      setState(() {
+                                        _activeNodeId = mapped.id;
+                                      });
 
-                                    showModalBottomSheet<void>(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (_) => NodeDetailSheet(
-                                        enrollmentId: widget.enrollmentId,
-                                        node: mapped,
-                                        onLearn: () {
-                                          Navigator.of(context).pop();
-                                          context.go(
-                                            '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
-                                          );
-                                        },
-                                        onQuiz: () {
-                                          Navigator.of(context).pop();
-                                          context.go('/quiz/${mapped.id}');
-                                        },
-                                        onResources: () {
-                                          Navigator.of(context).pop();
-                                          context.go(
-                                            '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
-                                          );
-                                        },
-                                      ),
-                                    );
-                                  }
-                                : null,
-                          );
-                        },
+                                      showModalBottomSheet<void>(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (_) => NodeDetailSheet(
+                                          enrollmentId: widget.enrollmentId,
+                                          node: mapped,
+                                          onLearn: () {
+                                            Navigator.of(context).pop();
+                                            context.go(
+                                              '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
+                                            );
+                                          },
+                                          onQuiz: () {
+                                            Navigator.of(context).pop();
+                                            context.go('/quiz/${mapped.id}');
+                                          },
+                                          onResources: () {
+                                            Navigator.of(context).pop();
+                                            context.go(
+                                              '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
+                                            );
+                                          },
+                                        ),
+                                      );
+                                    }
+                                  : null,
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -180,6 +187,14 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
   }
 
   void _syncGraph(RoadmapData roadmap) {
+    debugPrint('[ROADMAP] Syncing graph with ${roadmap.nodes.length} nodes, ${roadmap.edges.length} edges');
+    
+    // Only clear if we have data to avoid empty graph issues
+    if (roadmap.nodes.isEmpty) {
+      debugPrint('[ROADMAP] No nodes to sync, skipping');
+      return;
+    }
+    
     _graph.nodes.clear();
     _graph.edges.clear();
     _nodeMap.clear();
@@ -189,6 +204,7 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
       graphNode.key = ValueKey<RoadmapNode>(node);
       _graph.addNode(graphNode);
       _nodeMap[node.id] = graphNode;
+      debugPrint('[ROADMAP] Added node: ${node.id} - ${node.title}');
     }
 
     for (final edge in roadmap.edges) {
@@ -196,8 +212,13 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
       final from = _nodeMap[edge.prerequisiteNodeId];
       if (to != null && from != null) {
         _graph.addEdge(from, to);
+        debugPrint('[ROADMAP] Added edge: ${edge.prerequisiteNodeId} -> ${edge.nodeId}');
+      } else {
+        debugPrint('[ROADMAP] WARNING: Could not add edge ${edge.prerequisiteNodeId} -> ${edge.nodeId} (missing nodes)');
       }
     }
+    
+    debugPrint('[ROADMAP] Graph sync complete: ${_graph.nodeCount()} nodes, ${_graph.edges.length} edges');
   }
 
   void _centerOnFirstUnlocked(RoadmapData roadmap) {
@@ -226,19 +247,27 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
 
     final graphNode = _nodeMap[unlockedNode.id];
     if (graphNode == null) {
+      debugPrint('[ROADMAP] Centering: graphNode is null, skipping');
       return;
     }
 
     final size = _viewerKey.currentContext?.size;
     final position = graphNode.position;
 
-    if (size == null || (position == Offset.zero && retries < 8)) {
-      Future<void>.delayed(const Duration(milliseconds: 30), () {
-        if (!mounted) {
-          return;
-        }
-        _attemptCenter(roadmap: roadmap, retries: retries + 1);
-      });
+    debugPrint('[ROADMAP] Centering attempt #$retries: size=$size, position=$position');
+
+    if (size == null || (position.dx == 0 && position.dy == 0 && retries < 10)) {
+      if (retries < 10) {
+        Future<void>.delayed(const Duration(milliseconds: 50), () {
+          if (!mounted) {
+            return;
+          }
+          _attemptCenter(roadmap: roadmap, retries: retries + 1);
+        });
+      } else {
+        debugPrint('[ROADMAP] Centering: max retries reached, giving up');
+        _hasCentered = true; // Mark as done to stop trying
+      }
       return;
     }
 

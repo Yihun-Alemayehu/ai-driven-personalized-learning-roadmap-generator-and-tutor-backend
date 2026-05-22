@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/user.dart';
 import 'api_client.dart';
@@ -33,6 +34,8 @@ class AuthApi {
     required String email,
     required String password,
   }) async {
+    debugPrint('[AUTH_API] Register called with email: $email');
+    
     final response = await _dio.post<Map<String, dynamic>>(
       '/auth/register',
       data: <String, dynamic>{
@@ -43,7 +46,21 @@ class AuthApi {
       options: _apiClient.unauthenticatedOptions(),
     );
 
+    debugPrint('[AUTH_API] Register response status: ${response.statusCode}');
+    debugPrint('[AUTH_API] Register response data: ${response.data}');
+
     final data = response.data ?? <String, dynamic>{};
+    
+    if (data['user'] == null) {
+      debugPrint('[AUTH_API] ERROR: user field is null in response');
+    }
+    if (data['accessToken'] == null) {
+      debugPrint('[AUTH_API] ERROR: accessToken field is null in response');
+    }
+    if (data['refreshToken'] == null) {
+      debugPrint('[AUTH_API] ERROR: refreshToken field is null in response');
+    }
+    
     return (
       User.fromJson(data['user'] as Map<String, dynamic>),
       AuthTokens.fromJson(data),

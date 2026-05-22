@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -139,24 +140,34 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   Future<void> register(String fullName, String email, String password) async {
+    debugPrint('[AUTH_PROVIDER] register() called');
     final previous = state.valueOrNull ?? AuthState.unauthenticated;
     state = AsyncData(previous.copyWith(isLoading: true, clearError: true));
 
     try {
+      debugPrint('[AUTH_PROVIDER] calling _authApi.register()');
       final result = await _authApi.register(
         fullName: fullName,
         email: email,
         password: password,
       );
+      debugPrint('[AUTH_PROVIDER] register success, user: ${result.$1.id}');
       await _persistTokens(result.$2);
       state = AsyncData(
         AuthState(user: result.$1, tokens: result.$2, isLoading: false),
       );
+      debugPrint('[AUTH_PROVIDER] state updated to authenticated');
     } catch (error) {
+      debugPrint('[AUTH_PROVIDER] register FAILED: $error');
+      if (error is DioException) {
+        debugPrint('[AUTH_PROVIDER] DioException type: ${error.type}');
+        debugPrint('[AUTH_PROVIDER] DioException response: ${error.response?.data}');
+      }
       final errorMessage = _extractApiMessage(
         error,
         fallback: 'Unable to create account. Try a different email.',
       );
+      debugPrint('[AUTH_PROVIDER] extracted error message: $errorMessage');
       state = AsyncData(
         previous.copyWith(isLoading: false, error: errorMessage),
       );
@@ -190,23 +201,29 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    debugPrint('[AUTH_PROVIDER] logout() called');
     if (_isLoggingOut) {
+      debugPrint('[AUTH_PROVIDER] logout already in progress, skipping');
       return;
     }
 
     _isLoggingOut = true;
     final refreshToken = state.valueOrNull?.tokens?.refreshToken;
+    debugPrint('[AUTH_PROVIDER] calling backend logout...');
     try {
       if (refreshToken != null) {
         try {
           await _authApi.logout(refreshToken);
-        } catch (_) {
-          // Intentionally ignored because local logout should still succeed.
+          debugPrint('[AUTH_PROVIDER] backend logout success');
+        } catch (e) {
+          debugPrint('[AUTH_PROVIDER] backend logout failed (ignored): $e');
         }
       }
 
       await _clearTokens();
+      debugPrint('[AUTH_PROVIDER] tokens cleared');
       state = const AsyncData(AuthState.unauthenticated);
+      debugPrint('[AUTH_PROVIDER] state set to unauthenticated');
     } finally {
       _isLoggingOut = false;
     }

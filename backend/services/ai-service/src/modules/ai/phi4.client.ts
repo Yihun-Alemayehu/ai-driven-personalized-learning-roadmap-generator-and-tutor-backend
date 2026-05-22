@@ -1,4 +1,5 @@
 import config from '../../config';
+import logger from '../../utils/logger';
 
 const PHI4_TIMEOUT_MS = 45_000; // GPU-backed but ngrok adds latency
 
@@ -16,6 +17,7 @@ export async function phi4Generate(prompt: string): Promise<string | null> {
     const body = new URLSearchParams();
     body.set('prompt', prompt);
     body.set('max_new_tokens', '2048');
+    body.set('json_mode', 'true'); // Enable JSON extraction
 
     const res = await fetch(`${config.phi4.baseUrl}/generate/text`, {
       method: 'POST',
@@ -26,6 +28,7 @@ export async function phi4Generate(prompt: string): Promise<string | null> {
     clearTimeout(timer);
     if (!res.ok) return null;
     const data = (await res.json()) as Phi4TextResponse;
+    logger.info({ response: data.response?.slice(0, 500) }, 'Phi-4 raw response');
     return data.response ?? null;
   } catch {
     clearTimeout(timer);
