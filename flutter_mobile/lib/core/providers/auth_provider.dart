@@ -68,6 +68,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   static const String _accessTokenKey = 'accessToken';
   static const String _refreshTokenKey = 'refreshToken';
   bool _isLoggingOut = false;
+  bool _callbacksBound = false;
 
   FlutterSecureStorage get _storage => ref.read(secureStorageProvider);
   AuthApi get _authApi => ref.read(authApiProvider);
@@ -75,11 +76,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
     final apiClient = ref.read(apiClientProvider);
-    apiClient.bindAuth(
-      accessTokenGetter: () => state.valueOrNull?.tokens?.accessToken,
-      refreshTokenHandler: refreshTokensFromInterceptor,
-      onRefreshFailure: logout,
-    );
+    
+    // Only bind callbacks once to avoid issues on hot reload
+    if (!_callbacksBound) {
+      apiClient.bindAuth(
+        accessTokenGetter: () => state.valueOrNull?.tokens?.accessToken,
+        refreshTokenHandler: refreshTokensFromInterceptor,
+        onRefreshFailure: logout,
+      );
+      _callbacksBound = true;
+    }
 
     return _initialize();
   }
