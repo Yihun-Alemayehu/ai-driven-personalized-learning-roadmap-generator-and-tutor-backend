@@ -14,7 +14,7 @@ The design solution was reviewed before implementation to confirm that it still 
 
 - **Service separation remains justified:** The gateway isolates authentication and RBAC; the learning-service owns domain rules; the ai-service manages external AI dependencies. This avoids cross-cutting security and reliability risks.
 - **Scalability assumptions hold:** AI workloads are isolated and can scale horizontally without affecting database-heavy learning flows.
-- **Data integrity is preserved:** Prisma schema and constraints enforce the DAG structure, progress tracking, and versioning rules required by the ontology model (see [backend/services/learning-service/prisma/schema.prisma](backend/services/learning-service/prisma/schema.prisma)).
+- **Data integrity is preserved:** Prisma schema and constraints enforce the DAG structure, progress tracking, and versioning rules required by the ontology model (see `backend/services/learning-service/prisma/schema.prisma`).
 
 **Design trade-offs revisited**
 
@@ -37,12 +37,12 @@ Overall, the design remains valid and aligned with the project objectives. The r
 
 ## 5.2 Deciding on the Development Tools
 
-The development toolchain was selected to balance rapid iteration, reliability, and long-term maintainability. The choices reflect the system’s need for strong typing, modular services, a consistent API layer, and cross-platform client delivery.
+The development toolchain was selected to balance rapid iteration, reliability, and long-term maintainability. The choices reflect the system's need for strong typing, modular services, a consistent API layer, and cross-platform client delivery.
 
 ### 5.2.1 Programming Languages
 
 - **TypeScript:** Used across backend services and the web frontend to provide static typing, safer refactoring, and shared conventions across the codebase.
-- **Dart:** Chosen for the mobile client to leverage Flutter’s cross-platform UI toolkit and strong developer productivity.
+- **Dart:** Chosen for the mobile client to leverage Flutter's cross-platform UI toolkit and strong developer productivity.
 - **SQL (via Prisma):** The relational model requires precise constraints and indexing; Prisma generates SQL migrations while keeping schema changes declarative.
 
 ### 5.2.2 Frameworks and Core Libraries
@@ -54,7 +54,7 @@ The development toolchain was selected to balance rapid iteration, reliability, 
 
 ### 5.2.3 AI and External Integration Tools
 
-- **LLM Providers:** Gemini is used as the primary provider; Phi-4 and Ollama are used for fallback and local inference.
+- **LLM Providers:** Phi-4-Multimodal (via Kaggle) is used as the primary provider; Qwen2.5-3B (via Ollama) and Gemini 2.5 Flash (API, last resort) serve as fallback tiers.
 - **Circuit breaker and caching utilities:** Ensure resilience against AI provider latency and outages.
 - **Search API:** Google Programmable Search Engine (PSE) enables resource discovery from pre-approved domains.
 
@@ -80,23 +80,85 @@ The development toolchain was selected to balance rapid iteration, reliability, 
 
 **Local environment requirements**
 
-- Node.js (LTS) and npm
-- Docker and Docker Compose
-- Flutter SDK (for mobile development)
+- Node.js 18 LTS or later with npm
+- Docker and Docker Compose v2
+- Flutter SDK 3.x (for mobile development)
+- PostgreSQL 15 (optional if using Docker)
+- Git for version control
 
-**Configuration and secrets**
+**Installation and configuration**
+
+The development environment is configured to mirror the production topology using Docker Compose. The following steps outline the setup process:
+
+1. **Clone the repository:**
+   ```
+   git clone https://github.com/yegeta/ai-learning-roadmap.git
+   cd ai-learning-roadmap
+   ```
+
+2. **Environment variables:**
+   Copy `.env.example` to `.env` in each service directory and configure the following:
+   ```
+   # AI Service
+   GEMINI_API_KEY=your-gemini-api-key
+   GEMINI_MODEL=gemini-2.5-flash
+   PHI4_BASE_URL=  # Optional: URL to Phi-4 running on Kaggle
+   OLLAMA_BASE_URL=http://host.docker.internal:11434
+   OLLAMA_MODEL=qwen2.5:3b
+   
+   # Database
+   DATABASE_URL=postgresql://user:password@localhost:5432/learning_roadmap
+   
+   # Authentication
+   JWT_SECRET=your-jwt-secret
+   GOOGLE_CLIENT_ID=your-google-oauth-client-id
+   GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+   GITHUB_CLIENT_ID=your-github-oauth-client-id
+   GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+   ```
+
+3. **Start the backend stack:**
+   ```
+   docker-compose up -d
+   ```
+   This starts PostgreSQL, Redis, Nginx, and all backend services.
+
+4. **Run database migrations:**
+   ```
+   cd backend/services/learning-service
+   npx prisma migrate dev
+   npx prisma db seed
+   ```
+
+5. **Start frontend development server:**
+   ```
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+6. **Start mobile development (Flutter):**
+   ```
+   cd flutter_mobile
+   flutter pub get
+   flutter run
+   ```
+
+**Secrets management**
 
 - Environment variables are defined in `.env` files and injected via Docker Compose.
 - OAuth keys and AI provider tokens are never stored in source code and are supplied at runtime.
+- The `.env` files are excluded from version control via `.gitignore`.
 
 **Version control and CI**
 
-- Git is used for source control with feature branching.
-- GitHub Actions automates build, lint, and test workflows (see [.github/workflows/ci.yml](.github/workflows/ci.yml)).
+- Git is used for source control with feature branching (main, develop, feature/*, hotfix/*).
+- GitHub Actions automates build, lint, and test workflows (see `.github/workflows/ci.yml`).
+- Pull requests require passing CI checks and code review before merging.
 
 ### 5.2.8 Rationale Summary
 
-The chosen stack provides strong typing, consistent APIs, scalable infrastructure, and cross-platform delivery. It also supports the project’s non-functional goals by enabling test automation, reproducible environments, and resilience to external dependencies.
+The chosen stack provides strong typing, consistent APIs, scalable infrastructure, and cross-platform delivery. It also supports the project's non-functional goals by enabling test automation, reproducible environments, and resilience to external dependencies.
 
 ## 5.3 Developing the Solution
 
@@ -122,7 +184,7 @@ This section details how the system was implemented, the coding practices that g
 
 The gateway handles registration, login, refresh tokens, and OAuth redirection.
 
-Source: [backend/services/api-gateway/src/modules/auth/auth.controller.ts](backend/services/api-gateway/src/modules/auth/auth.controller.ts)
+Source: `backend/services/api-gateway/src/modules/auth/auth.controller.ts`
 
 ```ts
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -154,7 +216,7 @@ export function googleRedirect(_req: Request, res: Response): void {
 
 The gatekeeper enforces three-tier progression and logs adaptation events.
 
-Source: [backend/services/learning-service/src/modules/gatekeeper/gatekeeper.service.ts](backend/services/learning-service/src/modules/gatekeeper/gatekeeper.service.ts)
+Source: `backend/services/learning-service/src/modules/gatekeeper/gatekeeper.service.ts`
 
 ```ts
 export function classifyScore(scorePercent: number): GatekeeperTier {
@@ -193,7 +255,7 @@ export async function applyGatekeeperOutcome(params: {
 
 The system attempts AI generation first, then falls back to a stored quiz if needed.
 
-Source: [backend/services/learning-service/src/modules/quizzes/quizzes.service.ts](backend/services/learning-service/src/modules/quizzes/quizzes.service.ts)
+Source: `backend/services/learning-service/src/modules/quizzes/quizzes.service.ts`
 
 ```ts
 const freshAiQuiz = await prisma.quiz.findFirst({
@@ -221,7 +283,7 @@ if (aiResponse?.quiz?.questions?.length) {
 
 The AI service validates JSON outputs and falls back across providers.
 
-Source: [backend/services/ai-service/src/modules/ai/ai.service.ts](backend/services/ai-service/src/modules/ai/ai.service.ts)
+Source: `backend/services/ai-service/src/modules/ai/ai.service.ts`
 
 ```ts
 const raw = await phi4Generate(prompt);
@@ -247,7 +309,7 @@ return parseAndValidate<T>(geminiRaw, schema);
 
 Mastery decay scans update state and notify learners.
 
-Source: [backend/services/learning-service/src/modules/decay/decay.service.ts](backend/services/learning-service/src/modules/decay/decay.service.ts)
+Source: `backend/services/learning-service/src/modules/decay/decay.service.ts`
 
 ```ts
 if (days > threshold) {
@@ -268,7 +330,7 @@ if (days > threshold) {
 
 The roadmap UI renders a DAG with auto-layout and color-coded mastery states.
 
-Source: [frontend/src/features/roadmap/components/RoadmapCanvas.tsx](frontend/src/features/roadmap/components/RoadmapCanvas.tsx)
+Source: `frontend/src/features/roadmap/components/RoadmapCanvas.tsx`
 
 ```tsx
 const depths = useMemo(() => computeDepths(roadmapNodes, roadmapEdges), [roadmapNodes, roadmapEdges]);
@@ -296,7 +358,7 @@ return (
 
 The web client injects Bearer tokens and performs silent refresh on 401 responses.
 
-Source: [frontend/src/api/client.ts](frontend/src/api/client.ts)
+Source: `frontend/src/api/client.ts`
 
 ```ts
 apiClient.interceptors.request.use((config) => {
@@ -320,7 +382,7 @@ apiClient.interceptors.response.use(
 
 The login UI validates input using Zod and shows actionable error messages.
 
-Source: [frontend/src/features/auth/components/LoginForm.tsx](frontend/src/features/auth/components/LoginForm.tsx)
+Source: `frontend/src/features/auth/components/LoginForm.tsx`
 
 ```tsx
 const schema = z.object({
@@ -337,7 +399,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 The mobile app mirrors the web token refresh pattern using Dio interceptors.
 
-Source: [flutter_mobile/lib/core/api/api_client.dart](flutter_mobile/lib/core/api/api_client.dart)
+Source: `flutter_mobile/lib/core/api/api_client.dart`
 
 ```dart
 _dio.interceptors.add(
@@ -366,7 +428,7 @@ _dio.interceptors.add(
 
 The mobile client renders the learning graph using GraphView and provides a node detail sheet.
 
-Source: [flutter_mobile/lib/features/roadmap/roadmap_screen.dart](flutter_mobile/lib/features/roadmap/roadmap_screen.dart)
+Source: `flutter_mobile/lib/features/roadmap/roadmap_screen.dart`
 
 ```dart
 child: GraphView(
@@ -388,10 +450,11 @@ child: GraphView(
 
 ### 5.3.4 Integration Challenges and Resolutions
 
-- **AI response inconsistency:** LLM outputs varied in format. The solution was strict JSON parsing and schema validation, plus fallback providers.
-- **Performance bottlenecks:** AI requests were slow under load. Caching and staleness windows were introduced to reduce repeated calls.
+- **AI response inconsistency:** LLM outputs varied in format. The solution was strict JSON parsing and schema validation, plus fallback providers across the three-tier chain (Phi-4 -> Qwen2.5 -> Gemini).
+- **Performance bottlenecks:** AI requests were slow under load, especially the local Qwen2.5-3B model on CPU (30-90 seconds per request). Caching and staleness windows were introduced to reduce repeated calls. The circuit breaker prevents repeated failed requests to slow providers.
 - **Authorization edge cases:** Some admin routes needed additional role checks; these were added at gateway and service layers.
+- **Cross-platform consistency:** Web (React) and mobile (Flutter) required separate implementations of the roadmap DAG visualization. Shared API contracts ensured consistent data representation despite different rendering engines.
 
 ### 5.3.5 Summary
 
-The implementation preserves the core architectural design while adding pragmatic safeguards such as caching, validation, and circuit breakers. The system is modular, testable, and aligned with the functional and non-functional requirements described in Chapter Four.
+The implementation preserves the core architectural design while adding pragmatic safeguards such as caching, validation, and circuit breakers. The three-tier AI fallback strategy (Phi-4-Multimodal -> Qwen2.5-3B -> Gemini 2.5 Flash) ensures resilience, near-zero API cost, and graceful degradation in resource-constrained environments. The system is modular, testable, and aligned with the functional and non-functional requirements described in Chapter Four.

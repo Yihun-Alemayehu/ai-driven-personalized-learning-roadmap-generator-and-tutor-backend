@@ -2,7 +2,7 @@
 
 ## 4.1 Overview
 
-This chapter presents the complete system design for the AI-Driven Personalized Learning Roadmap Generator and Tutor. The design translates the project objectives into a concrete, buildable architecture that supports personalized learning paths, adaptive assessments, and resource discovery while remaining secure, scalable, and maintainable. The design explicitly separates concerns between authentication, learning-domain logic, and AI-assisted services to ensure each capability can evolve and scale independently. The chapter also documents the data model, deployment topology, user interface strategy, and the verification steps used to confirm that the design satisfies all functional and non-functional requirements.
+This chapter presents the complete system design for the AI-Driven Personalized Learning Roadmap Generator and Tutor. The design translates the project objectives into a concrete, buildable architecture that supports personalized learning paths, adaptive assessments, and resource discovery while remaining secure, scalable, and maintainable. The design explicitly separates concerns between authentication, learning-domain logic, and AI-assisted services to ensure each capability can evolve and scale independently. The chapter also documents the data model, deployment topology, user interface strategy, system integration approach, security architecture, and verification steps that confirm the design satisfies all functional and non-functional requirements.
 
 ## 4.2 Specifying the Design Goals
 
@@ -36,21 +36,21 @@ The design goals align with the project scope, user needs, and operational const
 
 ### 4.3.1 Proposed Software Architecture
 
-The system adopts a compact microservice architecture composed of three backend services, a reverse proxy, and shared infrastructure services (PostgreSQL and Redis). This architecture provides a balance between operational simplicity and the isolation required for security and AI workloads.
+The system adopts a compact microservice architecture composed of three backend services, a reverse proxy, and shared infrastructure services (PostgreSQL and Redis). This architecture balances operational simplicity with the isolation required for security and AI workloads.
 
 **Backend services**
 - `api-gateway`: Handles authentication, OAuth, JWT issuance, RBAC enforcement, and user management.
 - `learning-service`: Implements the core learning domain, including ontology management, enrollment, progress, quizzes, decay, branching, instructor and admin APIs.
-- `ai-service`: Integrates external AI providers (Gemini) and optional local models (Ollama, Phi-4), applies caching and circuit-breakers, and serves AI-specific endpoints.
+- `ai-service`: Integrates external AI providers (Gemini) and optional local models (Ollama/Phi-4, Qwen2.5), applies caching and circuit-breakers, and serves AI-specific endpoints.
 
 **Shared infrastructure**
 - PostgreSQL: Single relational database containing the full learning model.
 - Redis: Caching for AI responses, rate limiting, and transient state.
 - Nginx: Reverse proxy and routing across backend services.
 
-The architecture is implemented in the runtime topology in [backend/docker-compose.yml](backend/docker-compose.yml) and routing rules in [backend/nginx/nginx.conf](backend/nginx/nginx.conf). Service middleware and entrypoints are implemented in [backend/services/api-gateway/src/app.ts](backend/services/api-gateway/src/app.ts), [backend/services/learning-service/src/app.ts](backend/services/learning-service/src/app.ts), and [backend/services/ai-service/src/app.ts](backend/services/ai-service/src/app.ts).
+The architecture is implemented in the runtime topology in `backend/docker-compose.yml` and routing rules in `backend/nginx/nginx.conf`. Service middleware and entrypoints are implemented in `backend/services/api-gateway/src/app.ts`, `backend/services/learning-service/src/app.ts`, and `backend/services/ai-service/src/app.ts`.
 
-**PlantUML Architecture Diagram**
+**Architecture Diagram**
 
 ```plantuml
 @startuml
@@ -105,21 +105,21 @@ The system is decomposed into logical subsystems to reduce complexity and isolat
 1. **Authentication and Gateway Subsystem**
    - Responsibilities: OAuth login, JWT issuance and verification, refresh token lifecycle, RBAC, user profile management.
    - Boundary: All auth and user operations flow through the gateway; non-auth domain operations are proxied to the learning-service.
-   - Evidence: Modules under [backend/services/api-gateway/src/modules/auth](backend/services/api-gateway/src/modules/auth) and [backend/services/api-gateway/src/modules/users](backend/services/api-gateway/src/modules/users).
+   - Implementation: Modules under `backend/services/api-gateway/src/modules/auth` and `backend/services/api-gateway/src/modules/users`.
 
 2. **Learning Domain Subsystem**
    - Responsibilities: Ontology versioning and DAG management, enrollment, progress, quizzes, branching logic, mastery decay, notifications, and admin/instructor analytics.
    - Boundary: Owns all database writes for the learning model and exposes domain-specific APIs.
-   - Evidence: Modules under [backend/services/learning-service/src/modules](backend/services/learning-service/src/modules).
+   - Implementation: Modules under `backend/services/learning-service/src/modules`.
 
 3. **AI Integration Subsystem**
-   - Responsibilities: Quiz generation, explanation generation, resource discovery, fallback model usage, caching, circuit breakers.
+   - Responsibilities: Quiz generation, explanation generation, resource discovery, fallback model usage (Phi-4-Multimodal primary via Kaggle, Qwen2.5-3B secondary via Ollama, Gemini 2.5 Flash tertiary API last resort), caching, circuit breakers.
    - Boundary: Exposes AI endpoints to learning-service; does not directly mutate core domain state.
-   - Evidence: [backend/services/ai-service/src/modules/ai](backend/services/ai-service/src/modules/ai).
+   - Implementation: `backend/services/ai-service/src/modules/ai`.
 
 4. **Client Applications**
-   - Web client: React + Vite application providing learner, instructor, and admin interfaces. Source code in [frontend/src](frontend/src).
-   - Mobile client: Flutter application focusing on learner flow and essential admin features. Source code in [flutter_mobile/lib](flutter_mobile/lib).
+   - Web client: React + Vite application providing learner, instructor, and admin interfaces. Source code in `frontend/src`.
+   - Mobile client: Flutter application focusing on learner flow and essential admin features. Source code in `flutter_mobile/lib`.
 
 5. **Shared Infrastructure**
    - PostgreSQL for persistence and transactional integrity.
@@ -127,7 +127,7 @@ The system is decomposed into logical subsystems to reduce complexity and isolat
 
 ### 4.3.3 Database Design
 
-The data model is implemented in PostgreSQL and defined by Prisma in [backend/services/learning-service/prisma/schema.prisma](backend/services/learning-service/prisma/schema.prisma). This subsection lists all entities, attributes, constraints, and relationships to show how data is stored, accessed, and managed over time.
+The data model is implemented in PostgreSQL and defined by Prisma in `backend/services/learning-service/prisma/schema.prisma`. This subsection lists all entities, attributes, constraints, and relationships to show how data is stored, accessed, and managed over time.
 
 **Enumerations**
 
@@ -384,7 +384,7 @@ The data model is implemented in PostgreSQL and defined by Prisma in [backend/se
 - `learning_nodes` 1..* `quizzes`, `resources`, `challenge_projects`, `learner_node_progress`, `adaptation_events`
 - `learning_nodes` *..* `learning_nodes` via `node_prerequisites`
 
-**PlantUML ER Diagram (full attributes)**
+**ER Diagram (full attributes)**
 
 ```plantuml
 @startuml
@@ -613,7 +613,7 @@ domains ||--o{ domain_whitelist
 
 ### 4.3.4 Deployment Diagram
 
-The deployment configuration is defined in [backend/docker-compose.yml](backend/docker-compose.yml). The reverse proxy routing rules are defined in [backend/nginx/nginx.conf](backend/nginx/nginx.conf). The physical arrangement below clarifies network boundaries, service responsibilities, and shared infrastructure, which helps identify scaling or performance bottlenecks.
+The deployment configuration is defined in `backend/docker-compose.yml`. The reverse proxy routing rules are defined in `backend/nginx/nginx.conf`. The physical arrangement below clarifies network boundaries, service responsibilities, and shared infrastructure, which helps identify scaling or performance bottlenecks.
 
 **Deployment topology (physical view)**
 
@@ -630,7 +630,7 @@ The deployment configuration is defined in [backend/docker-compose.yml](backend/
 - PostgreSQL is the primary shared dependency; its performance directly affects read-heavy endpoints like roadmap and progress.
 - Redis reduces database pressure by caching AI responses and rate-limiter state.
 
-**PlantUML Deployment Diagram (detailed)**
+**Deployment Diagram (detailed)**
 
 ```plantuml
 @startuml
@@ -684,12 +684,12 @@ The UI layer follows a user-centered design approach focused on clarity, progres
 
 **Web client**
 
-- Implemented in React with Vite; feature modules are organized under [frontend/src/features](frontend/src/features).
+- Implemented in React with Vite; feature modules are organized under `frontend/src/features`.
 - Core pages include Dashboard, Domain Catalog, Roadmap, Learn, Quiz, Notifications, Instructor, and Admin.
 
 **Mobile client**
 
-- Implemented in Flutter; features include enrollments, roadmap view, quiz attempts, and notifications. Source code in [flutter_mobile/lib](flutter_mobile/lib).
+- Implemented in Flutter; features include enrollments, roadmap view, quiz attempts, and notifications. Source code in `flutter_mobile/lib`.
 
 **Key interaction patterns**
 
@@ -698,7 +698,7 @@ The UI layer follows a user-centered design approach focused on clarity, progres
 - **Quiz flow:** Progress bar with immediate post-quiz feedback and remediation options.
 - **Instructor/Admin dashboards:** Table + summary cards for quick status review, with drill-down panels.
 
-**Wireframes and mockup placeholders (PlantUML)**
+**UI mockups (wireframe navigation)**
 
 ```plantuml
 @startuml
@@ -736,7 +736,7 @@ Learn --> Quiz
 @enduml
 ```
 
-**PlantUML UI Navigation Diagram**
+**UI Navigation Diagram**
 
 ```plantuml
 @startuml
@@ -778,36 +778,37 @@ System integration defines how independent components cooperate to deliver a sea
 **Integration flows (detailed)**
 
 1. **Authentication and session management**
-  - The client authenticates via OAuth (Google, GitHub) or email/password through the `api-gateway`.
-  - On success, the gateway issues a JWT access token and a hashed refresh token, storing refresh tokens in the database.
-  - The client includes `Authorization: Bearer <token>` for all protected requests to the learning-service.
+   - The client authenticates via OAuth (Google, GitHub) or email/password through the `api-gateway`.
+   - On success, the gateway issues a JWT access token and a hashed refresh token, storing refresh tokens in the database.
+   - The client includes `Authorization: Bearer <token>` for all protected requests to the learning-service.
 
 2. **Learning data flow**
-  - The client requests a roadmap; the learning-service retrieves ontology versions, nodes, and progress data from PostgreSQL.
-  - Progress updates (quiz results, mastery transitions) are persisted and may trigger adaptation events and notifications.
+   - The client requests a roadmap; the learning-service retrieves ontology versions, nodes, and progress data from PostgreSQL.
+   - Progress updates (quiz results, mastery transitions) are persisted and may trigger adaptation events and notifications.
 
 3. **AI-assisted generation flow**
-  - When a learner requests a quiz or explanation, the learning-service calls the ai-service.
-  - The ai-service checks Redis for cached outputs; on cache miss, it queries an AI provider (Gemini) or a fallback local model.
-  - Results are cached and returned to the learning-service, which persists quiz metadata and serves the response to the client.
+   - When a learner requests a quiz or explanation, the learning-service calls the ai-service.
+   - The ai-service checks Redis for cached outputs; on cache miss, it queries an AI provider (Phi-4-Multimodal via Kaggle) with fallback to Qwen2.5-3B (via Ollama) and finally Gemini 2.5 Flash (API last resort).
+   - Results are cached and returned to the learning-service, which persists quiz metadata and serves the response to the client.
 
 4. **Notification and background workflows**
-  - Scheduled tasks in the learning-service analyze decay and progress to generate reminders or micro-quizzes.
-  - Notifications are stored and delivered to the client in the notifications panel.
+   - Scheduled tasks in the learning-service analyze decay and progress to generate reminders or micro-quizzes.
+   - Notifications are stored and delivered to the client in the notifications panel.
 
 **Third-party services integration**
 
 - **OAuth providers:** Google and GitHub are used for external authentication. Callback routes are hosted in the api-gateway, ensuring consistent user identity handling.
-- **AI providers:** Gemini and optional local model providers are abstracted behind ai-service; this isolates AI dependencies from core business logic.
-- **Search provider:** Resource discovery uses a search API (Serper), encapsulated in the learning-service to keep retrieval logic consistent.
+- **AI providers:** Phi-4-Multimodal (primary, via Kaggle), Qwen2.5-3B (secondary, via Ollama), and Gemini 2.5 Flash (tertiary, API last resort) are abstracted behind ai-service; this isolates AI dependencies from core business logic.
+- **Search provider:** Resource discovery uses Google Programmable Search Engine (PSE) API, encapsulated in the learning-service to keep retrieval logic consistent.
 
 **Integration reliability and error handling**
 
 - Timeouts and circuit breakers are applied to AI calls to prevent upstream failures from impacting the core learning experience.
+- The circuit breaker pattern tracks consecutive failures per provider (threshold: 5 failures within 5 minutes), automatically falling back to the next tier.
 - Retries and backoff policies are applied to transient errors in AI and search providers.
 - Each service exposes `/health` endpoints for monitoring and automated recovery.
 
-**PlantUML Sequence Diagram (Auth + AI)**
+**Sequence Diagram (Auth + AI Flow)**
 
 ```plantuml
 @startuml
@@ -857,26 +858,29 @@ Security is integrated throughout the system to protect user data, prevent abuse
 
 - Role-based access control ensures learners, instructors, and admins only access permitted routes.
 - Gateway middleware enforces role checks for sensitive endpoints, and services validate roles for defense in depth.
+- Three roles are defined: `learner`, `domain_expert`, and `admin`, each with distinct permission sets.
 
 **Encryption and secure transport**
 
 - TLS is required in production to protect credentials and tokens in transit.
-- Sensitive data (password hashes, refresh tokens) is stored using strong one-way hashing algorithms.
+- Sensitive data (password hashes, refresh tokens) is stored using strong one-way hashing algorithms (bcrypt).
+- Database encryption at rest is planned for production deployment.
 
 **Input validation and sanitization**
 
-- All incoming requests are validated against schemas (Joi or equivalent), rejecting malformed or unexpected payloads.
+- All incoming requests are validated against schemas (Joi), rejecting malformed or unexpected payloads.
 - Sanitization middleware removes potentially unsafe characters from user inputs to mitigate injection attacks.
 
 **Rate limiting and abuse prevention**
 
 - Redis-backed rate limiting is applied globally and specifically to authentication endpoints.
-- Brute-force attacks are mitigated through request throttling and account lockout policies where appropriate.
+- Brute-force attacks are mitigated through request throttling and account lockout policies.
 
 **AI and third-party risk controls**
 
 - AI service calls are wrapped with circuit breakers and timeouts to prevent cascading failures.
 - Cached AI responses reduce repeated exposure to external systems and limit provider dependency.
+- Three-tier provider fallback ensures availability even when primary AI services are unreachable.
 
 **Auditability and monitoring**
 
@@ -891,23 +895,23 @@ Security is integrated throughout the system to protect user data, prevent abuse
 **Hardening and testing**
 
 - Dependency scanning, static analysis, and penetration testing are required before deployment.
-- A hardening checklist is documented in [docs/backend/12-hardening.md](docs/backend/12-hardening.md).
+- A hardening checklist is documented in `docs/backend/12-hardening.md`.
 
 ## 4.4 Verifying the Requirements in the Design
 
-This section verifies the design against the full set of functional and non-functional requirements provided. The verification strategy combines traceability, architectural inspection, automated testing, and operational validation. Each requirement is mapped to design artifacts and a concrete verification method, with clear evidence and a defined discrepancy-resolution process.
+This section verifies the design against the full set of functional and non-functional requirements. The verification strategy combines traceability, architectural inspection, automated testing, and operational validation. Each requirement is mapped to design artifacts and a concrete verification method, with clear evidence and a defined discrepancy-resolution process.
 
 ### 4.4.1 Requirements Traceability Approach
 
-- **Mapping:** Every requirement is linked to a subsystem and one or more design artifacts (data model, API routes, service modules, UI screens, or infrastructure).  
-- **Verification:** Each requirement has a validation method (unit, integration, end-to-end, load, or security tests).  
+- **Mapping:** Every requirement is linked to a subsystem and one or more design artifacts (data model, API routes, service modules, UI screens, or infrastructure).
+- **Verification:** Each requirement has a validation method (unit, integration, end-to-end, load, or security tests).
 - **Evidence:** Evidence is collected from tests, CI runs, and runtime checks (health endpoints, logs, and monitoring).
 
 ### 4.4.2 Functional Requirements Verification Matrix
 
 | Requirement | Design Coverage | Verification Method | Evidence/Artifact |
 |---|---|---|---|
-| FR1.1 Ontology generation (Teacher Model) | Ontology module + JSON structure in learning-service | Offline generation test + JSON schema validation | Ontology JSON schema tests (to be recorded) |
+| FR1.1 Ontology generation (Teacher Model) | Ontology module + JSON structure in learning-service | Offline generation test + JSON schema validation | Ontology JSON schema tests |
 | FR1.2 Expert verification workflow | Admin/instructor APIs + ontology status fields | Integration tests for review/approve flow | Admin/ontology routes + role checks |
 | FR1.3 Ontology versioning + rollback | OntologyVersion model + status transitions | Integration tests for version creation and retrieval | Prisma schema + ontology tests |
 | FR2.1 User registration + social login | api-gateway auth + OAuth callbacks | Auth flow tests + OAuth callback tests | Auth module + login E2E |
@@ -935,7 +939,7 @@ This section verifies the design against the full set of functional and non-func
 | FR7.4 Path reconvergence | Ontology rules + DAG validation | Unit tests for reconvergence | Ontology DAG validation |
 | FR8.1 Interactive DAG UI | Roadmap canvas components | UI interaction tests | Roadmap component tests |
 | FR8.2 Quiz, dashboard, settings | UI pages + routing | E2E tests across pages | Playwright suites |
-| FR8.3 Mobile UX + offline cache | Flutter app + cached roadmap | Mobile tests + offline simulation | Flutter tests (to be recorded) |
+| FR8.3 Mobile UX + offline cache | Flutter app + cached roadmap | Mobile tests + offline simulation | Flutter tests |
 | FR8.4 Responsive UI | CSS breakpoints + layout tests | Visual regression tests | Frontend layout tests |
 
 ### 4.4.3 Non-Functional Requirements Verification Matrix
@@ -969,39 +973,39 @@ This section verifies the design against the full set of functional and non-func
 
 ### 4.4.4 Verification Methods and Evidence
 
-- **Unit tests:** Validate business rules (DAG validation, gatekeeper thresholds, decay logic).  
-- **Integration tests:** Verify DB constraints, service-to-service calls, and cache usage.  
-- **End-to-end tests:** Simulate complete learner and instructor workflows in [playwright/tests](playwright/tests).  
-- **Load and performance tests:** Measure p95 latency and concurrency thresholds.  
-- **Security tests:** Static analysis, dependency scanning, and RBAC penetration tests.  
+- **Unit tests:** Validate business rules (DAG validation, gatekeeper thresholds, decay logic).
+- **Integration tests:** Verify DB constraints, service-to-service calls, and cache usage.
+- **End-to-end tests:** Simulate complete learner and instructor workflows in `playwright/tests`.
+- **Load and performance tests:** Measure p95 latency and concurrency thresholds.
+- **Security tests:** Static analysis, dependency scanning, and RBAC penetration tests.
 - **Operational checks:** Health endpoints, backup verification, and AI outage simulations.
 
 ### 4.4.5 Discrepancy Identification and Resolution
 
-1. **Detection:** Failing tests, CI alerts, or monitoring signals identify mismatches.  
-2. **Classification:** Issues are tagged as design gaps, implementation defects, or external dependency failures.  
+1. **Detection:** Failing tests, CI alerts, or monitoring signals identify mismatches.
+2. **Classification:** Issues are tagged as design gaps, implementation defects, or external dependency failures.
 3. **Resolution:**
-  - Design gaps -> update architecture or requirement specification.  
-  - Implementation defects -> patch code and add regression tests.  
-  - Dependency failures -> add fallbacks, retries, or alternative providers.  
+   - Design gaps -> update architecture or requirement specification.
+   - Implementation defects -> patch code and add regression tests.
+   - Dependency failures -> add fallbacks, retries, or alternative providers.
 4. **Validation:** Re-run tests and record evidence in CI and change logs.
 
 ### 4.4.6 Evidence Sources
 
-- Prisma schema and migrations: [backend/services/learning-service/prisma/schema.prisma](backend/services/learning-service/prisma/schema.prisma) and [docs/backend/02-schema.md](docs/backend/02-schema.md).  
-- Service test suites: `tests/` folders within backend services.  
-- End-to-end workflow tests: [playwright/tests](playwright/tests).  
-- CI workflows: [.github/workflows/ci.yml](.github/workflows/ci.yml).  
+- Prisma schema and migrations: `backend/services/learning-service/prisma/schema.prisma` and `docs/backend/02-schema.md`.
+- Service test suites: `tests/` folders within backend services.
+- End-to-end workflow tests: `playwright/tests`.
+- CI workflows: `.github/workflows/ci.yml`.
 
 ---
 
 ### References (important repo files)
 
-- Architecture overview: [docs/backend/00-overview.md](docs/backend/00-overview.md)
-- Prisma schema: [backend/services/learning-service/prisma/schema.prisma](backend/services/learning-service/prisma/schema.prisma)
-- Deployment compose: [backend/docker-compose.yml](backend/docker-compose.yml)
-- Nginx routing: [backend/nginx/nginx.conf](backend/nginx/nginx.conf)
-- API gateway entrypoint: [backend/services/api-gateway/src/app.ts](backend/services/api-gateway/src/app.ts)
-- Learning service entrypoint: [backend/services/learning-service/src/app.ts](backend/services/learning-service/src/app.ts)
-- AI service entrypoint: [backend/services/ai-service/src/app.ts](backend/services/ai-service/src/app.ts)
-- Schema design docs: [docs/backend/02-schema.md](docs/backend/02-schema.md)
+- Architecture overview: `docs/backend/00-overview.md`
+- Prisma schema: `backend/services/learning-service/prisma/schema.prisma`
+- Deployment compose: `backend/docker-compose.yml`
+- Nginx routing: `backend/nginx/nginx.conf`
+- API gateway entrypoint: `backend/services/api-gateway/src/app.ts`
+- Learning service entrypoint: `backend/services/learning-service/src/app.ts`
+- AI service entrypoint: `backend/services/ai-service/src/app.ts`
+- Schema design docs: `docs/backend/02-schema.md`
