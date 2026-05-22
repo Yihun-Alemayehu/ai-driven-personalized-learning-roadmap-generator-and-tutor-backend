@@ -139,8 +139,8 @@ export function useOntologyVersionsQuery(domainId: string) {
     queryKey: adminKeys.ontologyVersions(domainId),
     queryFn: () =>
       apiClient
-        .get<{ ontologies: OntologyVersion[] }>(`/domains/${domainId}/ontologies`)
-        .then((r) => r.data.ontologies),
+        .get<{ versions: Array<Record<string, unknown>> }>(`/domains/${domainId}/ontologies`)
+        .then((r) => r.data.versions.map(toOntologyVersion)),
     enabled: Boolean(domainId),
   });
 }
@@ -149,7 +149,9 @@ export function useOntologyDetailQuery(ontologyId: string) {
   return useQuery({
     queryKey: adminKeys.ontologyDetail(ontologyId),
     queryFn: () =>
-      apiClient.get<OntologyDetail>(`/ontologies/${ontologyId}`).then((r) => r.data),
+      apiClient
+        .get<{ version: Record<string, unknown> }>(`/ontologies/${ontologyId}`)
+        .then((r) => toOntologyDetail(r.data.version)),
     enabled: Boolean(ontologyId),
   });
 }

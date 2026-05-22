@@ -11,12 +11,14 @@ import {
   type QuizGenerationInput,
   type ExplanationInput,
   type MicroQuizInput,
+  type AskQuestionInput,
   type GeneratedQuiz,
   type GeneratedExplanation,
 } from './ai.types';
 import { buildQuizPrompt } from './prompts/quizGeneration';
 import { buildMicroQuizPrompt } from './prompts/microQuizGeneration';
 import { buildExplanationPrompt } from './prompts/explanationGeneration';
+import { buildAskPrompt } from './prompts/askQuestion';
 
 function parseAndValidate<T>(
   raw: string | null,
@@ -152,6 +154,25 @@ export async function generateExplanation(
 
   await setCache(cacheKey, result, ttls.EXPLANATION_TTL);
   return result as GeneratedExplanation;
+}
+
+export async function askQuestion(input: AskQuestionInput): Promise<string | null> {
+  const prompt = buildAskPrompt(input);
+
+  // Ask-question responses are never cached (each is unique to the conversation)
+  const answerSchema = { validate: (v: unknown) => {
+    if (v && typeof v === 'object' && 'answer' in v && typeof (v as Record<string,unknown>).answer === 'string') {
+      return { value: v as { answer: string } };
+    }
+    return { error: 'invalid', value: v as { answer: string } };
+  }};
+
+  const result = await generate<{ answer: string }>(
+    prompt,
+    answerSchema as never,
+    `ask:${input.nodeId}`,
+  );
+  return result?.answer ?? null;
 }
 
 export async function generateMicroQuiz(input: MicroQuizInput): Promise<GeneratedQuiz | null> {

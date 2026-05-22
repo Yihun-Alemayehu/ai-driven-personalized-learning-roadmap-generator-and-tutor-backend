@@ -83,3 +83,29 @@ export async function getNodeExplanation(
     next(err);
   }
 }
+
+export async function askNodeQuestion(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { question, explanation } = req.body as {
+      question: string;
+      explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] } | null;
+    };
+    if (!question || typeof question !== 'string' || question.trim().length < 2) {
+      res.status(400).json({ error: { message: 'question is required' } });
+      return;
+    }
+    const result = await svc.askNodeQuestion(
+      req.params.nodeId,
+      req.user!.id,
+      question.trim(),
+      explanation ?? null,
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}

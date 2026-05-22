@@ -11,9 +11,11 @@ export interface MyLearningEntry {
 
 interface MyLearningState {
   entries: MyLearningEntry[];
+  visitedExplanationNodeIds: string[];
   add: (entry: Omit<MyLearningEntry, 'lastAccessedAt'>) => void;
   updateLastNode: (enrollmentId: string, nodeId: string) => void;
   remove: (enrollmentId: string) => void;
+  markExplanationVisited: (nodeId: string) => void;
   clear: () => void;
 }
 
@@ -21,15 +23,28 @@ export const useMyLearningStore = create<MyLearningState>()(
   persist(
     (set) => ({
       entries: [],
+      visitedExplanationNodeIds: [],
 
       add: (entry) =>
         set((state) => {
-          const exists = state.entries.find((e) => e.enrollmentId === entry.enrollmentId);
-          if (exists) {
+          // Update existing entry for the same enrollment
+          const existsByEnrollment = state.entries.find((e) => e.enrollmentId === entry.enrollmentId);
+          if (existsByEnrollment) {
             return {
               entries: state.entries.map((e) =>
                 e.enrollmentId === entry.enrollmentId
                   ? { ...e, lastNodeId: entry.lastNodeId, lastAccessedAt: new Date().toISOString() }
+                  : e,
+              ),
+            };
+          }
+          // Same domain under a different enrollment — replace, don't duplicate
+          const existsByDomain = state.entries.find((e) => e.domainSlug === entry.domainSlug);
+          if (existsByDomain) {
+            return {
+              entries: state.entries.map((e) =>
+                e.domainSlug === entry.domainSlug
+                  ? { ...entry, lastAccessedAt: new Date().toISOString() }
                   : e,
               ),
             };
@@ -56,7 +71,14 @@ export const useMyLearningStore = create<MyLearningState>()(
           entries: state.entries.filter((e) => e.enrollmentId !== enrollmentId),
         })),
 
-      clear: () => set({ entries: [] }),
+      markExplanationVisited: (nodeId) =>
+        set((state) => ({
+          visitedExplanationNodeIds: state.visitedExplanationNodeIds.includes(nodeId)
+            ? state.visitedExplanationNodeIds
+            : [...state.visitedExplanationNodeIds, nodeId],
+        })),
+
+      clear: () => set({ entries: [], visitedExplanationNodeIds: [] }),
     }),
     { name: 'atlas-my-learning' },
   ),

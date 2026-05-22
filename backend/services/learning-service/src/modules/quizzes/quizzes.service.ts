@@ -2,7 +2,8 @@ import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { classifyScore, applyGatekeeperOutcome } from '../gatekeeper/gatekeeper.service';
 import { getAdaptedResources } from '../adaptation/adaptation.service';
-import { requestAiQuiz, requestAiExplanation } from '../../lib/aiClient';
+import { requestAiQuiz, requestAiExplanation, requestAiAsk } from '../../lib/aiClient';
+import type { AiAskPayload } from '../../lib/aiClient';
 import type { SubmitAttemptInput, AttemptFilters } from './quizzes.types';
 
 const AI_QUIZ_STALE_DAYS = 7;
@@ -127,6 +128,33 @@ export async function getNodeExplanation(nodeId: string, userId: string) {
       ? { description: node.description, learningOutcomes: outcomes }
       : null,
   };
+}
+
+export async function askNodeQuestion(
+  nodeId: string,
+  userId: string,
+  question: string,
+  explanation: AiAskPayload['explanation'],
+) {
+  await assertNodeUnlocked(nodeId, userId);
+
+  const node = await prisma.learningNode.findUnique({
+    where: { id: nodeId },
+    select: { title: true, description: true, learningOutcomes: true },
+  });
+  if (!node) throw ApiError.notFound('Node not found');
+
+  const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+  const result = await requestAiAsk({
+    nodeId,
+    nodeTitle: node.title,
+    question,
+    description: node.description ?? undefined,
+    learningOutcomes: outcomes,
+    explanation,
+  });
+
+  return { answer: result?.answer ?? null };
 }
 
 export async function submitAttempt(

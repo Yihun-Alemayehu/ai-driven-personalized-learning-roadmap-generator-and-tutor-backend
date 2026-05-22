@@ -87,6 +87,32 @@ router.post('/generate-micro-quiz', ctrl.generateMicroQuiz);
 
 /**
  * @swagger
+ * /ai/ask-question:
+ *   post:
+ *     summary: Ask the AI instructor a question about a node
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nodeId, nodeTitle, question]
+ *             properties:
+ *               nodeId: { type: string }
+ *               nodeTitle: { type: string }
+ *               question: { type: string }
+ *               description: { type: string }
+ *               learningOutcomes: { type: array, items: { type: string } }
+ *               explanation: { type: object }
+ *     responses:
+ *       200:
+ *         description: AI instructor answer
+ */
+router.post('/ask-question', ctrl.askQuestion);
+
+/**
+ * @swagger
  * /ai/health:
  *   get:
  *     summary: AI service health — Ollama reachability and circuit breaker state

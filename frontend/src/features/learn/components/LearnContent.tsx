@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExplanationQuery } from '@/api/explanation';
 import { MASTERY_CONFIG } from '@/lib/masteryConfig';
+import { useMyLearningStore } from '@/store/myLearning.store';
 import { InlineQuiz } from './InlineQuiz';
 import type { RoadmapNode } from '@/types';
+
+interface Explanation {
+  summary: string;
+  keyPoints: string[];
+  commonMistakes?: string[];
+}
 
 interface LearnContentProps {
   node: RoadmapNode;
   enrollmentId: string;
   onExplanationRequested: () => void;
+  onExplanationData?: (explanation: Explanation | null) => void;
 }
 
 function Skeleton() {
@@ -47,11 +55,18 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function LearnContent({ node, enrollmentId, onExplanationRequested }: LearnContentProps) {
+export function LearnContent({ node, enrollmentId, onExplanationRequested, onExplanationData }: LearnContentProps) {
   const navigate = useNavigate();
-  const [enabled, setEnabled] = useState(false);
+  const hasVisited = useMyLearningStore((s) => s.visitedExplanationNodeIds.includes(node.id));
+  const markExplanationVisited = useMyLearningStore((s) => s.markExplanationVisited);
+  // Auto-enable if the user previously requested this explanation (persisted across sessions)
+  const [enabled, setEnabled] = useState(() => hasVisited && node.unlocked);
   const [view, setView] = useState<'explanation' | 'quiz'>('explanation');
   const { data, isLoading, isError } = useExplanationQuery(node.id, enabled);
+
+  useEffect(() => {
+    onExplanationData?.(data?.explanation ?? null);
+  }, [data?.explanation, onExplanationData]);
 
   const cfg = MASTERY_CONFIG[node.masteryState];
   const isLocked = !node.unlocked;
@@ -156,6 +171,7 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested }: Lea
               disabled={isLocked}
               onClick={() => {
                 if (isLocked) return;
+                markExplanationVisited(node.id);
                 setEnabled(true);
                 onExplanationRequested();
               }}
