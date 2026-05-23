@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { checkAndUnlockNodes } from '../progress/progress.service';
 import type { GatekeeperTier, GatekeeperResult } from './gatekeeper.types';
 import { recordVelocity } from './velocity.service';
+import { awardXp, checkBadgesOnMastery } from '../gamification/gamification.service';
 
 // ── Pure classification ───────────────────────────────────────────────────────
 
@@ -78,6 +79,14 @@ export async function applyGatekeeperOutcome(params: {
 
   if (isPass) {
     recordVelocity({ userId, enrollmentId, nodeId, completedAt: now }).catch(() => {});
+
+    // Gamification: award XP + check badges (fire-and-forget, never block the quiz response)
+    const xpSource = tier === 'strong_pass' ? 'node_mastered_strong' : 'node_mastered_marginal';
+    awardXp({ userId, source: xpSource, refId: nodeId }).catch(() => {});
+    checkBadgesOnMastery({ userId, enrollmentId, nodeId, tier, scorePercent }).catch(() => {});
+  } else {
+    // Award small XP for any quiz attempt (effort reward)
+    awardXp({ userId, source: 'quiz_attempt', refId: quizAttemptId }).catch(() => {});
   }
 
   return {

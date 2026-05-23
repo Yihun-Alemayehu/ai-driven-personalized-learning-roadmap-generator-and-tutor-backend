@@ -1,13 +1,17 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboardIcon, BookOpenIcon, BellIcon, UserIcon, SparklesIcon } from 'lucide-react';
+import {
+  LayoutDashboardIcon, BookOpenIcon, BellIcon, UserIcon,
+  SparklesIcon, TrophyIcon, ShieldIcon, GraduationCapIcon,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const BASE_ITEMS = [
-  { to: '/dashboard',     icon: LayoutDashboardIcon, label: 'Home'     },
-  { to: '/catalog',       icon: BookOpenIcon,         label: 'Catalog'  },
-  { to: '/insights',      icon: SparklesIcon,         label: 'Insights' },
-  { to: '/notifications', icon: BellIcon,             label: 'Alerts'   },
-  { to: '/profile',       icon: UserIcon,             label: 'Profile'  },
+  { to: '/dashboard',     icon: LayoutDashboardIcon, label: 'Home'         },
+  { to: '/catalog',       icon: BookOpenIcon,         label: 'Catalog'      },
+  { to: '/insights',      icon: SparklesIcon,         label: 'Insights'     },
+  { to: '/achievements',  icon: TrophyIcon,           label: 'Achievements' },
+  { to: '/notifications', icon: BellIcon,             label: 'Alerts'       },
+  { to: '/profile',       icon: UserIcon,             label: 'Profile'      },
 ];
 
 export function BottomNav() {
@@ -46,7 +50,7 @@ export function BottomNav() {
             color: isActive ? 'oklch(0.62 0.18 28)' : '#9a9088',
           })}
         >
-          <span className="text-[18px] leading-none">{isAdmin ? '🛡' : '🎓'}</span>
+          {isAdmin ? <ShieldIcon size={20} /> : <GraduationCapIcon size={20} />}
           <span
             className="text-[10px] tracking-[0.03em]"
             style={{ fontFamily: 'JetBrains Mono, monospace' }}

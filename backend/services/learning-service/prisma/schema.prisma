@@ -31,8 +31,49 @@ model User {
   refreshTokens            RefreshToken[]
   resourceRatings          ResourceRating[]
   velocityRecords          LearnerVelocity[]
+  xp                       UserXp?
+  xpEvents                 XpEvent[]
+  badges                   UserBadge[]
 
   @@map("users")
+}
+
+// ── Gamification ──────────────────────────────────────────────────────────────
+
+model UserXp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @db.Uuid                               @map("user_id")
+  totalXp   Int      @default(0)                                    @map("total_xp")
+  level     Int      @default(1)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)                  @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_xp")
+}
+
+model XpEvent {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid                                       @map("user_id")
+  source    XpSource
+  amount    Int
+  refId     String?  @db.Uuid                                       @map("ref_id")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)             @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("xp_events")
+}
+
+model UserBadge {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId   String   @db.Uuid                                       @map("user_id")
+  badgeKey BadgeKey                                                @map("badge_key")
+  earnedAt DateTime @default(now()) @db.Timestamptz(6)             @map("earned_at")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeKey])
+  @@index([userId])
+  @@map("user_badges")
 }
 
 model Domain {
@@ -413,4 +454,24 @@ enum BranchPath {
   frontend
   backend
   data_science
+}
+
+enum XpSource {
+  node_mastered_strong
+  node_mastered_marginal
+  quiz_attempt
+  spaced_review
+  streak_milestone
+  enrollment_complete
+}
+
+enum BadgeKey {
+  first_mastery
+  streak_5
+  streak_14
+  quiz_ace
+  speed_learner
+  completionist
+  consistent
+  comeback
 }

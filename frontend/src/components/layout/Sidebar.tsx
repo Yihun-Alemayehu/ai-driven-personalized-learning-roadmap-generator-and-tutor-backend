@@ -4,11 +4,13 @@ import {
   LayoutDashboardIcon, BookOpenIcon, BellIcon,
   UsersIcon, BarChart2Icon, FlagIcon,
   ShieldIcon, GlobeIcon, SettingsIcon, UserIcon, BookMarkedIcon,
-  PanelLeftCloseIcon, PanelLeftOpenIcon, SparklesIcon,
+  PanelLeftCloseIcon, PanelLeftOpenIcon, SparklesIcon, TrophyIcon,
+  FlameIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyLearningStore } from '@/store/myLearning.store';
+import { useGamificationQuery } from '@/api/gamification';
 
 interface NavItem {
   to: string;
@@ -178,6 +180,104 @@ function MyLearningSection({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+// ── Mini XP + Streak widget ───────────────────────────────────────────────────
+
+function XpStreakWidget({ collapsed }: { collapsed: boolean }) {
+  const { data } = useGamificationQuery();
+
+  if (!data) return null;
+
+  const { xp, streak } = data;
+  const streakColor = streak.current >= 14
+    ? 'oklch(0.52 0.22 30)'
+    : streak.current >= 5
+    ? 'oklch(0.62 0.18 28)'
+    : '#9a9088';
+
+  if (collapsed) {
+    // Just a flame icon with count tooltip
+    return (
+      <div className="flex justify-center pb-1">
+        <div
+          className="flex flex-col items-center gap-0.5"
+          title={`Level ${xp.level} · ${xp.total} XP · ${streak.current}-day streak`}
+        >
+          <span
+            className="w-7 h-7 rounded-[8px] flex items-center justify-center"
+            style={{ background: '#ebe6db', color: 'oklch(0.62 0.18 28)' }}
+          >
+            <TrophyIcon size={13} />
+          </span>
+          <span
+            className="text-[8px]"
+            style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}
+          >
+            L{xp.level}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="mx-3 rounded-[12px] border overflow-hidden"
+      style={{ borderColor: '#d6cfbf', background: '#f3efe7' }}
+    >
+      {/* Level + XP row */}
+      <div className="px-3 pt-2.5 pb-1 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[10px] font-bold"
+            style={{ background: 'oklch(0.62 0.18 28)', color: '#fff',
+                     fontFamily: 'JetBrains Mono, monospace' }}
+          >
+            {xp.level}
+          </span>
+          <span
+            className="text-[11px]"
+            style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}
+          >
+            Level {xp.level}
+          </span>
+        </div>
+        {/* Streak chip */}
+        <div className="flex items-center gap-1">
+          <FlameIcon size={10} style={{ color: streakColor }} />
+          <span
+            className="text-[9px] font-medium"
+            style={{ fontFamily: 'JetBrains Mono, monospace', color: streakColor }}
+          >
+            {streak.current}d
+          </span>
+        </div>
+      </div>
+
+      {/* XP progress bar */}
+      <div className="px-3 pb-2.5">
+        <div className="h-1 rounded-full overflow-hidden" style={{ background: '#e8e2d9' }}>
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${xp.progressPct}%`, background: 'oklch(0.62 0.18 28)' }}
+          />
+        </div>
+        <div className="flex justify-between mt-0.5">
+          <span className="text-[8px]"
+            style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}>
+            {xp.total} XP
+          </span>
+          <span className="text-[8px]"
+            style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}>
+            {xp.progressPct}%
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
 export function Sidebar() {
   const { isAdmin, isInstructor } = useAuth();
   const [collapsed, setCollapsed] = useState(readCollapsed);
@@ -192,7 +292,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex flex-col flex-shrink-0 overflow-hidden"
+      className="flex flex-col shrink-0 overflow-hidden"
       style={{
         background: '#faf7f1',
         borderRight: '1px solid #d6cfbf',
@@ -202,14 +302,18 @@ export function Sidebar() {
     >
       {/* Scrollable nav area */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 flex flex-col gap-4 min-h-0">
+        {/* Mini XP + streak widget — sits above nav groups */}
+        <XpStreakWidget collapsed={collapsed} />
+
         <SidebarGroup
           label="Learn"
           collapsed={collapsed}
           items={[
-            { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboardIcon size={15} /> },
-            { to: '/catalog', label: 'Catalog', icon: <BookOpenIcon size={15} /> },
-            { to: '/insights', label: 'Insights', icon: <SparklesIcon size={15} /> },
-            { to: '/notifications', label: 'Notifications', icon: <BellIcon size={15} /> },
+            { to: '/dashboard',    label: 'Dashboard',    icon: <LayoutDashboardIcon size={15} /> },
+            { to: '/catalog',      label: 'Catalog',      icon: <BookOpenIcon size={15} /> },
+            { to: '/insights',     label: 'Insights',     icon: <SparklesIcon size={15} /> },
+            { to: '/achievements', label: 'Achievements', icon: <TrophyIcon size={15} /> },
+            { to: '/notifications',label: 'Notifications',icon: <BellIcon size={15} /> },
           ]}
         />
 

@@ -52,6 +52,10 @@ The platform adapts in real-time: failed quizzes trigger resource swaps, prerequ
 | **Resource Adaptation**          | Repeated quiz failures swap resource modality (e.g. video → interactive)                                                                     |
 | **Per-Course Insights**          | Activity heatmap, profile card, velocity gauge, weak areas panel, and top achievements per enrollment                                        |
 | **Global Insights**              | Account-level cross-enrollment heatmap, per-course breakdown cards, global weak areas, and streak tracking                                   |
+| **Gamification — XP & Levels**   | XP awarded on every mastery event and quiz attempt; 10-level progression tracked in a mini sidebar widget                                    |
+| **Gamification — Badges**        | 8 badge types (First Master, Dedicated, Relentless, Quiz Ace, Speed Learner, Completionist, On a Roll, Comeback Kid) auto-awarded from existing events |
+| **Gamification — Weekly Goal**   | Personalised weekly mastery target derived from `weeklyHours ÷ avgNodeHours`; progress bar tracks the current ISO week                       |
+| **Gamification — Streak**        | Visual day-streak counter (flame icon) with milestone XP bonuses at 5 and 14 days                                                           |
 | **My Learning**                  | Persistent sidebar tracking of active courses with last-visited node state                                                                   |
 | **Domain Expert Analytics**      | Per-domain mastery rate bar charts, problem nodes, learner cohort progress, flagged events                                                   |
 | **Admin Ontology Builder**       | Visual React Flow canvas to build/edit domain knowledge graphs with DAG validation and version pipeline                                      |
@@ -722,6 +726,7 @@ All ontology seeds are idempotent — re-running skips already-seeded versions.
 | `/dashboard`                     | Dashboard       | Enrolled courses, progress overview                                                        |
 | `/catalog`                       | Catalog         | Domain browser with enrolment sheet (6-field learner profile)                              |
 | `/insights`                      | Global Insights | Account-level heatmap, per-course breakdown, global weak areas, streak                     |
+| `/achievements`                  | Achievements    | XP level bar, streak card, weekly goal, full badge grid, recent XP event feed              |
 | `/enrollments/:id/roadmap`       | Roadmap         | Interactive DAG with mastery badges, auto-mastered "Already known" nodes, timeline sidebar |
 | `/enrollments/:id/insights`      | Course Insights | Heatmap, profile card, velocity gauge, weak areas, top achievements                        |
 | `/enrollments/:id/learn/:nodeId` | Learn           | Personalised AI explanation + inline quiz                                                  |
@@ -740,6 +745,71 @@ After a learner generates their first AI explanation, the course is added to a p
 ### Insights (sidebar)
 
 A global **Insights** button (✦ sparkle icon) in the main sidebar and mobile bottom nav links to `/insights` — the account-level intelligence dashboard aggregating activity and progress across all enrolled courses.
+
+---
+
+## Gamification
+
+Gamification is applied on top of the existing learning loop — it uses events and data the system already tracks, with no change to core learning mechanics.
+
+### XP & Levels
+
+| Event | XP |
+|---|---|
+| Node mastered (strong pass ≥ 80%) | +100 XP |
+| Node mastered (marginal pass 70–79%) | +60 XP |
+| Any quiz attempt | +10 XP |
+| Spaced review completed | +20 XP |
+| Streak milestone (5 days) | +50 XP |
+| Streak milestone (14 days) | +100 XP |
+| Full enrollment completed | +300 XP |
+
+**Level thresholds** (10 levels): 0 · 200 · 500 · 900 · 1 400 · 2 000 · 2 700 · 3 500 · 4 400 · 5 400 XP
+
+A **mini XP bar + streak widget** sits at the top of the main sidebar (collapsed: trophy icon + level number). It updates automatically after every quiz submission.
+
+### Badges
+
+| Badge | Trigger |
+|---|---|
+| **First Master** | Mastered first node |
+| **Dedicated** | 5-day streak |
+| **Relentless** | 14-day streak |
+| **Quiz Ace** | 100% score on any quiz |
+| **Speed Learner** | Mastered a node in < 50% of its estimated time |
+| **Completionist** | All nodes mastered in an enrollment |
+| **On a Roll** | Weekly goal hit |
+| **Comeback Kid** | Node went from Relearn → Mastered |
+
+Each badge is awarded exactly once per learner (idempotent `upsert`). Locked badges are shown as greyed-out cards on the Achievements page so learners always see the full set of goals.
+
+### Weekly Goal
+
+The goal target is personalised:
+
+```
+target = max(1, round(weeklyHours / avgNodeEstimatedHours))
+```
+
+Progress is derived from `LearnerNodeProgress.masteredAt` within the current ISO week — no additional table writes required.
+
+### Architecture
+
+Three new Prisma models:
+
+| Model | Purpose |
+|---|---|
+| `UserXp` | Aggregate XP + level per user (one row, upserted on every award) |
+| `XpEvent` | Immutable log of every XP grant (source, amount, optional refId) |
+| `UserBadge` | One row per earned badge, unique on `(userId, badgeKey)` |
+
+The gamification service hooks into `gatekeeper.service.ts` via **fire-and-forget** calls (`awardXp(...).catch(() => {})`) so the quiz response is never delayed by gamification writes.
+
+### API
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/me/gamification` | Bearer | Full gamification summary: XP, level, streak, all badges, weekly goal, last 10 XP events |
 
 ---
 
@@ -822,6 +892,12 @@ The Flutter app uses **Riverpod** for state management, **go_router** for naviga
 - [x] Tiered cache strategy (4 tiers, remedial cache invalidation on pass)
 - [x] Per-course Learning Insights page (heatmap, profile, velocity, weak areas, achievements)
 - [x] Global Insights page (account-level, cross-enrollment heatmap and breakdown)
+- [x] Gamification — XP system (10 levels, 6 event sources, fire-and-forget award hook)
+- [x] Gamification — 8 badge types, auto-awarded from existing mastery/streak/velocity events
+- [x] Gamification — personalised weekly goal derived from weeklyHours ÷ avgNodeHours
+- [x] Gamification — day-streak counter with milestone XP bonuses at 5 and 14 days
+- [x] Achievements page (`/achievements`) — XP bar, streak, weekly goal, badge grid, XP feed
+- [x] Mini XP + streak sidebar widget (expanded and collapsed modes)
 - [ ] WebSocket real-time notifications
 - [ ] Export progress report (PDF)
 - [ ] LTI integration for institutional use

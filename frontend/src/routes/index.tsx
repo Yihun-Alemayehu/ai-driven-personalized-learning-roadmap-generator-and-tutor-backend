@@ -61,6 +61,10 @@ export const router = createBrowserRouter([
         lazy: () => import('@/features/insights/GlobalInsightsPage').then((m) => ({ Component: m.default })),
       },
       {
+        path: 'achievements',
+        lazy: () => import('@/features/gamification/AchievementsPage').then((m) => ({ Component: m.default })),
+      },
+      {
         path: 'enrollments/:id/roadmap',
         lazy: () => import('@/features/roadmap/RoadmapPage').then((m) => ({ Component: m.default })),
       },
