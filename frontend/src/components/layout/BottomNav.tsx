@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboardIcon, BookOpenIcon, BellIcon, UserIcon } from 'lucide-react';
+import { LayoutDashboardIcon, BookOpenIcon, BellIcon, UserIcon, SparklesIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const BASE_ITEMS = [
-  { to: '/dashboard',     icon: LayoutDashboardIcon, label: 'Home'    },
-  { to: '/catalog',       icon: BookOpenIcon,         label: 'Catalog' },
-  { to: '/notifications', icon: BellIcon,             label: 'Alerts'  },
-  { to: '/profile',       icon: UserIcon,             label: 'Profile' },
+  { to: '/dashboard',     icon: LayoutDashboardIcon, label: 'Home'     },
+  { to: '/catalog',       icon: BookOpenIcon,         label: 'Catalog'  },
+  { to: '/insights',      icon: SparklesIcon,         label: 'Insights' },
+  { to: '/notifications', icon: BellIcon,             label: 'Alerts'   },
+  { to: '/profile',       icon: UserIcon,             label: 'Profile'  },
 ];
 
 export function BottomNav() {

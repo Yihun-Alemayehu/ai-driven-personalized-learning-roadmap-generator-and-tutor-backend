@@ -96,6 +96,7 @@ export default function RoadmapPage() {
       {/* Body */}
       <div className="flex flex-1 overflow-hidden min-h-0">
         <ProgressSidebar
+          enrollmentId={enrollmentId}
           domainName={domainName}
           enrolledAt={enrolledAgo}
           selectedBranchPath={branchPath}

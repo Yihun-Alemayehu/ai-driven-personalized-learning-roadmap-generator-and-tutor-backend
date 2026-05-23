@@ -99,4 +99,48 @@ router.get('/enrollments/:id/roadmap', authenticate, ctrl.getRoadmap);
  */
 router.get('/enrollments/:id/timeline', authenticate, ctrl.getTimeline);
 
+/**
+ * @swagger
+ * /enrollments/{id}/activity:
+ *   get:
+ *     summary: Get daily activity counts for the last 52 weeks (heatmap data)
+ *     tags: [Progress]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/enrollments/:id/activity', authenticate, ctrl.getActivityHeatmap);
+
+/**
+ * @swagger
+ * /enrollments/{id}/insights:
+ *   get:
+ *     summary: Get learning intelligence insights — profile, weak areas, top nodes, momentum
+ *     tags: [Progress]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/enrollments/:id/insights', authenticate, ctrl.getInsights);
+
+/**
+ * @swagger
+ * /me/activity:
+ *   get:
+ *     summary: Get global activity heatmap across all enrollments for the authenticated user
+ *     tags: [Progress]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/me/activity', authenticate, ctrl.getGlobalActivity);
+
+/**
+ * @swagger
+ * /me/insights:
+ *   get:
+ *     summary: Get global learning insights across all enrollments for the authenticated user
+ *     tags: [Progress]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/me/insights', authenticate, ctrl.getGlobalInsights);
+
 export default router;

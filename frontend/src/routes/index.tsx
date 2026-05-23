@@ -57,8 +57,16 @@ export const router = createBrowserRouter([
       { path: 'catalog/:slug', element: <Lazy><DomainDetailPage /></Lazy> },
       { path: 'notifications', element: <Lazy><NotificationsPage /></Lazy> },
       {
+        path: 'insights',
+        lazy: () => import('@/features/insights/GlobalInsightsPage').then((m) => ({ Component: m.default })),
+      },
+      {
         path: 'enrollments/:id/roadmap',
         lazy: () => import('@/features/roadmap/RoadmapPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'enrollments/:id/insights',
+        lazy: () => import('@/features/insights/InsightsPage').then((m) => ({ Component: m.default })),
       },
       {
         path: 'enrollments/:id/learn/:nodeId',

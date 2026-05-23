@@ -286,6 +286,413 @@ export async function getTimelineEstimate(enrollmentId: string, userId: string) 
   };
 }
 
+// ── Activity Heatmap ─────────────────────────────────────────────────────────
+
+export async function getActivityHeatmap(enrollmentId: string, userId: string) {
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    select: { userId: true },
+  });
+  if (!enrollment) throw ApiError.notFound('Enrollment not found');
+  if (enrollment.userId !== userId) throw ApiError.forbidden();
+
+  // Look back 364 days (52 full weeks)
+  const since = new Date(Date.now() - 364 * 86_400_000);
+
+  const [progressRows, quizAttempts] = await Promise.all([
+    prisma.learnerNodeProgress.findMany({
+      where: {
+        enrollmentId,
+        OR: [
+          { lastReviewedAt: { gte: since } },
+          { masteredAt: { gte: since } },
+        ],
+      },
+      select: { lastReviewedAt: true, masteredAt: true },
+    }),
+    prisma.quizAttempt.findMany({
+      where: {
+        userId,
+        completedAt: { gte: since },
+        node: {
+          ontologyVersion: {
+            enrollments: { some: { id: enrollmentId } },
+          },
+        },
+      },
+      select: { completedAt: true },
+    }),
+  ]);
+
+  const dayMap = new Map<string, { quizzes: number; reviews: number; masteries: number }>();
+
+  for (const r of progressRows) {
+    if (r.lastReviewedAt && r.lastReviewedAt >= since) {
+      const day = r.lastReviewedAt.toISOString().slice(0, 10);
+      const d = dayMap.get(day) ?? { quizzes: 0, reviews: 0, masteries: 0 };
+      d.reviews += 1;
+      dayMap.set(day, d);
+    }
+    if (r.masteredAt && r.masteredAt >= since) {
+      const day = r.masteredAt.toISOString().slice(0, 10);
+      const d = dayMap.get(day) ?? { quizzes: 0, reviews: 0, masteries: 0 };
+      d.masteries += 1;
+      dayMap.set(day, d);
+    }
+  }
+
+  for (const q of quizAttempts) {
+    const day = q.completedAt.toISOString().slice(0, 10);
+    const d = dayMap.get(day) ?? { quizzes: 0, reviews: 0, masteries: 0 };
+    d.quizzes += 1;
+    dayMap.set(day, d);
+  }
+
+  const days = Array.from(dayMap.entries()).map(([date, v]) => ({
+    date,
+    count: v.quizzes + v.reviews + v.masteries,
+    quizzes: v.quizzes,
+    reviews: v.reviews,
+    masteries: v.masteries,
+  }));
+
+  return { days };
+}
+
+// ── Learning Insights ─────────────────────────────────────────────────────────
+
+export async function getInsights(enrollmentId: string, userId: string) {
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    select: {
+      userId: true,
+      enrolledAt: true,
+      familiarityLevel: true,
+      learningGoal: true,
+      weeklyHours: true,
+      aboutSelf: true,
+      preferredLearningStyle: true,
+      priorSkills: true,
+      selectedBranchPath: true,
+      ontologyVersionId: true,
+    },
+  });
+  if (!enrollment) throw ApiError.notFound('Enrollment not found');
+  if (enrollment.userId !== userId) throw ApiError.forbidden();
+
+  const progressRows = await prisma.learnerNodeProgress.findMany({
+    where: { enrollmentId },
+    select: {
+      nodeId: true,
+      masteryState: true,
+      bestQuizScore: true,
+      attemptsCount: true,
+      masteredAt: true,
+      lastReviewedAt: true,
+      node: { select: { title: true, difficultyLevel: true } },
+    },
+  });
+
+  // Weak nodes: review_needed or relearn
+  const weakNodes = progressRows
+    .filter((p) => p.masteryState === 'review_needed' || p.masteryState === 'relearn')
+    .map((p) => ({
+      nodeId: p.nodeId,
+      title: p.node.title,
+      masteryState: p.masteryState,
+      lastReviewedAt: p.lastReviewedAt?.toISOString() ?? null,
+      difficultyLevel: p.node.difficultyLevel,
+    }))
+    .slice(0, 10);
+
+  // Struggling nodes: in_progress with attemptsCount >= 2 and low score
+  const strugglingNodes = progressRows
+    .filter((p) => p.masteryState === 'in_progress' && p.attemptsCount >= 2)
+    .sort((a, b) => {
+      const sa = a.bestQuizScore ? Number(a.bestQuizScore) : 0;
+      const sb = b.bestQuizScore ? Number(b.bestQuizScore) : 0;
+      return sa - sb;
+    })
+    .slice(0, 5)
+    .map((p) => ({
+      nodeId: p.nodeId,
+      title: p.node.title,
+      bestQuizScore: p.bestQuizScore ? Number(p.bestQuizScore) : null,
+      attemptsCount: p.attemptsCount,
+      difficultyLevel: p.node.difficultyLevel,
+    }));
+
+  // Top mastered nodes (high difficulty mastered)
+  const topNodes = progressRows
+    .filter((p) => p.masteryState === 'mastered' && p.node.difficultyLevel != null)
+    .sort((a, b) => (b.node.difficultyLevel ?? 0) - (a.node.difficultyLevel ?? 0))
+    .slice(0, 5)
+    .map((p) => ({
+      nodeId: p.nodeId,
+      title: p.node.title,
+      bestQuizScore: p.bestQuizScore ? Number(p.bestQuizScore) : null,
+      difficultyLevel: p.node.difficultyLevel,
+      masteredAt: p.masteredAt?.toISOString() ?? null,
+    }));
+
+  // Momentum: activity in last 7 days vs prior 7 days
+  const now = Date.now();
+  const recentMasteries = progressRows.filter(
+    (p) => p.masteredAt && p.masteredAt.getTime() >= now - 7 * 86_400_000,
+  ).length;
+  const prevMasteries = progressRows.filter(
+    (p) =>
+      p.masteredAt &&
+      p.masteredAt.getTime() >= now - 14 * 86_400_000 &&
+      p.masteredAt.getTime() < now - 7 * 86_400_000,
+  ).length;
+  const momentumTrend: 'up' | 'down' | 'flat' =
+    recentMasteries > prevMasteries ? 'up' : recentMasteries < prevMasteries ? 'down' : 'flat';
+
+  // Days since enrollment
+  const daysSinceEnrollment = Math.floor(
+    (now - new Date(enrollment.enrolledAt).getTime()) / 86_400_000,
+  );
+
+  // Average quiz score across all attempts
+  const scores = progressRows
+    .map((p) => (p.bestQuizScore ? Number(p.bestQuizScore) : null))
+    .filter((s): s is number => s !== null);
+  const avgScore = scores.length > 0
+    ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1))
+    : null;
+
+  return {
+    profile: {
+      enrolledAt: enrollment.enrolledAt.toISOString(),
+      familiarityLevel: enrollment.familiarityLevel,
+      learningGoal: enrollment.learningGoal,
+      weeklyHours: enrollment.weeklyHours,
+      aboutSelf: enrollment.aboutSelf,
+      preferredLearningStyle: enrollment.preferredLearningStyle,
+      priorSkills: enrollment.priorSkills,
+      selectedBranchPath: enrollment.selectedBranchPath,
+      daysSinceEnrollment,
+    },
+    weakNodes,
+    strugglingNodes,
+    topNodes,
+    momentum: {
+      trend: momentumTrend,
+      recentMasteries,
+      prevMasteries,
+    },
+    avgScore,
+  };
+}
+
+// ── Global Insights (across all enrollments) ─────────────────────────────────
+
+export async function getGlobalActivityHeatmap(userId: string) {
+  const since = new Date(Date.now() - 364 * 86_400_000);
+
+  const [progressRows, quizAttempts] = await Promise.all([
+    prisma.learnerNodeProgress.findMany({
+      where: {
+        userId,
+        OR: [
+          { lastReviewedAt: { gte: since } },
+          { masteredAt: { gte: since } },
+        ],
+      },
+      select: { lastReviewedAt: true, masteredAt: true },
+    }),
+    prisma.quizAttempt.findMany({
+      where: { userId, completedAt: { gte: since } },
+      select: { completedAt: true },
+    }),
+  ]);
+
+  const dayMap = new Map<string, { quizzes: number; reviews: number; masteries: number }>();
+
+  for (const r of progressRows) {
+    if (r.lastReviewedAt && r.lastReviewedAt >= since) {
+      const day = r.lastReviewedAt.toISOString().slice(0, 10);
+      const d = dayMap.get(day) ?? { quizzes: 0, reviews: 0, masteries: 0 };
+      d.reviews += 1;
+      dayMap.set(day, d);
+    }
+    if (r.masteredAt && r.masteredAt >= since) {
+      const day = r.masteredAt.toISOString().slice(0, 10);
+      const d = dayMap.get(day) ?? { quizzes: 0, reviews: 0, masteries: 0 };
+      d.masteries += 1;
+      dayMap.set(day, d);
+    }
+  }
+
+  for (const q of quizAttempts) {
+    const day = q.completedAt.toISOString().slice(0, 10);
+    const d = dayMap.get(day) ?? { quizzes: 0, reviews: 0, masteries: 0 };
+    d.quizzes += 1;
+    dayMap.set(day, d);
+  }
+
+  return {
+    days: Array.from(dayMap.entries()).map(([date, v]) => ({
+      date,
+      count: v.quizzes + v.reviews + v.masteries,
+      quizzes: v.quizzes,
+      reviews: v.reviews,
+      masteries: v.masteries,
+    })),
+  };
+}
+
+export async function getGlobalInsights(userId: string) {
+  const enrollments = await prisma.enrollment.findMany({
+    where: { userId },
+    orderBy: { enrolledAt: 'desc' },
+    select: {
+      id: true,
+      enrolledAt: true,
+      selectedBranchPath: true,
+      familiarityLevel: true,
+      learningGoal: true,
+      weeklyHours: true,
+      preferredLearningStyle: true,
+      priorSkills: true,
+      domain: { select: { id: true, name: true, slug: true, iconUrl: true } },
+      nodeProgress: {
+        select: {
+          masteryState: true,
+          bestQuizScore: true,
+          attemptsCount: true,
+          masteredAt: true,
+          lastReviewedAt: true,
+          nodeId: true,
+          node: { select: { title: true, difficultyLevel: true } },
+        },
+      },
+    },
+  });
+
+  if (enrollments.length === 0) {
+    return {
+      totalEnrollments: 0,
+      enrollmentBreakdowns: [],
+      globalWeakNodes: [],
+      globalTopNodes: [],
+      overallStats: { totalNodes: 0, masteredNodes: 0, completionPercent: 0, avgScore: null },
+      momentum: { trend: 'flat' as const, recentMasteries: 0, prevMasteries: 0 },
+      streakSummary: { currentStreak: 0, longestStreak: 0 },
+    };
+  }
+
+  const now = Date.now();
+
+  // Per-enrollment breakdown
+  const enrollmentBreakdowns = enrollments.map((e) => {
+    const total = e.nodeProgress.length;
+    const mastered = e.nodeProgress.filter(
+      (p) => p.masteryState === 'mastered' || p.masteryState === 'review_needed',
+    ).length;
+    const scores = e.nodeProgress
+      .map((p) => (p.bestQuizScore ? Number(p.bestQuizScore) : null))
+      .filter((s): s is number => s !== null);
+    const avgScore = scores.length > 0
+      ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1))
+      : null;
+    const lastActive = e.nodeProgress
+      .map((p) => p.lastReviewedAt ?? p.masteredAt)
+      .filter((d): d is Date => d !== null)
+      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+    return {
+      enrollmentId: e.id,
+      domain: e.domain,
+      enrolledAt: e.enrolledAt.toISOString(),
+      selectedBranchPath: e.selectedBranchPath,
+      totalNodes: total,
+      masteredNodes: mastered,
+      completionPercent: total > 0 ? Math.round((mastered / total) * 100) : 0,
+      avgScore,
+      lastActiveAt: lastActive?.toISOString() ?? null,
+    };
+  });
+
+  // Global overalls
+  const allProgress = enrollments.flatMap((e) => e.nodeProgress);
+  const totalNodes = allProgress.length;
+  const masteredNodes = allProgress.filter(
+    (p) => p.masteryState === 'mastered' || p.masteryState === 'review_needed',
+  ).length;
+  const allScores = allProgress
+    .map((p) => (p.bestQuizScore ? Number(p.bestQuizScore) : null))
+    .filter((s): s is number => s !== null);
+  const globalAvgScore = allScores.length > 0
+    ? parseFloat((allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1))
+    : null;
+
+  // Global weak nodes — enriched with enrollment + domain context
+  const globalWeakNodes = enrollments
+    .flatMap((e) =>
+      e.nodeProgress
+        .filter((p) => p.masteryState === 'review_needed' || p.masteryState === 'relearn')
+        .map((p) => ({
+          nodeId: p.nodeId,
+          title: p.node.title,
+          masteryState: p.masteryState,
+          lastReviewedAt: p.lastReviewedAt?.toISOString() ?? null,
+          difficultyLevel: p.node.difficultyLevel,
+          enrollmentId: e.id,
+          domainName: e.domain.name,
+        })),
+    )
+    .slice(0, 8);
+
+  // Global top mastered nodes
+  const globalTopNodes = allProgress
+    .filter((p) => p.masteryState === 'mastered' && p.node.difficultyLevel != null)
+    .sort((a, b) => (b.node.difficultyLevel ?? 0) - (a.node.difficultyLevel ?? 0))
+    .slice(0, 5)
+    .map((p) => ({
+      nodeId: p.nodeId,
+      title: p.node.title,
+      bestQuizScore: p.bestQuizScore ? Number(p.bestQuizScore) : null,
+      difficultyLevel: p.node.difficultyLevel,
+      masteredAt: p.masteredAt?.toISOString() ?? null,
+    }));
+
+  // Global momentum
+  const recentMasteries = allProgress.filter(
+    (p) => p.masteredAt && p.masteredAt.getTime() >= now - 7 * 86_400_000,
+  ).length;
+  const prevMasteries = allProgress.filter(
+    (p) =>
+      p.masteredAt &&
+      p.masteredAt.getTime() >= now - 14 * 86_400_000 &&
+      p.masteredAt.getTime() < now - 7 * 86_400_000,
+  ).length;
+  const momentumTrend: 'up' | 'down' | 'flat' =
+    recentMasteries > prevMasteries ? 'up' : recentMasteries < prevMasteries ? 'down' : 'flat';
+
+  // Streak from all activity dates
+  const allDates = allProgress
+    .flatMap((p) => [p.lastReviewedAt, p.masteredAt])
+    .filter((d): d is Date => d !== null);
+  const currentStreak = computeStreak(allDates);
+
+  return {
+    totalEnrollments: enrollments.length,
+    enrollmentBreakdowns,
+    globalWeakNodes,
+    globalTopNodes,
+    overallStats: {
+      totalNodes,
+      masteredNodes,
+      completionPercent: totalNodes > 0 ? Math.round((masteredNodes / totalNodes) * 100) : 0,
+      avgScore: globalAvgScore,
+    },
+    momentum: { trend: momentumTrend, recentMasteries, prevMasteries },
+    streakSummary: { currentStreak },
+  };
+}
+
 // ── Unlock Logic (called by Phase 6 quiz completion) ─────────────────────────
 
 export async function checkAndUnlockNodes(userId: string, enrollmentId: string): Promise<string[]> {

@@ -114,3 +114,150 @@ export function useTimelineQuery(enrollmentId: string) {
     staleTime: 60_000,
   });
 }
+
+// ── Activity Heatmap ─────────────────────────────────────────────────────────
+
+export interface ActivityDay {
+  date: string;
+  count: number;
+  quizzes: number;
+  reviews: number;
+  masteries: number;
+}
+
+export function useActivityQuery(enrollmentId: string) {
+  return useQuery({
+    queryKey: ['activity', enrollmentId],
+    queryFn: () =>
+      apiClient
+        .get<{ days: ActivityDay[] }>(`/enrollments/${enrollmentId}/activity`)
+        .then((r) => r.data.days),
+    enabled: Boolean(enrollmentId),
+    staleTime: 5 * 60_000,
+  });
+}
+
+// ── Insights ──────────────────────────────────────────────────────────────────
+
+export interface LearningInsights {
+  profile: {
+    enrolledAt: string;
+    familiarityLevel: string | null;
+    learningGoal: string | null;
+    weeklyHours: number | null;
+    aboutSelf: string | null;
+    preferredLearningStyle: string | null;
+    priorSkills: string | null;
+    selectedBranchPath: string | null;
+    daysSinceEnrollment: number;
+  };
+  weakNodes: {
+    nodeId: string;
+    title: string;
+    masteryState: string;
+    lastReviewedAt: string | null;
+    difficultyLevel: number | null;
+  }[];
+  strugglingNodes: {
+    nodeId: string;
+    title: string;
+    bestQuizScore: number | null;
+    attemptsCount: number;
+    difficultyLevel: number | null;
+  }[];
+  topNodes: {
+    nodeId: string;
+    title: string;
+    bestQuizScore: number | null;
+    difficultyLevel: number | null;
+    masteredAt: string | null;
+  }[];
+  momentum: {
+    trend: 'up' | 'down' | 'flat';
+    recentMasteries: number;
+    prevMasteries: number;
+  };
+  avgScore: number | null;
+}
+
+export function useInsightsQuery(enrollmentId: string) {
+  return useQuery({
+    queryKey: ['insights', enrollmentId],
+    queryFn: () =>
+      apiClient
+        .get<{ insights: LearningInsights }>(`/enrollments/${enrollmentId}/insights`)
+        .then((r) => r.data.insights),
+    enabled: Boolean(enrollmentId),
+    staleTime: 2 * 60_000,
+  });
+}
+
+// ── Global (account-level) Insights ──────────────────────────────────────────
+
+export interface EnrollmentBreakdown {
+  enrollmentId: string;
+  domain: { id: string; name: string; slug: string; iconUrl: string | null };
+  completionPercent: number;
+  masteredNodes: number;
+  totalNodes: number;
+  avgScore: number | null;
+  lastActiveAt: string | null;
+  enrolledAt: string;
+  selectedBranchPath: string | null;
+}
+
+export interface GlobalInsights {
+  totalEnrollments: number;
+  enrollmentBreakdowns: EnrollmentBreakdown[];
+  globalWeakNodes: {
+    nodeId: string;
+    title: string;
+    masteryState: string;
+    difficultyLevel: number | null;
+    enrollmentId: string;
+    domainName: string;
+  }[];
+  globalTopNodes: {
+    nodeId: string;
+    title: string;
+    bestQuizScore: number | null;
+    difficultyLevel: number | null;
+    masteredAt: string | null;
+  }[];
+  overallStats: {
+    totalNodes: number;
+    masteredNodes: number;
+    completionPercent: number;
+    avgScore: number | null;
+  };
+  momentum: {
+    trend: 'up' | 'down' | 'flat';
+    recentMasteries: number;
+    prevMasteries: number;
+  };
+  streakSummary: {
+    currentStreak: number;
+  };
+}
+
+export function useGlobalActivityQuery() {
+  return useQuery({
+    queryKey: ['global-activity'],
+    queryFn: () =>
+      apiClient
+        .get<{ days: ActivityDay[] }>('/me/activity')
+        .then((r) => r.data.days),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useGlobalInsightsQuery() {
+  return useQuery({
+    queryKey: ['global-insights'],
+    queryFn: () =>
+      apiClient
+        .get<{ insights: GlobalInsights }>('/me/insights')
+        .then((r) => r.data.insights),
+    staleTime: 2 * 60_000,
+  });
+}

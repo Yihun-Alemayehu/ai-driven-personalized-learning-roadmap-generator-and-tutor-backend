@@ -4,7 +4,7 @@ import {
   LayoutDashboardIcon, BookOpenIcon, BellIcon,
   UsersIcon, BarChart2Icon, FlagIcon,
   ShieldIcon, GlobeIcon, SettingsIcon, UserIcon, BookMarkedIcon,
-  PanelLeftCloseIcon, PanelLeftOpenIcon,
+  PanelLeftCloseIcon, PanelLeftOpenIcon, SparklesIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -208,6 +208,7 @@ export function Sidebar() {
           items={[
             { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboardIcon size={15} /> },
             { to: '/catalog', label: 'Catalog', icon: <BookOpenIcon size={15} /> },
+            { to: '/insights', label: 'Insights', icon: <SparklesIcon size={15} /> },
             { to: '/notifications', label: 'Notifications', icon: <BellIcon size={15} /> },
           ]}
         />

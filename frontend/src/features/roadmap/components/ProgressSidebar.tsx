@@ -1,9 +1,11 @@
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MASTERY_CONFIG } from '@/lib/masteryConfig';
 import type { MasteryState, BranchPath, RoadmapNode } from '@/types';
 import type { ProgressStats, TimelineEstimate } from '@/api/progress';
 
 interface ProgressSidebarProps {
+  enrollmentId: string;
   domainName: string;
   enrolledAt: string;
   selectedBranchPath: BranchPath | null;
@@ -41,8 +43,9 @@ function Divider() {
 }
 
 export function ProgressSidebar({
-  domainName, enrolledAt, selectedBranchPath, stats, nextNode, timeline, onBranchChange, onNextNodeClick,
+  enrollmentId, domainName, enrolledAt, selectedBranchPath, stats, nextNode, timeline, onBranchChange, onNextNodeClick,
 }: ProgressSidebarProps) {
+  const navigate = useNavigate();
   const statCountMap: Partial<Record<MasteryState, number>> = {
     mastered:      stats.masteredCount,
     in_progress:   stats.inProgressCount,
@@ -235,6 +238,24 @@ export function ProgressSidebar({
           </div>
         </>
       )}
+      {/* Insights link */}
+      <Divider />
+      <button
+        onClick={() => navigate(`/enrollments/${enrollmentId}/insights`)}
+        className="w-full rounded-[10px] border px-3 py-2.5 text-left flex items-center gap-2.5 transition-all hover:border-stone-400 hover:bg-[#ebe6db]"
+        style={{ borderColor: '#d6cfbf', background: '#f3efe7' }}
+      >
+        <span style={{ color: '#9a9088', fontSize: 15 }}>✦</span>
+        <div>
+          <div className="text-[13px] font-medium" style={{ fontFamily: "'Crimson Pro', serif", color: '#1a1614' }}>
+            Learning insights
+          </div>
+          <div className="text-[10px] tracking-[0.05em]" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>
+            heatmap · profile · velocity
+          </div>
+        </div>
+        <span className="ml-auto text-[12px]" style={{ color: '#c2b9a6' }}>→</span>
+      </button>
     </aside>
   );
 }
