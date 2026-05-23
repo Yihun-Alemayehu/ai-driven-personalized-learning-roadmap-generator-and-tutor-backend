@@ -122,25 +122,33 @@ async function generate<T>(
 }
 
 export async function generateQuiz(input: QuizGenerationInput): Promise<GeneratedQuiz | null> {
-  const cacheKey = cacheKeys.quiz(input.nodeId);
+  const familiarityLevel = input.learnerContext?.familiarityLevel;
+  const isRemedial = input.weakAreas && input.weakAreas.length > 0;
+
+  const cacheKey = isRemedial
+    ? cacheKeys.remedialQuiz(input.nodeId, input.weakAreas!)
+    : cacheKeys.quiz(input.nodeId, input.adaptedDifficulty, familiarityLevel);
+  const cacheTtl = isRemedial ? ttls.REMEDIAL_QUIZ_TTL : ttls.QUIZ_TTL;
+
   const cached = await getCached<GeneratedQuiz>(cacheKey);
   if (cached) return cached;
 
-  const cachedExplanation = await getCached<GeneratedExplanation>(cacheKeys.explanation(input.nodeId));
-  const prompt = buildQuizPrompt({ ...input, explanation: cachedExplanation ?? undefined });
+  const cachedExplanation = await getCached<GeneratedExplanation>(cacheKeys.explanation(input.nodeId, familiarityLevel));
+  const prompt = buildQuizPrompt({ ...input, explanation: input.explanation ?? cachedExplanation ?? undefined });
 
   const result = await generate(prompt, generatedQuizSchema as never, `quiz:${input.nodeId}`);
   if (!result) return null;
 
   const quiz: GeneratedQuiz = { ...(result as object), generatedBy: 'ai_tutor' } as GeneratedQuiz;
-  await setCache(cacheKey, quiz, ttls.QUIZ_TTL);
+  await setCache(cacheKey, quiz, cacheTtl);
   return quiz;
 }
 
 export async function generateExplanation(
   input: ExplanationInput,
 ): Promise<GeneratedExplanation | null> {
-  const cacheKey = cacheKeys.explanation(input.nodeId);
+  const familiarityLevel = input.learnerContext?.familiarityLevel;
+  const cacheKey = cacheKeys.explanation(input.nodeId, familiarityLevel);
   const cached = await getCached<GeneratedExplanation>(cacheKey);
   if (cached) return cached;
 

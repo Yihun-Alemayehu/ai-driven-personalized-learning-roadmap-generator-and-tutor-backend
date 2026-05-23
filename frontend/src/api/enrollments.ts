@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
-import type { Enrollment, FamiliarityLevel, LearningGoal } from '@/types';
+import type { Enrollment, FamiliarityLevel, LearningGoal, PreferredLearningStyle } from '@/types';
 
 export interface EnrollPayload {
   domainId: string;
@@ -8,6 +8,8 @@ export interface EnrollPayload {
   familiarityLevel?: FamiliarityLevel;
   learningGoal?: LearningGoal;
   aboutSelf?: string;
+  preferredLearningStyle?: PreferredLearningStyle;
+  priorSkills?: string;
 }
 
 // API response for GET /enrollments — extends Enrollment with live counts
@@ -21,6 +23,11 @@ export interface EnrollResult {
   enrollment: Omit<EnrollmentWithCounts, 'domain' | 'ontologyVersion' | '_count'>;
   totalNodes: number;
   unlockedNodes: number;
+  personalization: {
+    skippedNodes: number;
+    supplementaryNodes: number;
+    unlockAcceleration: 'intermediate' | 'advanced' | null;
+  };
 }
 
 export const enrollmentKeys = {

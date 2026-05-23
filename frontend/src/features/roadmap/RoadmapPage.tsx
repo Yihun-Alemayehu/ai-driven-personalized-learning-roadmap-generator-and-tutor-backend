@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { useRoadmapQuery, useProgressStatsQuery, type ProgressStats } from '@/api/progress';
+import { useRoadmapQuery, useProgressStatsQuery, useTimelineQuery, type ProgressStats } from '@/api/progress';
 import { useEnrollmentsQuery } from '@/api/enrollments';
 import { useBreadcrumbStore } from '@/store/breadcrumbStore';
 import { useBranchingPointsQuery } from '@/api/branching';
@@ -23,6 +23,7 @@ function deriveNextNode(nodes: RoadmapNode[]): RoadmapNode | null {
       (n) =>
         n.unlocked &&
         !n.isBranchingPoint &&
+        !n.isAutoMastered &&
         (n.masteryState === 'not_started' || n.masteryState === 'review_needed'),
     ) ?? null
   );
@@ -41,6 +42,7 @@ export default function RoadmapPage() {
 
   const { data: roadmap, isLoading: roadmapLoading } = useRoadmapQuery(enrollmentId);
   const { data: stats } = useProgressStatsQuery(enrollmentId);
+  const { data: timeline } = useTimelineQuery(enrollmentId);
   const { data: enrollments } = useEnrollmentsQuery();
   const { data: branchingPoints } = useBranchingPointsQuery(enrollmentId);
 
@@ -99,6 +101,7 @@ export default function RoadmapPage() {
           selectedBranchPath={branchPath}
           stats={safeStats}
           nextNode={nextNode}
+          timeline={timeline}
           onBranchChange={setBranchPath}
           onNextNodeClick={handleNodeClick}
         />

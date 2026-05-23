@@ -1,4 +1,5 @@
 import config from '../config';
+import type { LearnerContext } from '../modules/progress/learner-context.service';
 
 const BASE = config.services.aiServiceUrl;
 
@@ -42,7 +43,11 @@ interface NodeContext {
   description?: string;
   learningOutcomes: string[];
   difficultyLevel?: number;
+  adaptedDifficulty?: number;
   questionCount?: number;
+  weakAreas?: string[];
+  explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] };
+  learnerContext?: LearnerContext;
 }
 
 export async function requestAiQuiz(ctx: NodeContext): Promise<AiQuizResponse | null> {
@@ -64,6 +69,7 @@ export interface AiAskPayload {
   description?: string;
   learningOutcomes?: string[];
   explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] } | null;
+  learnerContext?: LearnerContext;
 }
 
 export interface AiAskResponse {
@@ -72,4 +78,15 @@ export interface AiAskResponse {
 
 export async function requestAiAsk(payload: AiAskPayload): Promise<AiAskResponse | null> {
   return post<AiAskResponse>('/api/v1/ai/ask-question', payload);
+}
+
+export async function invalidateRemedialQuizCache(nodeId: string): Promise<void> {
+  try {
+    await fetch(`${BASE}/api/v1/ai/cache/remedial/${nodeId}`, {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(5_000),
+    });
+  } catch {
+    // Cache invalidation is best-effort
+  }
 }

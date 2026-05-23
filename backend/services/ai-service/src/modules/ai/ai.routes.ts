@@ -121,6 +121,24 @@ router.post('/ask-question', ctrl.askQuestion);
  *       200:
  *         description: Health status of Ollama and Gemini
  */
+/**
+ * @swagger
+ * /ai/cache/remedial/{nodeId}:
+ *   delete:
+ *     summary: Invalidate remedial quiz cache entries for a node
+ *     tags: [AI]
+ *     parameters:
+ *       - in: path
+ *         name: nodeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Number of cache entries deleted
+ */
+router.delete('/cache/remedial/:nodeId', ctrl.invalidateCache);
+
 router.get('/health', ctrl.healthDetail);
 
 export default router;

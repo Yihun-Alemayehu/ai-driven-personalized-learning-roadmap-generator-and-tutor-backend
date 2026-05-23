@@ -42,6 +42,7 @@ export interface Domain {
 // ── Enrollments ───────────────────────────────────────────────────────────────
 export type FamiliarityLevel = 'beginner' | 'intermediate' | 'advanced';
 export type LearningGoal = 'get_job' | 'upskill' | 'hobby' | 'certification';
+export type PreferredLearningStyle = 'visual' | 'reading' | 'hands_on' | 'video';
 
 export interface Enrollment {
   id: string;
@@ -54,6 +55,8 @@ export interface Enrollment {
   familiarityLevel?: FamiliarityLevel | null;
   learningGoal?: LearningGoal | null;
   aboutSelf?: string | null;
+  preferredLearningStyle?: PreferredLearningStyle | null;
+  priorSkills?: string | null;
 }
 
 // ── Learning nodes ────────────────────────────────────────────────────────────
@@ -80,6 +83,7 @@ export interface RoadmapNode extends LearningNode {
   attemptsCount: number;
   masteredAt?: string;
   lastReviewedAt?: string;
+  isAutoMastered?: boolean;
 }
 
 export interface RoadmapEdge {
@@ -87,10 +91,20 @@ export interface RoadmapEdge {
   prerequisiteNodeId: string;
 }
 
+export interface SupplementaryNode {
+  id: string;
+  title: string;
+  description?: string;
+  nodeType: 'primer' | 'practice_exam' | 'portfolio_project';
+  targetNodeId?: string;
+  position: 'before' | 'after' | 'end_of_branch';
+}
+
 export interface RoadmapData {
   nodes: RoadmapNode[];
   edges: RoadmapEdge[];
   selectedBranchPath?: BranchPath;
+  supplementaryNodes?: SupplementaryNode[];
 }
 
 export interface ProgressStats {

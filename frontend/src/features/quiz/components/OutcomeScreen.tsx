@@ -156,6 +156,20 @@ export function OutcomeScreen({ result, enrollmentId, attemptId, onRetry, onCont
             >
               Try again
             </Button>
+            {onContinue && (
+              <Button
+                className="w-full rounded-full h-10 text-[15px]"
+                style={{
+                  background: 'color-mix(in srgb, oklch(0.72 0.13 70) 15%, #faf7f1)',
+                  color: '#1a1614',
+                  border: '1px solid oklch(0.82 0.1 70)',
+                  fontFamily: "'Crimson Pro', serif",
+                }}
+                onClick={onContinue}
+              >
+                Review weak areas
+              </Button>
+            )}
             <Button
               variant="outline"
               className="w-full rounded-full h-10 text-[15px]"

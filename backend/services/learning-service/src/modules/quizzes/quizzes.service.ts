@@ -2,7 +2,8 @@ import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { classifyScore, applyGatekeeperOutcome } from '../gatekeeper/gatekeeper.service';
 import { getAdaptedResources } from '../adaptation/adaptation.service';
-import { requestAiQuiz, requestAiExplanation, requestAiAsk } from '../../lib/aiClient';
+import { buildLearnerContext, computeAdaptiveDifficulty, detectWeakAreas } from '../progress/learner-context.service';
+import { requestAiQuiz, requestAiExplanation, requestAiAsk, invalidateRemedialQuizCache } from '../../lib/aiClient';
 import type { AiAskPayload } from '../../lib/aiClient';
 import type { SubmitAttemptInput, AttemptFilters } from './quizzes.types';
 
@@ -23,27 +24,31 @@ async function assertNodeUnlocked(nodeId: string, userId: string) {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function getQuizForNode(nodeId: string, userId: string) {
-  await assertNodeUnlocked(nodeId, userId);
+  const progress = await assertNodeUnlocked(nodeId, userId);
 
-  // Return fresh AI quiz if one exists within the staleness window
-  const freshAiQuiz = await prisma.quiz.findFirst({
-    where: {
-      nodeId,
-      isMicroQuiz: false,
-      generatedBy: 'ai_tutor',
-      createdAt: { gte: new Date(Date.now() - AI_QUIZ_STALE_DAYS * 86_400_000) },
-    },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      questions: {
-        select: { id: true, questionType: true, questionText: true, options: true, explanation: true, orderIndex: true },
-        orderBy: { orderIndex: 'asc' },
+  const learnerContext = await buildLearnerContext(userId, progress.enrollmentId, nodeId);
+  const isReAttempt = learnerContext.currentNodeAttempts > 0;
+
+  // On re-attempts, always generate a fresh adaptive/remedial quiz — skip staleness cache
+  if (!isReAttempt) {
+    const freshAiQuiz = await prisma.quiz.findFirst({
+      where: {
+        nodeId,
+        isMicroQuiz: false,
+        generatedBy: 'ai_tutor',
+        createdAt: { gte: new Date(Date.now() - AI_QUIZ_STALE_DAYS * 86_400_000) },
       },
-    },
-  });
-  if (freshAiQuiz) return freshAiQuiz;
+      orderBy: { createdAt: 'desc' },
+      include: {
+        questions: {
+          select: { id: true, questionType: true, questionText: true, options: true, explanation: true, orderIndex: true },
+          orderBy: { orderIndex: 'asc' },
+        },
+      },
+    });
+    if (freshAiQuiz) return freshAiQuiz;
+  }
 
-  // Attempt AI generation
   const node = await prisma.learningNode.findUnique({
     where: { id: nodeId },
     select: { title: true, description: true, learningOutcomes: true, difficultyLevel: true },
@@ -51,13 +56,40 @@ export async function getQuizForNode(nodeId: string, userId: string) {
 
   if (node) {
     const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+
+    // Compute adapted difficulty based on learner performance
+    const adaptedDifficulty = computeAdaptiveDifficulty(
+      node.difficultyLevel,
+      learnerContext.currentNodeBestScore,
+      learnerContext.currentNodeAttempts,
+      learnerContext.overallAvgScore,
+    );
+
+    // Detect weak areas from the most recent failed attempt
+    const weakAreas = isReAttempt ? await detectWeakAreas(userId, nodeId) : [];
+
+    // Fetch the learner's personalized explanation to ground the quiz
+    const explanationResponse = await requestAiExplanation({
+      nodeId,
+      nodeTitle: node.title,
+      description: node.description ?? undefined,
+      learningOutcomes: outcomes,
+      weakAreas: weakAreas.length > 0 ? weakAreas : undefined,
+      learnerContext,
+    });
+    const personalizedExplanation = explanationResponse?.explanation ?? undefined;
+
     const aiResponse = await requestAiQuiz({
       nodeId,
       nodeTitle: node.title,
       description: node.description ?? undefined,
       learningOutcomes: outcomes,
       difficultyLevel: node.difficultyLevel ?? undefined,
+      adaptedDifficulty,
       questionCount: 4,
+      explanation: personalizedExplanation,
+      weakAreas: weakAreas.length > 0 ? weakAreas : undefined,
+      learnerContext,
     });
 
     if (aiResponse?.quiz?.questions?.length) {
@@ -104,7 +136,7 @@ export async function getQuizForNode(nodeId: string, userId: string) {
 }
 
 export async function getNodeExplanation(nodeId: string, userId: string) {
-  await assertNodeUnlocked(nodeId, userId);
+  const progress = await assertNodeUnlocked(nodeId, userId);
 
   const node = await prisma.learningNode.findUnique({
     where: { id: nodeId },
@@ -113,17 +145,27 @@ export async function getNodeExplanation(nodeId: string, userId: string) {
   if (!node) throw ApiError.notFound('Node not found');
 
   const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+  const learnerContext = await buildLearnerContext(userId, progress.enrollmentId, nodeId);
+
+  // Detect weak areas if the learner has prior attempts
+  const weakAreas = learnerContext.currentNodeAttempts > 0
+    ? await detectWeakAreas(userId, nodeId)
+    : [];
+
   const aiResponse = await requestAiExplanation({
     nodeId,
     nodeTitle: node.title,
     description: node.description ?? undefined,
     learningOutcomes: outcomes,
+    weakAreas: weakAreas.length > 0 ? weakAreas : undefined,
+    learnerContext,
   });
 
   return {
     nodeId,
     nodeTitle: node.title,
     explanation: aiResponse?.explanation ?? null,
+    weakAreas: weakAreas.length > 0 ? weakAreas : null,
     fallback: !aiResponse?.explanation
       ? { description: node.description, learningOutcomes: outcomes }
       : null,
@@ -135,8 +177,9 @@ export async function askNodeQuestion(
   userId: string,
   question: string,
   explanation: AiAskPayload['explanation'],
+  enrollmentId?: string,
 ) {
-  await assertNodeUnlocked(nodeId, userId);
+  const progress = await assertNodeUnlocked(nodeId, userId);
 
   const node = await prisma.learningNode.findUnique({
     where: { id: nodeId },
@@ -145,6 +188,11 @@ export async function askNodeQuestion(
   if (!node) throw ApiError.notFound('Node not found');
 
   const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+  const learnerContext = await buildLearnerContext(
+    userId,
+    enrollmentId ?? progress.enrollmentId,
+    nodeId,
+  );
   const result = await requestAiAsk({
     nodeId,
     nodeTitle: node.title,
@@ -152,6 +200,7 @@ export async function askNodeQuestion(
     description: node.description ?? undefined,
     learningOutcomes: outcomes,
     explanation,
+    learnerContext,
   });
 
   return { answer: result?.answer ?? null };
@@ -230,6 +279,11 @@ export async function submitAttempt(
     quizAttemptId: attempt.id,
     scorePercent,
   });
+
+  // Invalidate remedial quiz cache on pass (best-effort, non-blocking)
+  if (tier === 'strong_pass' || tier === 'marginal_pass') {
+    invalidateRemedialQuizCache(quiz.nodeId).catch(() => {});
+  }
 
   // Attach challenge project if strong pass
   let challengeProject = null;

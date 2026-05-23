@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { checkAndUnlockNodes } from '../progress/progress.service';
 import type { GatekeeperTier, GatekeeperResult } from './gatekeeper.types';
+import { recordVelocity } from './velocity.service';
 
 // ── Pure classification ───────────────────────────────────────────────────────
 
@@ -74,6 +75,10 @@ export async function applyGatekeeperOutcome(params: {
   }
 
   const newlyUnlockedNodes = isPass ? await checkAndUnlockNodes(userId, enrollmentId) : [];
+
+  if (isPass) {
+    recordVelocity({ userId, enrollmentId, nodeId, completedAt: now }).catch(() => {});
+  }
 
   return {
     tier,

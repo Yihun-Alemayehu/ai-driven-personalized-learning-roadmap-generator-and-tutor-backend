@@ -30,6 +30,7 @@ model User {
   quizAttempts             QuizAttempt[]
   refreshTokens            RefreshToken[]
   resourceRatings          ResourceRating[]
+  velocityRecords          LearnerVelocity[]
 
   @@map("users")
 }
@@ -90,8 +91,10 @@ model LearningNode {
   prerequisites      NodePrerequisite[]    @relation("NodePrereqs")
   dependents         NodePrerequisite[]    @relation("PrereqOf")
   quizAttempts       QuizAttempt[]
-  quizzes            Quiz[]
-  resources          Resource[]
+  quizzes              Quiz[]
+  resources            Resource[]
+  supplementaryNodes   SupplementaryNode[]
+  velocityRecords      LearnerVelocity[]
 
   @@unique([ontologyVersionId, slug])
   @@map("learning_nodes")
@@ -111,23 +114,63 @@ model NodePrerequisite {
 }
 
 model Enrollment {
-  id                 String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId             String                @db.Uuid
-  domainId           String                @db.Uuid
-  ontologyVersionId  String                @db.Uuid
-  selectedBranchPath BranchPath?
-  enrolledAt         DateTime              @default(now()) @db.Timestamptz(6)
-  weeklyHours        Int?                  @map("weekly_hours")
-  familiarityLevel   String?               @db.VarChar(20) @map("familiarity_level")
-  learningGoal       String?               @db.VarChar(30) @map("learning_goal")
-  aboutSelf          String?               @map("about_self")
-  domain             Domain                @relation(fields: [domainId], references: [id])
-  ontologyVersion    OntologyVersion       @relation(fields: [ontologyVersionId], references: [id])
-  user               User                  @relation(fields: [userId], references: [id])
-  nodeProgress       LearnerNodeProgress[]
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String                @db.Uuid
+  domainId               String                @db.Uuid
+  ontologyVersionId      String                @db.Uuid
+  selectedBranchPath     BranchPath?
+  enrolledAt             DateTime              @default(now()) @db.Timestamptz(6)
+  weeklyHours            Int?                  @map("weekly_hours")
+  familiarityLevel       String?               @db.VarChar(20) @map("familiarity_level")
+  learningGoal           String?               @db.VarChar(30) @map("learning_goal")
+  aboutSelf              String?               @map("about_self")
+  preferredLearningStyle String?               @db.VarChar(20) @map("preferred_learning_style")
+  priorSkills            String?               @map("prior_skills")
+  domain                 Domain                @relation(fields: [domainId], references: [id])
+  ontologyVersion        OntologyVersion       @relation(fields: [ontologyVersionId], references: [id])
+  user                   User                  @relation(fields: [userId], references: [id])
+  nodeProgress           LearnerNodeProgress[]
+  supplementaryNodes     SupplementaryNode[]
+  velocityRecords        LearnerVelocity[]
 
   @@unique([userId, domainId])
   @@map("enrollments")
+}
+
+model SupplementaryNode {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enrollmentId String        @db.Uuid @map("enrollment_id")
+  title        String        @db.VarChar(255)
+  description  String?
+  nodeType     String        @db.VarChar(30) @map("node_type")
+  targetNodeId String?       @db.Uuid @map("target_node_id")
+  position     String        @db.VarChar(15)
+  content      Json?
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6) @map("created_at")
+  enrollment   Enrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  targetNode   LearningNode? @relation(fields: [targetNodeId], references: [id])
+
+  @@index([enrollmentId])
+  @@map("supplementary_nodes")
+}
+
+model LearnerVelocity {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String       @db.Uuid @map("user_id")
+  enrollmentId   String       @db.Uuid @map("enrollment_id")
+  nodeId         String       @db.Uuid @map("node_id")
+  estimatedHours Decimal?     @db.Decimal(4, 1) @map("estimated_hours")
+  actualHours    Decimal      @db.Decimal(6, 2) @map("actual_hours")
+  startedAt      DateTime     @db.Timestamptz(6) @map("started_at")
+  completedAt    DateTime     @db.Timestamptz(6) @map("completed_at")
+  velocityRatio  Decimal      @db.Decimal(4, 2) @map("velocity_ratio")
+  enrollment     Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  node           LearningNode @relation(fields: [nodeId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([userId, nodeId])
+  @@index([enrollmentId])
+  @@map("learner_velocity")
 }
 
 model LearnerNodeProgress {

@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/ApiError';
-import type { MasteryState, ProgressStats, RoadmapNode, RoadmapEdge } from './progress.types';
+import type { MasteryState, ProgressStats, RoadmapNode, RoadmapEdge, SupplementaryNodeRow } from './progress.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -116,10 +116,10 @@ function computeStreak(dates: Date[]): number {
 export async function getRoadmap(
   enrollmentId: string,
   userId: string,
-): Promise<{ nodes: RoadmapNode[]; edges: RoadmapEdge[]; selectedBranchPath: string | null }> {
+): Promise<{ nodes: RoadmapNode[]; edges: RoadmapEdge[]; selectedBranchPath: string | null; supplementaryNodes: SupplementaryNodeRow[] }> {
   const enrollment = await assertOwnership(enrollmentId, userId);
 
-  const [nodes, progressRows, edges] = await Promise.all([
+  const [nodes, progressRows, edges, supplementary] = await Promise.all([
     prisma.learningNode.findMany({
       where: { ontologyVersionId: enrollment.ontologyVersionId },
       select: {
@@ -145,6 +145,7 @@ export async function getRoadmap(
         unlocked: true,
         bestQuizScore: true,
         attemptsCount: true,
+        masteredAt: true,
       },
     }),
     prisma.nodePrerequisite.findMany({
@@ -153,9 +154,29 @@ export async function getRoadmap(
       },
       select: { id: true, nodeId: true, prerequisiteNodeId: true },
     }),
+    prisma.supplementaryNode.findMany({
+      where: { enrollmentId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        nodeType: true,
+        targetNodeId: true,
+        position: true,
+      },
+    }),
   ]);
 
   const progressMap = new Map(progressRows.map((p) => [p.nodeId, p]));
+
+  // Detect auto-mastered nodes: mastered with masteredAt within 5s of enrollment creation
+  // (set during enrollment, not via quiz)
+  const autoMasteredIds = new Set<string>();
+  for (const p of progressRows) {
+    if (p.masteryState === 'mastered' && p.masteredAt && p.attemptsCount === 0) {
+      autoMasteredIds.add(p.nodeId);
+    }
+  }
 
   // Filter nodes to selected path: show shared (branchPath=null), selected path, and convergence nodes
   const { selectedBranchPath } = enrollment;
@@ -178,10 +199,91 @@ export async function getRoadmap(
       unlocked: p?.unlocked ?? false,
       bestQuizScore: p?.bestQuizScore ?? null,
       attemptsCount: p?.attemptsCount ?? 0,
+      isAutoMastered: autoMasteredIds.has(n.id),
     };
   });
 
-  return { nodes: roadmapNodes, edges: visibleEdges, selectedBranchPath };
+  return { nodes: roadmapNodes, edges: visibleEdges, selectedBranchPath, supplementaryNodes: supplementary };
+}
+
+// ── Timeline Estimate ────────────────────────────────────────────────────────
+
+export async function getTimelineEstimate(enrollmentId: string, userId: string) {
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    select: { userId: true, weeklyHours: true, ontologyVersionId: true, selectedBranchPath: true },
+  });
+  if (!enrollment) throw ApiError.notFound('Enrollment not found');
+  if (enrollment.userId !== userId) throw ApiError.forbidden();
+
+  const weeklyHours = enrollment.weeklyHours ?? 5;
+
+  const [nodes, progressRows] = await Promise.all([
+    prisma.learningNode.findMany({
+      where: { ontologyVersionId: enrollment.ontologyVersionId },
+      select: {
+        id: true,
+        estimatedHours: true,
+        branchPath: true,
+        isConvergencePoint: true,
+      },
+    }),
+    prisma.learnerNodeProgress.findMany({
+      where: { enrollmentId },
+      select: { nodeId: true, masteryState: true },
+    }),
+  ]);
+
+  const { selectedBranchPath } = enrollment;
+  const visibleNodes = selectedBranchPath
+    ? nodes.filter(
+        (n) => n.branchPath === null || n.branchPath === selectedBranchPath || n.isConvergencePoint,
+      )
+    : nodes;
+
+  const completedStates = new Set(['mastered', 'review_needed']);
+  const progressMap = new Map(progressRows.map((p) => [p.nodeId, p.masteryState]));
+
+  let totalHours = 0;
+  let completedHours = 0;
+  let remainingHours = 0;
+
+  for (const node of visibleNodes) {
+    const hours = node.estimatedHours ? Number(node.estimatedHours) : 0;
+    totalHours += hours;
+    const state = progressMap.get(node.id);
+    if (state && completedStates.has(state)) {
+      completedHours += hours;
+    } else {
+      remainingHours += hours;
+    }
+  }
+
+  // Adjust remaining hours using learner's actual velocity
+  const { getAverageVelocity } = await import('../gatekeeper/velocity.service');
+  const avgVelocity = await getAverageVelocity(enrollmentId);
+  const adjustedRemainingHours = avgVelocity !== null
+    ? parseFloat((remainingHours * avgVelocity).toFixed(1))
+    : remainingHours;
+
+  const estimatedWeeksRemaining = weeklyHours > 0
+    ? parseFloat((adjustedRemainingHours / weeklyHours).toFixed(1))
+    : null;
+
+  const estimatedCompletionDate = estimatedWeeksRemaining !== null
+    ? new Date(Date.now() + estimatedWeeksRemaining * 7 * 86_400_000).toISOString().slice(0, 10)
+    : null;
+
+  return {
+    totalHours: parseFloat(totalHours.toFixed(1)),
+    completedHours: parseFloat(completedHours.toFixed(1)),
+    remainingHours: parseFloat(remainingHours.toFixed(1)),
+    adjustedRemainingHours,
+    weeklyHours,
+    estimatedWeeksRemaining,
+    estimatedCompletionDate,
+    velocityMultiplier: avgVelocity,
+  };
 }
 
 // ── Unlock Logic (called by Phase 6 quiz completion) ─────────────────────────

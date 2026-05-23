@@ -4,7 +4,23 @@ import * as svc from './ai.service';
 import { getCircuitState } from './ai.circuit-breaker';
 import { isOllamaReachable } from './ollama.client';
 import { isGeminiConfigured } from './gemini.client';
+import { invalidateRemedialCache } from './ai.cache';
 import { ApiError } from '../../utils/ApiError';
+
+const learnerContextSchema = Joi.object({
+  familiarityLevel: Joi.string().allow(null).optional(),
+  learningGoal: Joi.string().allow(null).optional(),
+  weeklyHours: Joi.number().allow(null).optional(),
+  aboutSelf: Joi.string().allow(null, '').optional(),
+  preferredLearningStyle: Joi.string().allow(null).optional(),
+  priorSkills: Joi.string().allow(null, '').optional(),
+  currentNodeAttempts: Joi.number().integer().min(0).optional(),
+  currentNodeBestScore: Joi.number().allow(null).optional(),
+  currentNodeMasteryState: Joi.string().optional(),
+  overallAvgScore: Joi.number().allow(null).optional(),
+  nodesCompleted: Joi.number().integer().min(0).optional(),
+  totalNodes: Joi.number().integer().min(0).optional(),
+}).optional();
 
 const nodeContextSchema = Joi.object({
   nodeId: Joi.string().required(),
@@ -12,7 +28,10 @@ const nodeContextSchema = Joi.object({
   description: Joi.string().allow('').optional(),
   learningOutcomes: Joi.array().items(Joi.string()).min(0).required(),
   difficultyLevel: Joi.number().integer().min(1).max(5).optional(),
+  adaptedDifficulty: Joi.number().integer().min(1).max(5).optional(),
   questionCount: Joi.number().integer().min(2).max(8).optional(),
+  weakAreas: Joi.array().items(Joi.string()).max(10).optional(),
+  learnerContext: learnerContextSchema,
 });
 
 export async function generateQuiz(
@@ -71,6 +90,7 @@ const askQuestionSchema = Joi.object({
     keyPoints: Joi.array().items(Joi.string()).required(),
     commonMistakes: Joi.array().items(Joi.string()).optional(),
   }).allow(null).optional(),
+  learnerContext: learnerContextSchema,
 });
 
 export async function askQuestion(
@@ -83,6 +103,21 @@ export async function askQuestion(
     if (error) return next(ApiError.badRequest(error.message));
     const answer = await svc.askQuestion(value);
     res.json({ answer });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function invalidateCache(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { nodeId } = req.params;
+    if (!nodeId) return next(ApiError.badRequest('nodeId is required'));
+    const deleted = await invalidateRemedialCache(nodeId);
+    res.json({ deleted });
   } catch (err) {
     next(err);
   }

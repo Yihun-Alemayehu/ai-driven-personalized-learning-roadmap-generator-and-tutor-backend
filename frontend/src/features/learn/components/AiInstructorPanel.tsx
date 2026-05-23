@@ -18,6 +18,7 @@ interface Props {
   node: RoadmapNode;
   explanation: Explanation | null;
   onClose: () => void;
+  enrollmentId: string;
 }
 
 function buildSuggestedPrompts(node: RoadmapNode, explanation: Explanation | null): string[] {
@@ -58,7 +59,7 @@ function TypingDots() {
   );
 }
 
-export function AiInstructorPanel({ node, explanation, onClose }: Props) {
+export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'bot',
@@ -89,7 +90,7 @@ export function AiInstructorPanel({ node, explanation, onClose }: Props) {
     setInput('');
 
     ask.mutate(
-      { question: q, explanation },
+      { question: q, explanation, enrollmentId },
       {
         onSuccess: (answer) => {
           setMessages((prev) => [

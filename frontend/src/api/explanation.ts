@@ -9,6 +9,7 @@ export interface Explanation {
     keyPoints: string[];
     commonMistakes?: string[];
   } | null;
+  weakAreas?: string[] | null;
   fallback?: { description?: string; learningOutcomes: string[] } | null;
 }
 

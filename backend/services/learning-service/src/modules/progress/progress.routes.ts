@@ -78,4 +78,25 @@ router.get('/enrollments/:id/progress/stats', authenticate, ctrl.getStats);
  */
 router.get('/enrollments/:id/roadmap', authenticate, ctrl.getRoadmap);
 
+/**
+ * @swagger
+ * /enrollments/{id}/timeline:
+ *   get:
+ *     summary: Get estimated completion timeline for an enrollment
+ *     tags: [Progress]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Timeline estimate with remaining hours, estimated weeks, and completion date
+ */
+router.get('/enrollments/:id/timeline', authenticate, ctrl.getTimeline);
+
 export default router;

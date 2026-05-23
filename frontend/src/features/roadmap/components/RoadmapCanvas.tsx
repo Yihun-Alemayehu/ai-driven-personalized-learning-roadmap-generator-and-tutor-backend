@@ -78,7 +78,7 @@ function toFlowNodes(roadmapNodes: RoadmapNode[], depths: Map<string, number>): 
     position: { x: n.positionX ?? 0, y: n.positionY ?? 0 },
     data: { ...(n as unknown as Record<string, unknown>), _level: depths.get(n.id) ?? 0 },
     draggable: false,
-    selectable: n.unlocked && !n.isBranchingPoint,
+    selectable: n.unlocked && !n.isBranchingPoint && !n.isAutoMastered,
   }));
 }
 
@@ -138,7 +138,7 @@ export function RoadmapCanvas({ roadmapNodes, roadmapEdges, onNodeClick }: Roadm
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_, node) => {
       const data = node.data as unknown as RoadmapNode;
-      if (!data.unlocked || data.isBranchingPoint) return;
+      if (!data.unlocked || data.isBranchingPoint || data.isAutoMastered) return;
       onNodeClick(data);
     },
     [onNodeClick],
@@ -170,12 +170,12 @@ export function RoadmapCanvas({ roadmapNodes, roadmapEdges, onNodeClick }: Roadm
         />
         <MiniMap
           nodeColor={(n) => {
-            const d = n.data as unknown as { _level?: number; masteryState?: string; unlocked?: boolean };
+            const d = n.data as unknown as { _level?: number; masteryState?: string; unlocked?: boolean; isAutoMastered?: boolean };
+            if (d.isAutoMastered)                   return '#c2b9a6';
             if (d.unlocked === false)                return '#d0c8b8';
             if (d.masteryState === 'mastered')      return '#60a870';
             if (d.masteryState === 'in_progress')   return '#4a7fc1';
             if (d.masteryState === 'review_needed') return '#c9a030';
-            // Use level color for not_started
             const levelColors = ['#d4905c', '#5aaa78', '#6080c0'];
             return levelColors[Math.min(d._level ?? 0, 2)];
           }}
@@ -209,6 +209,10 @@ export function RoadmapCanvas({ roadmapNodes, roadmapEdges, onNodeClick }: Roadm
           <div className="flex items-center gap-2">
             <div className="w-5 border-t-2 border-dashed" style={{ borderColor: '#c5bcaa' }} />
             <span className="text-[11px]" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#6e645a' }}>Locked</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: '#c2b9a6' }} />
+            <span className="text-[11px]" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#6e645a' }}>Already known</span>
           </div>
         </div>
       </div>

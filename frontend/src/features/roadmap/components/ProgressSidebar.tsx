@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { MASTERY_CONFIG } from '@/lib/masteryConfig';
 import type { MasteryState, BranchPath, RoadmapNode } from '@/types';
-import type { ProgressStats } from '@/api/progress';
+import type { ProgressStats, TimelineEstimate } from '@/api/progress';
 
 interface ProgressSidebarProps {
   domainName: string;
@@ -9,6 +9,7 @@ interface ProgressSidebarProps {
   selectedBranchPath: BranchPath | null;
   stats: ProgressStats;
   nextNode: RoadmapNode | null;
+  timeline?: TimelineEstimate | null;
   onBranchChange: (path: BranchPath) => void;
   onNextNodeClick: (node: RoadmapNode) => void;
 }
@@ -40,7 +41,7 @@ function Divider() {
 }
 
 export function ProgressSidebar({
-  domainName, enrolledAt, selectedBranchPath, stats, nextNode, onBranchChange, onNextNodeClick,
+  domainName, enrolledAt, selectedBranchPath, stats, nextNode, timeline, onBranchChange, onNextNodeClick,
 }: ProgressSidebarProps) {
   const statCountMap: Partial<Record<MasteryState, number>> = {
     mastered:      stats.masteredCount,
@@ -88,6 +89,75 @@ export function ProgressSidebar({
           </div>
         </div>
       </div>
+
+      {/* Timeline estimate */}
+      {timeline && timeline.estimatedWeeksRemaining !== null && (
+        <>
+          <Divider />
+          <div className="flex flex-col gap-2.5">
+            <SectionLabel>estimated timeline</SectionLabel>
+            <div className="flex flex-col gap-[7px]">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[13px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}>
+                  Remaining
+                </span>
+                <span className="text-[11px] font-semibold" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#1a1614' }}>
+                  {timeline.adjustedRemainingHours ?? timeline.remainingHours}h
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-[13px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}>
+                  At {timeline.weeklyHours}h/week
+                </span>
+                <span className="text-[11px] font-semibold" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#1a1614' }}>
+                  ~{timeline.estimatedWeeksRemaining}w
+                </span>
+              </div>
+              {timeline.estimatedCompletionDate && (
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}>
+                    Target
+                  </span>
+                  <span className="text-[11px] font-semibold" style={{ fontFamily: 'JetBrains Mono, monospace', color: 'oklch(0.55 0.12 150)' }}>
+                    {timeline.estimatedCompletionDate}
+                  </span>
+                </div>
+              )}
+              {timeline.velocityMultiplier !== null && (
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[13px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}>
+                    Your pace
+                  </span>
+                  <span
+                    className="text-[11px] font-semibold"
+                    style={{
+                      fontFamily: 'JetBrains Mono, monospace',
+                      color: timeline.velocityMultiplier < 0.9
+                        ? 'oklch(0.55 0.12 150)'
+                        : timeline.velocityMultiplier > 1.2
+                        ? 'oklch(0.62 0.18 28)'
+                        : '#1a1614',
+                    }}
+                  >
+                    {timeline.velocityMultiplier < 0.9
+                      ? `${Math.round((1 - timeline.velocityMultiplier) * 100)}% faster`
+                      : timeline.velocityMultiplier > 1.1
+                      ? `${Math.round((timeline.velocityMultiplier - 1) * 100)}% slower`
+                      : 'on track'}
+                  </span>
+                </div>
+              )}
+              <div className="h-[5px] rounded-full overflow-hidden mt-0.5" style={{ background: '#ebe6db' }}>
+                <div className="h-full rounded-full transition-[width] duration-500"
+                  style={{
+                    width: `${timeline.totalHours > 0 ? Math.round((timeline.completedHours / timeline.totalHours) * 100) : 0}%`,
+                    background: 'oklch(0.55 0.12 150)',
+                  }} />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <Divider />
 

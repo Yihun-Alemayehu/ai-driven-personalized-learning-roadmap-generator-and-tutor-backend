@@ -1,6 +1,7 @@
 export type BranchPath = 'frontend' | 'backend' | 'data_science';
 export type FamiliarityLevel = 'beginner' | 'intermediate' | 'advanced';
 export type LearningGoal = 'get_job' | 'upskill' | 'hobby' | 'certification';
+export type PreferredLearningStyle = 'visual' | 'reading' | 'hands_on' | 'video';
 
 export interface Enrollment {
   id: string;
@@ -13,6 +14,8 @@ export interface Enrollment {
   familiarityLevel: FamiliarityLevel | null;
   learningGoal: LearningGoal | null;
   aboutSelf: string | null;
+  preferredLearningStyle: PreferredLearningStyle | null;
+  priorSkills: string | null;
 }
 
 export interface EnrollInput {
@@ -22,4 +25,6 @@ export interface EnrollInput {
   familiarityLevel?: FamiliarityLevel;
   learningGoal?: LearningGoal;
   aboutSelf?: string;
+  preferredLearningStyle?: PreferredLearningStyle;
+  priorSkills?: string;
 }

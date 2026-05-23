@@ -1,14 +1,32 @@
 import Joi from 'joi';
 
+export interface LearnerContext {
+  familiarityLevel: string | null;
+  learningGoal: string | null;
+  weeklyHours: number | null;
+  aboutSelf: string | null;
+  preferredLearningStyle: string | null;
+  priorSkills: string | null;
+  currentNodeAttempts: number;
+  currentNodeBestScore: number | null;
+  currentNodeMasteryState: string;
+  overallAvgScore: number | null;
+  nodesCompleted: number;
+  totalNodes: number;
+}
+
 export interface QuizGenerationInput {
   nodeId: string;
   nodeTitle: string;
   description?: string;
   learningOutcomes: string[];
   difficultyLevel?: number;
+  adaptedDifficulty?: number;
   questionCount?: number;
   /** Pre-generated explanation to ground quiz questions in specific content */
   explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] };
+  weakAreas?: string[];
+  learnerContext?: LearnerContext;
 }
 
 export interface ExplanationInput {
@@ -16,6 +34,8 @@ export interface ExplanationInput {
   nodeTitle: string;
   description?: string;
   learningOutcomes: string[];
+  weakAreas?: string[];
+  learnerContext?: LearnerContext;
 }
 
 export interface AskQuestionInput {
@@ -25,6 +45,7 @@ export interface AskQuestionInput {
   description?: string;
   learningOutcomes?: string[];
   explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] } | null;
+  learnerContext?: LearnerContext;
 }
 
 export interface MicroQuizInput {
@@ -32,6 +53,7 @@ export interface MicroQuizInput {
   nodeTitle: string;
   learningOutcomes: string[];
   questionCount?: number;
+  learnerContext?: LearnerContext;
 }
 
 export interface GeneratedQuestion {

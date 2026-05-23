@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
-import type { RoadmapNode, RoadmapEdge, BranchPath } from '@/types';
+import type { RoadmapNode, RoadmapEdge, BranchPath, SupplementaryNode } from '@/types';
 
 // ── Response shapes ───────────────────────────────────────────────────────────
 
@@ -8,6 +8,7 @@ export interface RoadmapApiResponse {
   nodes: (Omit<RoadmapNode, 'estimatedHours'> & { estimatedHours: string | number | null })[];
   edges: (RoadmapEdge & { id: string })[];
   selectedBranchPath: BranchPath | null;
+  supplementaryNodes: SupplementaryNode[];
 }
 
 // Actual shape from GET /progress/stats
@@ -88,5 +89,28 @@ export function useProgressStatsQuery(enrollmentId: string) {
         .then((r) => normaliseStats(r.data)),
     enabled: Boolean(enrollmentId),
     staleTime: 30_000,
+  });
+}
+
+export interface TimelineEstimate {
+  totalHours: number;
+  completedHours: number;
+  remainingHours: number;
+  adjustedRemainingHours: number;
+  weeklyHours: number;
+  estimatedWeeksRemaining: number | null;
+  estimatedCompletionDate: string | null;
+  velocityMultiplier: number | null;
+}
+
+export function useTimelineQuery(enrollmentId: string) {
+  return useQuery({
+    queryKey: ['timeline', enrollmentId],
+    queryFn: () =>
+      apiClient
+        .get<{ timeline: TimelineEstimate }>(`/enrollments/${enrollmentId}/timeline`)
+        .then((r) => r.data.timeline),
+    enabled: Boolean(enrollmentId),
+    staleTime: 60_000,
   });
 }

@@ -27,3 +27,12 @@ export async function getRoadmap(req: Request, res: Response, next: NextFunction
     next(err);
   }
 }
+
+export async function getTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const timeline = await svc.getTimelineEstimate(req.params.id, req.user!.id);
+    res.json({ timeline });
+  } catch (err) {
+    next(err);
+  }
+}

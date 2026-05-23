@@ -50,6 +50,17 @@ function CheckBadge() {
   );
 }
 
+function SkipBadge() {
+  return (
+    <span
+      className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full grid place-items-center text-[9px] font-bold shadow-sm"
+      style={{ background: '#b0a898', color: '#faf7f1' }}
+    >
+      ↷
+    </span>
+  );
+}
+
 function LockBadge() {
   return (
     <span
@@ -99,16 +110,23 @@ function BranchingNode({ data }: { data: RoadmapNode }) {
   );
 }
 
-function StandardNode({ data, selected, level }: { data: RoadmapNode; selected: boolean; level: number }) {
+function StandardNode({ data, selected, level }: { data: RoadmapNode & { isAutoMastered?: boolean }; selected: boolean; level: number }) {
   const state = data.masteryState;
   const cfg = MASTERY_CONFIG[state];
   const lvl = levelStyle(level);
   const isLocked = !data.unlocked;
+  const isAutoMastered = !!data.isAutoMastered;
 
-  // Mastery state overrides the background to its own color but keeps level border for unlocked nodes
-  const bgColor = isLocked ? lvl.lockedBg : (state === 'not_started' ? lvl.bg : cfg.backgroundColor);
-  const borderColor = isLocked ? lvl.lockedBorder : (state === 'not_started' ? lvl.border : cfg.borderColor);
-  const textColor = isLocked ? '#9a9088' : (state === 'not_started' ? lvl.text : cfg.textColor);
+  // Auto-mastered nodes get a muted treatment
+  const bgColor = isAutoMastered
+    ? '#ebe6db'
+    : isLocked ? lvl.lockedBg : (state === 'not_started' ? lvl.bg : cfg.backgroundColor);
+  const borderColor = isAutoMastered
+    ? '#c2b9a6'
+    : isLocked ? lvl.lockedBorder : (state === 'not_started' ? lvl.border : cfg.borderColor);
+  const textColor = isAutoMastered
+    ? '#9a9088'
+    : isLocked ? '#9a9088' : (state === 'not_started' ? lvl.text : cfg.textColor);
 
   return (
     <>
@@ -120,25 +138,26 @@ function StandardNode({ data, selected, level }: { data: RoadmapNode; selected: 
           background: bgColor,
           borderColor,
           borderStyle: isLocked ? 'dashed' : 'solid',
-          ...(state === 'review_needed' && { animation: 'atlasReviewPulse 2.2s ease-in-out infinite' }),
+          ...(state === 'review_needed' && !isAutoMastered && { animation: 'atlasReviewPulse 2.2s ease-in-out infinite' }),
           ...(selected && { boxShadow: '0 0 0 3px rgba(200,97,58,0.35)' }),
-          cursor: isLocked ? 'default' : 'pointer',
-          opacity: isLocked ? 0.75 : 1,
+          cursor: isLocked || isAutoMastered ? 'default' : 'pointer',
+          opacity: isLocked ? 0.75 : isAutoMastered ? 0.65 : 1,
         }}
       >
         {/* Level indicator stripe */}
         <div
           className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full"
-          style={{ background: isLocked ? '#c2b9a6' : lvl.dotBg, opacity: isLocked ? 0.4 : 0.7 }}
+          style={{ background: isLocked || isAutoMastered ? '#c2b9a6' : lvl.dotBg, opacity: isLocked || isAutoMastered ? 0.4 : 0.7 }}
         />
 
-        {state === 'mastered'      && <CheckBadge />}
+        {isAutoMastered              && <SkipBadge />}
+        {!isAutoMastered && state === 'mastered'      && <CheckBadge />}
         {state === 'locked'        && <LockBadge />}
-        {state === 'review_needed' && <ReviewBadge />}
+        {!isAutoMastered && state === 'review_needed' && <ReviewBadge />}
 
         <div
           className="text-[13px] font-semibold leading-tight pl-2"
-          style={{ fontFamily: "'Crimson Pro', serif", color: isLocked ? '#6e645a' : '#1a1614' }}
+          style={{ fontFamily: "'Crimson Pro', serif", color: isLocked || isAutoMastered ? '#6e645a' : '#1a1614' }}
         >
           {data.title}
         </div>
@@ -146,7 +165,7 @@ function StandardNode({ data, selected, level }: { data: RoadmapNode; selected: 
           className="text-[9.5px] mt-1 tracking-[0.06em] pl-2"
           style={{ fontFamily: 'JetBrains Mono, monospace', color: textColor, opacity: 0.9 }}
         >
-          {isLocked ? 'locked' : cfg.label}
+          {isAutoMastered ? 'already known' : isLocked ? 'locked' : cfg.label}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} className="!opacity-0" />

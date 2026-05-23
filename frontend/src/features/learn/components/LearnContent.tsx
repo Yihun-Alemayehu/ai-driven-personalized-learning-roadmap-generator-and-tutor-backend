@@ -193,11 +193,40 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
         )}
 
         {enabled && !isLoading && !isError && data && (() => {
-          const { explanation, fallback } = data;
+          const { explanation, weakAreas, fallback } = data;
 
           if (explanation) {
             return (
               <div className="flex flex-col gap-8 max-w-2xl">
+                {/* Weak areas banner */}
+                {weakAreas && weakAreas.length > 0 && (
+                  <div
+                    className="flex items-start gap-3 px-4 py-3 rounded-[10px] border"
+                    style={{
+                      background: 'color-mix(in srgb, oklch(0.72 0.13 70) 8%, #faf7f1)',
+                      borderColor: 'oklch(0.82 0.1 70)',
+                    }}
+                  >
+                    <span className="shrink-0 text-[14px] mt-0.5" style={{ color: 'oklch(0.62 0.18 28)' }}>
+                      ↻
+                    </span>
+                    <div>
+                      <div
+                        className="text-[14px] font-semibold mb-0.5"
+                        style={{ fontFamily: "'Crimson Pro', serif", color: '#1a1614' }}
+                      >
+                        Focused on your weak areas
+                      </div>
+                      <div
+                        className="text-[13px] leading-snug"
+                        style={{ fontFamily: "'Crimson Pro', serif", color: '#6e645a' }}
+                      >
+                        This explanation emphasizes topics you missed in your last quiz attempt.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Summary */}
                 <div>
                   <SectionLabel>Summary</SectionLabel>

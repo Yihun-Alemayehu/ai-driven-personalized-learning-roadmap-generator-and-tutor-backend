@@ -138,6 +138,7 @@ export default function LearnPage() {
           node={activeNode}
           explanation={explanation}
           onClose={() => setShowInstructor(false)}
+          enrollmentId={enrollmentId}
         />
       )}
     </div>

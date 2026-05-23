@@ -44,6 +44,16 @@ export interface RoadmapNode {
   unlocked: boolean;
   bestQuizScore: unknown;
   attemptsCount: number;
+  isAutoMastered?: boolean;
+}
+
+export interface SupplementaryNodeRow {
+  id: string;
+  title: string;
+  description: string | null;
+  nodeType: string;
+  targetNodeId: string | null;
+  position: string;
 }
 
 export interface RoadmapEdge {

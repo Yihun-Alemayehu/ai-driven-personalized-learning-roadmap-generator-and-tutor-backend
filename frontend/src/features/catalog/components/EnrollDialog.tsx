@@ -8,9 +8,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { useEnrollMutation } from '@/api/enrollments';
+import { useEnrollMutation, type EnrollResult } from '@/api/enrollments';
 import { getDomainMeta } from '../lib/domainIcons';
-import type { Domain, FamiliarityLevel, LearningGoal } from '@/types';
+import type { Domain, FamiliarityLevel, LearningGoal, PreferredLearningStyle } from '@/types';
 import { useAtlasSettingsStore } from '@/store/settings.store';
 
 interface EnrollDialogProps {
@@ -24,6 +24,8 @@ interface PersonalizationForm {
   learningGoal: LearningGoal | '';
   weeklyHours: string;
   aboutSelf: string;
+  preferredLearningStyle: PreferredLearningStyle | '';
+  priorSkills: string;
 }
 
 function createInitialForm(defaults: {
@@ -36,6 +38,8 @@ function createInitialForm(defaults: {
     learningGoal: defaults.learningGoal,
     weeklyHours: String(defaults.weeklyHoursGoal),
     aboutSelf: '',
+    preferredLearningStyle: '',
+    priorSkills: '',
   };
 }
 
@@ -50,6 +54,13 @@ const GOAL_OPTIONS: { value: LearningGoal; label: string; icon: string }[] = [
   { value: 'upskill',       label: 'Upskill at work',   icon: '📈' },
   { value: 'hobby',         label: 'Personal interest', icon: '🎯' },
   { value: 'certification', label: 'Get certified',     icon: '🏆' },
+];
+
+const LEARNING_STYLE_OPTIONS: { value: PreferredLearningStyle; label: string; icon: string }[] = [
+  { value: 'visual',   label: 'Visual',     icon: '🖼' },
+  { value: 'reading',  label: 'Reading',    icon: '📖' },
+  { value: 'hands_on', label: 'Hands-on',   icon: '🛠' },
+  { value: 'video',    label: 'Video',      icon: '🎬' },
 ];
 
 function Step1({ domain, meta, onNext, onClose }: {
@@ -203,6 +214,49 @@ function Step2({ form, onChange, onBack, onSubmit, isPending, error }: {
           />
         </div>
 
+        {/* Learning style */}
+        <div>
+          <label className="block text-[11px] tracking-[0.1em] uppercase mb-2" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>
+            Preferred learning style
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {LEARNING_STYLE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => onChange({ preferredLearningStyle: opt.value })}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-[8px] border text-left transition-all"
+                style={{
+                  borderColor: form.preferredLearningStyle === opt.value ? 'oklch(0.55 0.13 150)' : '#d6cfbf',
+                  background: form.preferredLearningStyle === opt.value ? 'color-mix(in srgb, oklch(0.55 0.13 150) 10%, #faf7f1)' : '#faf7f1',
+                }}
+              >
+                <span className="text-[16px]">{opt.icon}</span>
+                <span className="text-[13px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#1a1614' }}>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Prior skills */}
+        <div>
+          <label className="block text-[11px] tracking-[0.1em] uppercase mb-2" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>
+            Skills you already know <span style={{ color: '#c2b9a6' }}>(optional)</span>
+          </label>
+          <textarea
+            rows={2}
+            placeholder="e.g. HTML, CSS, basic JavaScript, Git…"
+            value={form.priorSkills}
+            onChange={(e) => onChange({ priorSkills: e.target.value })}
+            className="w-full px-3 py-2 rounded-[8px] border text-[15px] outline-none focus:ring-2 resize-none"
+            style={{
+              borderColor: '#d6cfbf',
+              background: '#faf7f1',
+              fontFamily: "'Crimson Pro', serif",
+              color: '#1a1614',
+            }}
+          />
+        </div>
+
         {/* About self */}
         <div>
           <label className="block text-[11px] tracking-[0.1em] uppercase mb-2" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>
@@ -251,14 +305,97 @@ function Step2({ form, onChange, onBack, onSubmit, isPending, error }: {
   );
 }
 
+function Step3({ result, onNavigate }: {
+  result: EnrollResult;
+  onNavigate: () => void;
+}) {
+  const { totalNodes, unlockedNodes, personalization } = result;
+  const { skippedNodes, supplementaryNodes, unlockAcceleration } = personalization;
+  const hasPersonalization = skippedNodes > 0 || supplementaryNodes > 0 || unlockAcceleration;
+
+  return (
+    <>
+      <DialogHeader>
+        <div
+          className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl mb-3"
+          style={{ background: 'color-mix(in srgb, oklch(0.60 0.13 150) 12%, #faf7f1)', border: '1px solid oklch(0.75 0.1 150)' }}
+        >
+          <span style={{ fontFamily: 'monospace' }}>✓</span>
+        </div>
+        <DialogTitle
+          className="text-[24px]"
+          style={{ fontFamily: "'Cormorant Garamond', serif", color: '#3d342a' }}
+        >
+          Roadmap ready!
+        </DialogTitle>
+        <DialogDescription style={{ color: '#6e645a', fontFamily: "'Crimson Pro', serif", fontSize: 15 }}>
+          Your personalized learning path has been created.
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="flex flex-col gap-3 mt-2">
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-[8px] border px-3 py-2.5" style={{ borderColor: '#d6cfbf', background: '#f3efe7' }}>
+            <div className="text-[22px] font-medium" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1a1614' }}>{totalNodes}</div>
+            <div className="text-[11px] tracking-[0.08em] uppercase" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>Total nodes</div>
+          </div>
+          <div className="rounded-[8px] border px-3 py-2.5" style={{ borderColor: '#d6cfbf', background: '#f3efe7' }}>
+            <div className="text-[22px] font-medium" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1a1614' }}>{unlockedNodes}</div>
+            <div className="text-[11px] tracking-[0.08em] uppercase" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>Unlocked</div>
+          </div>
+        </div>
+
+        {/* Personalization summary */}
+        {hasPersonalization && (
+          <div className="rounded-[10px] border p-3 flex flex-col gap-2" style={{ borderColor: 'oklch(0.82 0.1 70)', background: 'color-mix(in srgb, oklch(0.72 0.13 70) 8%, #faf7f1)' }}>
+            <div className="text-[10px] tracking-[0.12em] uppercase" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>
+              Personalized for you
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {skippedNodes > 0 && (
+                <div className="flex items-center gap-2 text-[14px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}>
+                  <span style={{ color: '#b0a898' }}>↷</span>
+                  Skipped {skippedNodes} node{skippedNodes !== 1 ? 's' : ''} you already know
+                </div>
+              )}
+              {supplementaryNodes > 0 && (
+                <div className="flex items-center gap-2 text-[14px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}>
+                  <span style={{ color: 'oklch(0.55 0.13 250)' }}>+</span>
+                  Added {supplementaryNodes} supplementary node{supplementaryNodes !== 1 ? 's' : ''}
+                </div>
+              )}
+              {unlockAcceleration && (
+                <div className="flex items-center gap-2 text-[14px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}>
+                  <span style={{ color: 'oklch(0.60 0.13 150)' }}>⚡</span>
+                  {unlockAcceleration === 'advanced' ? 'Advanced unlock — easy nodes pre-mastered' : 'Intermediate unlock — foundational nodes opened'}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={onNavigate}
+        className="w-full mt-3 rounded-lg px-4 py-2.5 text-[14px] font-semibold transition-all active:scale-[0.98]"
+        style={{ background: 'oklch(0.62 0.18 28)', color: '#faf7f1', fontFamily: "'Crimson Pro', serif" }}
+      >
+        Open roadmap →
+      </button>
+    </>
+  );
+}
+
 export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
   const navigate = useNavigate();
   const meta = getDomainMeta(domain.slug);
   const enroll = useEnrollMutation();
   const learningDefaults = useAtlasSettingsStore((s) => s.learningDefaults);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<PersonalizationForm>(() => createInitialForm(learningDefaults));
+  const [enrollResult, setEnrollResult] = useState<EnrollResult | null>(null);
 
   function getErrorMessage(err: unknown): string {
     if (axios.isAxiosError(err)) {
@@ -275,6 +412,7 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
       setStep(1);
       setError(null);
       setForm(createInitialForm(learningDefaults));
+      setEnrollResult(null);
     }
   }, [open, learningDefaults]);
 
@@ -285,6 +423,7 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
     setStep(1);
     setError(null);
     setForm(createInitialForm(learningDefaults));
+    setEnrollResult(null);
     onClose();
   };
 
@@ -297,9 +436,11 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
         ...(form.learningGoal && { learningGoal: form.learningGoal }),
         ...(form.weeklyHours && { weeklyHours: parseInt(form.weeklyHours, 10) }),
         ...(form.aboutSelf.trim() && { aboutSelf: form.aboutSelf.trim() }),
+        ...(form.preferredLearningStyle && { preferredLearningStyle: form.preferredLearningStyle }),
+        ...(form.priorSkills.trim() && { priorSkills: form.priorSkills.trim() }),
       });
-      handleClose();
-      navigate(`/enrollments/${result.enrollment.id}/roadmap`);
+      setEnrollResult(result);
+      setStep(3);
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -311,9 +452,10 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
         className="max-w-md"
         style={{ background: '#faf7f1', borderColor: '#d6cfbf' }}
       >
-        {step === 1 ? (
+        {step === 1 && (
           <Step1 domain={domain} meta={meta} onNext={() => setStep(2)} onClose={handleClose} />
-        ) : (
+        )}
+        {step === 2 && (
           <Step2
             form={form}
             onChange={onChange}
@@ -321,6 +463,16 @@ export function EnrollDialog({ domain, open, onClose }: EnrollDialogProps) {
             onSubmit={handleSubmit}
             isPending={enroll.isPending}
             error={error}
+          />
+        )}
+        {step === 3 && enrollResult && (
+          <Step3
+            result={enrollResult}
+            onNavigate={() => {
+              const id = enrollResult.enrollment.id;
+              handleClose();
+              navigate(`/enrollments/${id}/roadmap`);
+            }}
           />
         )}
       </DialogContent>

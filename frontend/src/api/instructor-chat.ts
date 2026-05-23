@@ -8,6 +8,7 @@ export interface AskPayload {
     keyPoints: string[];
     commonMistakes?: string[];
   } | null;
+  enrollmentId?: string;
 }
 
 export function useAskInstructorMutation(nodeId: string) {

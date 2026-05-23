@@ -7,4 +7,6 @@ export const enrollSchema = Joi.object({
   familiarityLevel: Joi.string().valid('beginner', 'intermediate', 'advanced').optional(),
   learningGoal: Joi.string().valid('get_job', 'upskill', 'hobby', 'certification').optional(),
   aboutSelf: Joi.string().max(1000).optional().allow(''),
+  preferredLearningStyle: Joi.string().valid('visual', 'reading', 'hands_on', 'video').optional(),
+  priorSkills: Joi.string().max(2000).optional().allow(''),
 });

@@ -90,9 +90,10 @@ export async function askNodeQuestion(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { question, explanation } = req.body as {
+    const { question, explanation, enrollmentId } = req.body as {
       question: string;
       explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] } | null;
+      enrollmentId?: string;
     };
     if (!question || typeof question !== 'string' || question.trim().length < 2) {
       res.status(400).json({ error: { message: 'question is required' } });
@@ -103,6 +104,7 @@ export async function askNodeQuestion(
       req.user!.id,
       question.trim(),
       explanation ?? null,
+      enrollmentId,
     );
     res.json(result);
   } catch (err) {
