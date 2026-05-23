@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,9 +10,9 @@ import '../../core/models/roadmap_data.dart';
 import '../../core/models/roadmap_node.dart';
 import '../../core/providers/enrollments_provider.dart';
 import '../../core/providers/roadmap_provider.dart';
-import '../../core/theme/mastery_config.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_shimmer.dart';
+import 'mastery_legend.dart';
 import 'node_detail_sheet.dart';
 import 'node_widget.dart';
 import 'progress_stats_bar.dart';
@@ -33,8 +34,9 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
   final Graph _graph = Graph()..isTree = true;
   final Map<String, Node> _nodeMap = <String, Node>{};
   String? _activeNodeId;
-  bool _legendExpanded = false;
   bool _hasCentered = false;
+  int _lastSyncedNodeCount = -1;
+  int _lastSyncedEdgeCount = -1;
 
   late final SugiyamaConfiguration _layoutConfig;
   late final SugiyamaAlgorithm _algorithm;
@@ -95,84 +97,86 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
                     child: ProgressStatsBar(stats: bundle.stats),
                   ),
                 ),
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: InteractiveViewer(
-                    key: _viewerKey,
-                    transformationController: _transformationController,
-                    constrained: false,
-                    boundaryMargin: const EdgeInsets.all(320),
-                    minScale: 0.3,
-                    maxScale: 2.5,
-                    child: SizedBox(
-                      width: 2400,
-                      height: 1800,
-                      child: GraphView(
-                        graph: _graph,
-                        algorithm: _algorithm,
-                        paint: Paint()
-                          ..color = const Color(0xFFB9B1A4)
-                          ..strokeWidth = 1.5
-                          ..style = PaintingStyle.stroke,
-                        builder: (Node node) {
-                          final mapped = node.key?.value as RoadmapNode;
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 500, // Fixed height for the graph area
+                    child: InteractiveViewer(
+                      key: _viewerKey,
+                      transformationController: _transformationController,
+                      constrained: false,
+                      boundaryMargin: const EdgeInsets.all(100),
+                      minScale: 0.3,
+                      maxScale: 2.5,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: GraphView(
+                          graph: _graph,
+                          algorithm: _algorithm,
+                          paint: Paint()
+                            ..color = const Color(0xFFB9B1A4)
+                            ..strokeWidth = 1.5
+                            ..style = PaintingStyle.stroke,
+                          builder: (Node node) {
+                            final mapped = node.key?.value as RoadmapNode?;
+                            
+                            if (mapped == null) {
+                              debugPrint('[ROADMAP] WARNING: Node has null data, key=${node.key}');
+                              return const SizedBox.shrink();
+                            }
 
-                          return RoadmapNodeWidget(
-                            node: mapped,
-                            isActive: _activeNodeId == mapped.id,
-                            onTap: mapped.unlocked
-                                ? () {
-                                    setState(() {
-                                      _activeNodeId = mapped.id;
-                                    });
+                            return RoadmapNodeWidget(
+                              node: mapped,
+                              isActive: _activeNodeId == mapped.id,
+                              onTap: mapped.unlocked
+                                  ? () {
+                                      setState(() {
+                                        _activeNodeId = mapped.id;
+                                      });
 
-                                    showModalBottomSheet<void>(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (_) => NodeDetailSheet(
-                                        enrollmentId: widget.enrollmentId,
-                                        node: mapped,
-                                        onLearn: () {
-                                          Navigator.of(context).pop();
-                                          context.go(
-                                            '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
-                                          );
-                                        },
-                                        onQuiz: () {
-                                          Navigator.of(context).pop();
-                                          context.go('/quiz/${mapped.id}');
-                                        },
-                                        onResources: () {
-                                          Navigator.of(context).pop();
-                                          context.go(
-                                            '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
-                                          );
-                                        },
-                                      ),
-                                    );
-                                  }
-                                : null,
-                          );
-                        },
+                                      showModalBottomSheet<void>(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (_) => NodeDetailSheet(
+                                          enrollmentId: widget.enrollmentId,
+                                          node: mapped,
+                                          onLearn: () {
+                                            Navigator.of(context).pop();
+                                            context.go(
+                                              '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
+                                            );
+                                          },
+                                          onQuiz: () {
+                                            Navigator.of(context).pop();
+                                            context.go('/enrollments/${widget.enrollmentId}/quiz/${mapped.id}');
+                                          },
+                                          onResources: () {
+                                            Navigator.of(context).pop();
+                                            context.go(
+                                              '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
+                                            );
+                                          },
+                                        ),
+                                      ).then((_) {
+                                        // Clear active node when sheet is dismissed
+                                        if (mounted) {
+                                          setState(() {
+                                            _activeNodeId = null;
+                                          });
+                                        }
+                                      });
+                                    }
+                                  : null,
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-            Positioned(
-              right: 14,
-              bottom: 14,
-              child: _MasteryLegend(
-                expanded: _legendExpanded,
-                onToggle: () {
-                  setState(() {
-                    _legendExpanded = !_legendExpanded;
-                  });
-                },
-              ),
-            ),
+            const MasteryLegend(),
           ],
         );
       },
@@ -180,6 +184,21 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
   }
 
   void _syncGraph(RoadmapData roadmap) {
+    // Only re-sync if data has changed
+    if (roadmap.nodes.length == _lastSyncedNodeCount &&
+        roadmap.edges.length == _lastSyncedEdgeCount &&
+        _graph.nodes.isNotEmpty) {
+      return;
+    }
+
+    debugPrint('[ROADMAP] Syncing graph with ${roadmap.nodes.length} nodes, ${roadmap.edges.length} edges');
+
+    // Only clear if we have data to avoid empty graph issues
+    if (roadmap.nodes.isEmpty) {
+      debugPrint('[ROADMAP] No nodes to sync, skipping');
+      return;
+    }
+
     _graph.nodes.clear();
     _graph.edges.clear();
     _nodeMap.clear();
@@ -189,6 +208,7 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
       graphNode.key = ValueKey<RoadmapNode>(node);
       _graph.addNode(graphNode);
       _nodeMap[node.id] = graphNode;
+      debugPrint('[ROADMAP] Added node: ${node.id} - ${node.title}');
     }
 
     for (final edge in roadmap.edges) {
@@ -196,8 +216,16 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
       final from = _nodeMap[edge.prerequisiteNodeId];
       if (to != null && from != null) {
         _graph.addEdge(from, to);
+        debugPrint('[ROADMAP] Added edge: ${edge.prerequisiteNodeId} -> ${edge.nodeId}');
+      } else {
+        debugPrint('[ROADMAP] WARNING: Could not add edge ${edge.prerequisiteNodeId} -> ${edge.nodeId} (missing nodes)');
       }
     }
+    
+    _lastSyncedNodeCount = roadmap.nodes.length;
+    _lastSyncedEdgeCount = roadmap.edges.length;
+
+    debugPrint('[ROADMAP] Graph sync complete: ${_graph.nodeCount()} nodes, ${_graph.edges.length} edges');
   }
 
   void _centerOnFirstUnlocked(RoadmapData roadmap) {
@@ -226,19 +254,27 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
 
     final graphNode = _nodeMap[unlockedNode.id];
     if (graphNode == null) {
+      debugPrint('[ROADMAP] Centering: graphNode is null, skipping');
       return;
     }
 
     final size = _viewerKey.currentContext?.size;
     final position = graphNode.position;
 
-    if (size == null || (position == Offset.zero && retries < 8)) {
-      Future<void>.delayed(const Duration(milliseconds: 30), () {
-        if (!mounted) {
-          return;
-        }
-        _attemptCenter(roadmap: roadmap, retries: retries + 1);
-      });
+    debugPrint('[ROADMAP] Centering attempt #$retries: size=$size, position=$position');
+
+    if (size == null || (position.dx == 0 && position.dy == 0 && retries < 10)) {
+      if (retries < 10) {
+        Future<void>.delayed(const Duration(milliseconds: 50), () {
+          if (!mounted) {
+            return;
+          }
+          _attemptCenter(roadmap: roadmap, retries: retries + 1);
+        });
+      } else {
+        debugPrint('[ROADMAP] Centering: max retries reached, giving up');
+        _hasCentered = true; // Mark as done to stop trying
+      }
       return;
     }
 
@@ -283,68 +319,3 @@ class _ProgressHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class _MasteryLegend extends StatelessWidget {
-  const _MasteryLegend({required this.expanded, required this.onToggle});
-
-  final bool expanded;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      width: expanded ? 188 : 108,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          InkWell(
-            onTap: onToggle,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Text('Legend', style: Theme.of(context).textTheme.titleMedium),
-                Icon(expanded ? Icons.expand_more : Icons.chevron_left),
-              ],
-            ),
-          ),
-          if (expanded) ...<Widget>[
-            const SizedBox(height: 8),
-            ...MasteryState.values.map((state) {
-              final color = MasteryConfig.colors[state] ?? Colors.grey;
-              final label = MasteryConfig.labels[state] ?? state.name;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ],
-      ),
-    );
-  }
-}

@@ -105,9 +105,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/quiz/:nodeId',
-            builder: (_, state) =>
-                QuizScreen(nodeId: state.pathParameters['nodeId'] ?? ''),
+            path: '/enrollments/:id/quiz/:nodeId',
+            builder: (_, state) => QuizScreen(
+              enrollmentId: state.pathParameters['id'] ?? '',
+              nodeId: state.pathParameters['nodeId'] ?? '',
+            ),
           ),
           GoRoute(
             path: '/quiz-attempts/:id',

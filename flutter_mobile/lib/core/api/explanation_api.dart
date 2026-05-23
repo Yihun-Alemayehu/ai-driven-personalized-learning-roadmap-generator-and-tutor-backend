@@ -6,12 +6,10 @@ class ExplanationApi {
   final Dio _dio;
 
   Future<Map<String, dynamic>> explain({
-    required String enrollmentId,
     required String nodeId,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/explanations/generate',
-      data: <String, dynamic>{'enrollmentId': enrollmentId, 'nodeId': nodeId},
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/nodes/$nodeId/explanation',
     );
 
     return response.data ?? <String, dynamic>{};

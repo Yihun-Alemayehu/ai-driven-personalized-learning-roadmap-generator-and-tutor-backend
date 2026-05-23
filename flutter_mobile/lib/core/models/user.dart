@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 enum UserRole { learner, instructor, admin, domainExpert }
 
 UserRole userRoleFromJson(String value) {
@@ -34,14 +36,23 @@ class User {
   final String? preferredLanguage;
 
   factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] as String,
-      email: json['email'] as String,
-      fullName: json['fullName'] as String,
-      role: userRoleFromJson((json['role'] as String?) ?? 'learner'),
-      avatarUrl: json['avatarUrl'] as String?,
-      preferredLanguage: json['preferredLanguage'] as String?,
-    );
+    debugPrint('[USER] Parsing User from JSON: $json');
+    try {
+      final user = User(
+        id: json['id'] as String,
+        email: json['email'] as String,
+        fullName: (json['fullName'] as String?) ?? 'Unknown',
+        role: userRoleFromJson((json['role'] as String?) ?? 'learner'),
+        avatarUrl: json['avatarUrl'] as String?,
+        preferredLanguage: json['preferredLanguage'] as String?,
+      );
+      debugPrint('[USER] User parsed successfully: ${user.id}');
+      return user;
+    } catch (e) {
+      debugPrint('[USER] ERROR parsing User: $e');
+      debugPrint('[USER] JSON received: $json');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -63,10 +74,18 @@ class AuthTokens {
   final String refreshToken;
 
   factory AuthTokens.fromJson(Map<String, dynamic> json) {
-    return AuthTokens(
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
-    );
+    debugPrint('[AUTH_TOKENS] Parsing tokens from JSON: accessToken=${json['accessToken'] != null ? 'present' : 'MISSING'}, refreshToken=${json['refreshToken'] != null ? 'present' : 'MISSING'}');
+    try {
+      final tokens = AuthTokens(
+        accessToken: json['accessToken'] as String,
+        refreshToken: json['refreshToken'] as String,
+      );
+      debugPrint('[AUTH_TOKENS] Tokens parsed successfully');
+      return tokens;
+    } catch (e) {
+      debugPrint('[AUTH_TOKENS] ERROR parsing tokens: $e');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {

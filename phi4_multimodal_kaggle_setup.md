@@ -48,48 +48,116 @@ print(f"✅ Model loaded on: {next(model.parameters()).device}")
 from fastapi import FastAPI, UploadFile, File, Form
 from PIL import Image
 import soundfile as sf
-import torch, io
+import torch, io, json, re
 
 app = FastAPI(title="Phi-4 Multimodal API")
 
-def build_prompt(text, has_image=False, has_audio=False):
-    content = ""
-    if has_image:
-        content += "<|image_1|>\n"
-    if has_audio:
-        content += "<|audio_1|>\n"
-    content += text
-    return f"<|user|>\n{content}<|end|>\n<|assistant|>\n"
+def build_messages(text, enforce_json=False):
+    """Build chat messages for Phi-4."""
+    if enforce_json:
+        text = "You must respond with ONLY valid JSON. No markdown, no code blocks, no explanations. Just raw JSON.\n\n" + text
+    return [
+        {"role": "user", "content": text}
+    ]
+
+def extract_json(raw_response: str) -> str:
+    """Extract JSON from response, handling markdown code blocks and extra text."""
+    # Remove markdown code blocks
+    cleaned = re.sub(r'```(?:json)?\s*', '', raw_response)
+    cleaned = cleaned.replace('```', '')
+    
+    # Try to find JSON object
+    match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+    if match:
+        return match.group(0)
+    
+    # If wrapped in other text, try to extract just the JSON array/object
+    start_brace = cleaned.find('{')
+    start_bracket = cleaned.find('[')
+    
+    if start_brace == -1 and start_bracket == -1:
+        return cleaned.strip()
+    
+    start = min(x for x in [start_brace, start_bracket] if x != -1)
+    
+    # Find matching end
+    if cleaned[start] == '{':
+        end = cleaned.rfind('}')
+    else:
+        end = cleaned.rfind(']')
+    
+    if end != -1 and end > start:
+        return cleaned[start:end+1]
+    
+    return cleaned.strip()
 
 @app.post("/generate/text")
-async def generate_text(prompt: str = Form(...), max_new_tokens: int = Form(512)):
-    full_prompt = build_prompt(prompt)
-    inputs = processor(text=full_prompt, return_tensors="pt").to("cuda")
+async def generate_text(prompt: str = Form(...), max_new_tokens: int = Form(2048), json_mode: bool = Form(False)):
+    messages = build_messages(prompt, enforce_json=json_mode)
+    
+    # Apply chat template and tokenize
+    prompt_text = processor.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=prompt_text, return_tensors="pt").to("cuda")
+    
+    # Generate with proper parameters
+    generation_args = {
+        "max_new_tokens": max_new_tokens,
+        "do_sample": False,
+        "temperature": None,
+        "top_p": None,
+    }
+    
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
-    response = processor.decode(outputs[0], skip_special_tokens=True).split("<|assistant|>")[-1].strip()
+        outputs = model.generate(**inputs, **generation_args)
+    
+    # Decode only the new tokens (not the input prompt)
+    input_length = inputs['input_ids'].shape[1]
+    new_tokens = outputs[0][input_length:]
+    response = processor.decode(new_tokens, skip_special_tokens=True).strip()
+    
+    if json_mode:
+        response = extract_json(response)
+    
     return {"response": response}
 
 @app.post("/generate/image")
-async def generate_image(prompt: str = Form(...), image: UploadFile = File(...), max_new_tokens: int = Form(512)):
+async def generate_image(prompt: str = Form(...), image: UploadFile = File(...), max_new_tokens: int = Form(2048)):
     img = Image.open(io.BytesIO(await image.read())).convert("RGB")
-    full_prompt = build_prompt(prompt, has_image=True)
-    inputs = processor(text=full_prompt, images=img, return_tensors="pt").to("cuda")
+    messages = [{"role": "user", "content": "<|image_1|>\n" + prompt}]
+    prompt_text = processor.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=prompt_text, images=img, return_tensors="pt").to("cuda")
+    generation_args = {
+        "max_new_tokens": max_new_tokens,
+        "do_sample": False,
+        "temperature": None,
+        "top_p": None,
+    }
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
-    response = processor.decode(outputs[0], skip_special_tokens=True).split("<|assistant|>")[-1].strip()
+        outputs = model.generate(**inputs, **generation_args)
+    input_length = inputs['input_ids'].shape[1]
+    new_tokens = outputs[0][input_length:]
+    response = processor.decode(new_tokens, skip_special_tokens=True).strip()
     return {"response": response}
 
 @app.post("/generate/audio")
-async def generate_audio(prompt: str = Form(...), audio: UploadFile = File(...), max_new_tokens: int = Form(512)):
+async def generate_audio(prompt: str = Form(...), audio: UploadFile = File(...), max_new_tokens: int = Form(2048)):
     audio_array, sample_rate = sf.read(io.BytesIO(await audio.read()))
     if audio_array.ndim > 1:
         audio_array = audio_array.mean(axis=1)
-    full_prompt = build_prompt(prompt, has_audio=True)
-    inputs = processor(text=full_prompt, audios=[(audio_array, sample_rate)], return_tensors="pt").to("cuda")
+    messages = [{"role": "user", "content": "<|audio_1|>\n" + prompt}]
+    prompt_text = processor.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=prompt_text, audios=[(audio_array, sample_rate)], return_tensors="pt").to("cuda")
+    generation_args = {
+        "max_new_tokens": max_new_tokens,
+        "do_sample": False,
+        "temperature": None,
+        "top_p": None,
+    }
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
-    response = processor.decode(outputs[0], skip_special_tokens=True).split("<|assistant|>")[-1].strip()
+        outputs = model.generate(**inputs, **generation_args)
+    input_length = inputs['input_ids'].shape[1]
+    new_tokens = outputs[0][input_length:]
+    response = processor.decode(new_tokens, skip_special_tokens=True).strip()
     return {"response": response}
 
 @app.get("/health")
