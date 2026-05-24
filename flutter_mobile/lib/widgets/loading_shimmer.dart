@@ -10,6 +10,8 @@ class LoadingShimmer extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (_, __) {
         return Shimmer.fromColors(
           baseColor: AppColors.surface,

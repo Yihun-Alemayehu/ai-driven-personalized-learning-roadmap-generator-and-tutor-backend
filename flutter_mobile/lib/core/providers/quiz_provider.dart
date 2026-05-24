@@ -15,7 +15,15 @@ final quizzesApiProvider = Provider<QuizzesApi>(
 final quizProvider = FutureProvider.family<Quiz, String>((ref, nodeId) async {
   final api = ref.watch(quizzesApiProvider);
   debugPrint('[QUIZ_PROVIDER] Fetching quiz for node: $nodeId');
-  return api.getQuizByNode(nodeId);
+  try {
+    final quiz = await api.getQuizByNode(nodeId);
+    debugPrint('[QUIZ_PROVIDER] Loaded quiz: ${quiz.id} with ${quiz.questions.length} questions');
+    return quiz;
+  } catch (e, stack) {
+    debugPrint('[QUIZ_PROVIDER] Error fetching quiz: $e');
+    debugPrint('[QUIZ_PROVIDER] Stack trace: $stack');
+    rethrow;
+  }
 });
 
 // Notifier for quiz attempt submission

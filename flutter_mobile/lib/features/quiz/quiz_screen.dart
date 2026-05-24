@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/quiz.dart';
 import '../../core/providers/quiz_provider.dart';
+import '../../core/providers/roadmap_provider.dart';
 import '../../core/models/attempt_result.dart';
 import '../../widgets/loading_shimmer.dart';
 import 'quiz_question_card.dart';
@@ -134,18 +135,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       loading: () => const Scaffold(
         body: Center(child: LoadingShimmer()),
       ),
-      error: (err, _) => Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Failed to load quiz: $err'),
-            ],
+      error: (err, stack) {
+        debugPrint('[QUIZ_SCREEN] Error loading quiz: $err');
+        debugPrint('[QUIZ_SCREEN] Stack: $stack');
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Failed to load quiz', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text('$err', style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => ref.invalidate(quizProvider(widget.nodeId)),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => context.go('/enrollments/${widget.enrollmentId}/roadmap'),
+                  child: const Text('Back to Roadmap'),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
       data: (quiz) {
         if (_result != null) {
           return _buildResultsScreen(quiz);
@@ -160,9 +178,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final progress = (_currentQuestionIndex + 1) / quiz.questions.length;
     final hasAnswer = _answers.containsKey(question.id);
 
+    // Get node title for display
+    final nodeAsync = widget.enrollmentId != null
+        ? ref.watch(nodeByIdProvider(NodeLookupParams(
+            enrollmentId: widget.enrollmentId!,
+            nodeId: widget.nodeId,
+          )))
+        : null;
+    final nodeTitle = nodeAsync?.valueOrNull?.title ?? 'Quiz';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(quiz.title),
+        title: Text('$nodeTitle - Quiz'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.go('/enrollments/${widget.enrollmentId}/roadmap'),

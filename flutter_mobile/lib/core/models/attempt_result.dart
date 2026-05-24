@@ -19,13 +19,13 @@ class AttemptResult {
 
   factory AttemptResult.fromJson(Map<String, dynamic> json) {
     return AttemptResult(
-      id: json['id'] as String,
-      quizId: json['quizId'] as String,
-      nodeId: json['nodeId'] as String,
-      scorePercent: (json['scorePercent'] as num).toDouble(),
-      outcome: json['outcome'] as String,
+      id: (json['id'] as String?) ?? '',
+      quizId: (json['quizId'] as String?) ?? '',
+      nodeId: (json['nodeId'] as String?) ?? '',
+      scorePercent: (json['scorePercent'] as num?)?.toDouble() ?? 0.0,
+      outcome: (json['outcome'] as String?) ?? '',
       newlyUnlockedNodes: (json['newlyUnlockedNodes'] as List<dynamic>? ?? [])
-          .map((e) => e as String)
+          .map((e) => e as String? ?? '')
           .toList(),
       masteryChange: MasteryChange.fromJson(
         json['masteryChange'] as Map<String, dynamic>? ?? {},

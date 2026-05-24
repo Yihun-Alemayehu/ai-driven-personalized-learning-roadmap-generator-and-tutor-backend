@@ -8,11 +8,13 @@ import '../../features/admin/user_management_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/catalog/catalog_screen.dart';
+import '../../features/gamification/achievements_screen.dart';
 import '../../features/catalog/domain_detail_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/instructor/analytics_screen.dart';
 import '../../features/instructor/flagged_events_screen.dart';
 import '../../features/instructor/instructor_shell.dart';
+import '../../features/insights/insights_screen.dart';
 import '../../features/instructor/learner_list_screen.dart';
 import '../../features/instructor/learner_progress_screen.dart';
 import '../../features/learn/learn_screen.dart';
@@ -93,6 +95,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(
+            path: '/achievements',
+            builder: (_, __) => const AchievementsScreen(),
+          ),
+          GoRoute(
             path: '/enrollments/:id/roadmap',
             builder: (_, state) =>
                 RoadmapScreen(enrollmentId: state.pathParameters['id'] ?? ''),
@@ -115,6 +121,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/quiz-attempts/:id',
             builder: (_, state) => AttemptReviewScreen(
               attemptId: state.pathParameters['id'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: '/enrollments/:id/insights',
+            builder: (_, state) => InsightsScreen(
+              enrollmentId: state.pathParameters['id'] ?? '',
             ),
           ),
           GoRoute(

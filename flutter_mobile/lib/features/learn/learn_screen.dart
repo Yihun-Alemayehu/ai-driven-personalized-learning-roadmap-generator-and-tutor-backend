@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/roadmap_node.dart';
 import '../../core/providers/my_learning_provider.dart';
 import '../../core/providers/roadmap_provider.dart';
-import '../../widgets/error_widget.dart';
 import '../../widgets/loading_shimmer.dart';
 import 'explanation_panel.dart';
 
@@ -26,6 +25,7 @@ class LearnScreen extends ConsumerStatefulWidget {
 class _LearnScreenState extends ConsumerState<LearnScreen>
     with TickerProviderStateMixin {
   late final TabController _tabController;
+  bool _hasRedirected = false;
 
   @override
   void initState() {
@@ -40,6 +40,13 @@ class _LearnScreenState extends ConsumerState<LearnScreen>
       // Refresh roadmap to get latest unlock status (in case quiz just unlocked this node)
       ref.invalidate(roadmapProvider(widget.enrollmentId));
     });
+  }
+
+  void _redirectToRoadmap() {
+    if (!_hasRedirected && mounted) {
+      _hasRedirected = true;
+      context.go('/enrollments/${widget.enrollmentId}/roadmap');
+    }
   }
 
   @override
@@ -61,21 +68,28 @@ class _LearnScreenState extends ConsumerState<LearnScreen>
       loading: () => const Scaffold(
         body: LoadingShimmer(),
       ),
-      error: (_, __) => Scaffold(
-        body: AtlasErrorWidget(
-          message: 'Unable to load node content.',
-          onRetry: () => ref.invalidate(nodeByIdProvider(
-            NodeLookupParams(
-              enrollmentId: widget.enrollmentId,
-              nodeId: widget.nodeId,
+      error: (_, __) {
+        // Redirect to roadmap on error after short delay
+        Future.delayed(const Duration(seconds: 2), _redirectToRoadmap);
+        return const Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading content...'),
+              ],
             ),
-          )),
-        ),
-      ),
+          ),
+        );
+      },
       data: (node) {
         if (node == null) {
+          // Redirect to roadmap if node not found
+          WidgetsBinding.instance.addPostFrameCallback((_) => _redirectToRoadmap());
           return const Scaffold(
-            body: Center(child: Text('Node not found')),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
