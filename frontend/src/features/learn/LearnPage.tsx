@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useRoadmapQuery } from '@/api/progress';
-import { useEnrollmentsQuery } from '@/api/enrollments';
-import { useBreadcrumbStore } from '@/store/breadcrumbStore';
-import { useMyLearningStore } from '@/store/myLearning.store';
-import { LearnSidebar } from './components/LearnSidebar';
-import { LearnContent } from './components/LearnContent';
-import { AiInstructorPanel } from './components/AiInstructorPanel';
-import type { RoadmapNode } from '@/types';
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useRoadmapQuery } from "@/api/progress";
+import { useEnrollmentsQuery } from "@/api/enrollments";
+import { useBreadcrumbStore } from "@/store/breadcrumbStore";
+import { useMyLearningStore } from "@/store/myLearning.store";
+import { LearnSidebar } from "./components/LearnSidebar";
+import { LearnContent } from "./components/LearnContent";
+import { AiInstructorPanel } from "./components/AiInstructorPanel";
+import type { RoadmapNode } from "@/types";
 
 interface Explanation {
   summary: string;
@@ -20,7 +20,7 @@ function Spinner() {
     <div className="flex-1 flex items-center justify-center h-full">
       <span
         className="text-[12px] tracking-widest animate-pulse"
-        style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
+        style={{ fontFamily: "JetBrains Mono, monospace", color: "#9a9088" }}
       >
         loading…
       </span>
@@ -29,13 +29,17 @@ function Spinner() {
 }
 
 export default function LearnPage() {
-  const { id: enrollmentId = '', nodeId = '' } = useParams<{ id: string; nodeId: string }>();
+  const { id: enrollmentId = "", nodeId = "" } = useParams<{
+    id: string;
+    nodeId: string;
+  }>();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showInstructor, setShowInstructor] = useState(true);
   const [explanation, setExplanation] = useState<Explanation | null>(null);
 
-  const { data: roadmap, isLoading: roadmapLoading } = useRoadmapQuery(enrollmentId);
+  const { data: roadmap, isLoading: roadmapLoading } =
+    useRoadmapQuery(enrollmentId);
   const { data: enrollments } = useEnrollmentsQuery();
 
   const { setBreadcrumbs, clearBreadcrumbs } = useBreadcrumbStore();
@@ -45,10 +49,17 @@ export default function LearnPage() {
 
   useEffect(() => {
     const crumbs = [
-      { label: 'Catalog', to: '/catalog' },
-      ...(enrollment ? [{ label: enrollment.domain.name, to: `/catalog/${enrollment.domain.slug}` }] : []),
-      { label: 'Roadmap', to: `/enrollments/${enrollmentId}/roadmap` },
-      { label: 'Learn' },
+      { label: "Catalog", to: "/catalog" },
+      ...(enrollment
+        ? [
+            {
+              label: enrollment.domain.name,
+              to: `/catalog/${enrollment.domain.slug}`,
+            },
+          ]
+        : []),
+      { label: "Roadmap", to: `/enrollments/${enrollmentId}/roadmap` },
+      { label: "Learn" },
     ];
     setBreadcrumbs(crumbs);
     return () => clearBreadcrumbs();
@@ -59,9 +70,15 @@ export default function LearnPage() {
 
   // If node is missing or locked, redirect to the first unlocked node.
   useEffect(() => {
-    if (!roadmapLoading && nodes.length > 0 && (!activeNode || !activeNode.unlocked)) {
+    if (
+      !roadmapLoading &&
+      nodes.length > 0 &&
+      (!activeNode || !activeNode.unlocked)
+    ) {
       const first = nodes.find((n) => n.unlocked) ?? nodes[0];
-      navigate(`/enrollments/${enrollmentId}/learn/${first.id}`, { replace: true });
+      navigate(`/enrollments/${enrollmentId}/learn/${first.id}`, {
+        replace: true,
+      });
     }
   }, [roadmapLoading, nodes, activeNode, enrollmentId, navigate]);
 
@@ -81,28 +98,31 @@ export default function LearnPage() {
   if (!activeNode) return null;
 
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: '#faf7f1' }}>
+    <div
+      className="flex h-full overflow-hidden"
+      style={{ background: "#faf7f1" }}
+    >
       {/* Sidebar toggle button (mobile / collapsed) */}
       <button
         className="absolute top-4 z-10 flex items-center justify-center w-6 h-6 rounded-full border shadow-sm transition-all"
         style={{
-          left: sidebarOpen ? 'calc(280px - 12px)' : '8px',
-          background: '#faf7f1',
-          borderColor: '#d6cfbf',
-          color: '#6e645a',
+          left: sidebarOpen ? "calc(280px - 12px)" : "8px",
+          background: "#faf7f1",
+          borderColor: "#d6cfbf",
+          color: "#6e645a",
           fontSize: 10,
         }}
         onClick={() => setSidebarOpen((v) => !v)}
-        aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+        aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
       >
-        {sidebarOpen ? '‹' : '›'}
+        {sidebarOpen ? "‹" : "›"}
       </button>
 
       {/* Left sidebar */}
       {sidebarOpen && (
         <aside
           className="shrink-0 border-r overflow-hidden flex flex-col"
-          style={{ width: 280, borderColor: '#d6cfbf' }}
+          style={{ width: 280, borderColor: "#d6cfbf" }}
         >
           <LearnSidebar
             nodes={nodes}
