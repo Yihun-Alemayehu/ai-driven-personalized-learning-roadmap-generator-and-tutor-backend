@@ -2,17 +2,22 @@
 
 > **Project:** AI-Driven Personalized Learning Roadmap Generator and Tutor
 >
-> **Date:** 2026-05-22
+> **Audit date:** 2026-05-22 · **Completed:** 2026-05-26
 >
-> **Purpose:** Audit the current state of personalization and define a phased plan to make every roadmap, explanation, quiz, and timeline specific to each learner's state.
+> **Purpose:** Audit the state of personalization and define a phased plan to make every roadmap, explanation, quiz, and timeline specific to each learner's state.
+
+> [!NOTE]
+> **All phases (0–4) are fully implemented as of 2026-05-26.** Part 1 is a historical audit of the gaps that existed on 2026-05-22. Part 2 describes the implementation plan that has since been executed.
 
 ---
 
-## Part 1 — Current State Audit
+## Part 1 — Historical Audit (State as of 2026-05-22)
 
-### 1.1 Active Personalization Mechanisms
+> These sections describe the gaps that existed before implementation. They are kept for reference and FYP documentation. See Part 2 for the implemented solution.
 
-The platform has **three** active personalization mechanisms. All are reactive (post-enrollment), none are proactive (at enrollment time).
+### 1.1 Active Personalization Mechanisms (at audit time)
+
+The platform had **three** active personalization mechanisms. All were reactive (post-enrollment), none were proactive (at enrollment time).
 
 | Mechanism | File | Description |
 |-----------|------|-------------|
@@ -20,93 +25,86 @@ The platform has **three** active personalization mechanisms. All are reactive (
 | **Gatekeeper tiering** | `learning-service/src/modules/gatekeeper/gatekeeper.service.ts` — `classifyScore()` | Five tiers based on quiz score: strong_pass (>=80%), marginal_pass (70-79%), fail_low (50-69%), fail_fundamental (30-49%), fail_severe (<30%). Different tiers trigger adaptation events (resource_swap, prerequisite_review, instructor_escalation). |
 | **Knowledge decay** | `learning-service/src/modules/decay/decay.service.ts` — `runDecayScan()` | Time-based mastery regression: mastered -> review_needed after 14 days (strong pass) or 7 days (marginal pass); review_needed -> relearn after 30 days. |
 
-**What these DON'T do:** None of these mechanisms influence AI-generated content. The gatekeeper determines mastery state and triggers adaptation events, but it never tells the AI service "this learner struggles with X" or "adjust difficulty to Y."
+**What these didn't do (at audit time):** None influenced AI-generated content. This gap has since been closed — see Part 2.
 
-### 1.2 Data Collected but Never Consumed
+### 1.2 Data Collected but Not Yet Consumed (at audit time)
 
-The enrollment form (`frontend/src/features/catalog/components/EnrollDialog.tsx`) collects four personalization inputs. All four are stored in the `Enrollment` table and **never read again** by any downstream service.
+Four enrollment fields were stored but unused. All are now consumed downstream.
 
-| Field | Type | Stored At | Read Downstream? |
-|-------|------|-----------|-----------------|
-| `weeklyHours` | `Int?` | `enrollments.service.ts:45` | **NO** — never used to compute timelines despite `estimatedHours` existing on every node |
-| `familiarityLevel` | `VarChar(20)` — beginner / intermediate / advanced | `enrollments.service.ts:46` | **NO** — never passed to any AI prompt; all learners get the same explanation depth |
-| `learningGoal` | `VarChar(30)` — get_job / upskill / hobby / certification | `enrollments.service.ts:47` | **NO** — never influences content, examples, or priorities |
-| `aboutSelf` | `text` | `enrollments.service.ts:48` | **NO** — stored and forgotten |
-
-**The enrollment dialog says** "This helps us tailor the roadmap to your needs" — but nothing is actually tailored.
+| Field | Type | Status |
+|-------|------|--------|
+| `weeklyHours` | `Int?` | ✅ Now drives timeline estimates (`progress.service.ts:211`) |
+| `familiarityLevel` | `VarChar(20)` — beginner / intermediate / advanced | ✅ Now drives explanation depth, quiz difficulty, and unlock acceleration |
+| `learningGoal` | `VarChar(30)` — get_job / upskill / hobby / certification | ✅ Now slants AI prompts and triggers practice exam / portfolio project node injection |
+| `aboutSelf` | `text` | ✅ Now included in AI instructor and explanation prompts |
 
 ### 1.3 Rich Per-Learner Data That Never Reaches AI
 
-The progress system tracks detailed per-learner data that could power personalization, but none of it is sent to the AI service.
+The progress system tracks detailed per-learner data. All of it now reaches the AI service via the learner context pipeline (Phase 0B).
 
-| Data Point | Location | Current Use | Personalization Potential |
-|------------|----------|-------------|-------------------------|
-| `attemptsCount` | `LearnerNodeProgress` | Displayed in `LearnContent.tsx:128` | Could signal struggle — AI should adjust depth on high-attempt nodes |
-| `bestQuizScore` | `LearnerNodeProgress` | Displayed in UI | Could calibrate next quiz difficulty |
-| `masteryState` | `LearnerNodeProgress` | Unlock logic + decay | Could inform AI: "this learner has mastered prerequisites X, Y" |
-| `lastReviewedAt` | `LearnerNodeProgress` | Decay scheduling | Could inform AI: "learner hasn't practiced in N days, include refresher" |
-| `QuizAttempt.answers` | `QuizAttempt` table | Stored for review | **Never analyzed** — could identify which specific learning outcomes the learner got wrong |
-| `adaptationEvents` | `AdaptationEvent` table | Displayed in attempt review | Never fed back to content generation |
+| Data Point | Location | Now Used For |
+|------------|----------|-------------|
+| `attemptsCount` | `LearnerNodeProgress` | ✅ Included in `LearnerContext` — AI adjusts depth on high-attempt nodes |
+| `bestQuizScore` | `LearnerNodeProgress` | ✅ Drives adaptive difficulty in `computeAdaptiveDifficulty()` |
+| `masteryState` | `LearnerNodeProgress` | ✅ In `LearnerContext.currentNodeMasteryState` |
+| `QuizAttempt.answers` | `QuizAttempt` table | ✅ Analyzed by `detectWeakAreas()` — identifies wrong questions, passed as `weakAreas` to quiz/explanation prompts |
+| `adaptationEvents` | `AdaptationEvent` table | Displayed in attempt review (content generation not yet affected) |
 
-### 1.4 Global Caching Prevents Personalization
+### 1.4 Global Caching (at audit time) → Tiered Caching (current)
 
-Every AI-generated artifact is cached globally per node — all learners on the same node see identical content.
+At audit time, every artifact was cached globally per node. Caching is now tiered:
 
 ```
-// ai-service/src/modules/ai/ai.cache.ts
-quiz:       (nodeId) => `quiz:ai:${nodeId}`         // same quiz for ALL learners
-explanation: (nodeId) => `explanation:${nodeId}`      // same explanation for ALL learners
-microQuiz:  (nodeId) => `micro-quiz:ai:${nodeId}`   // same micro-quiz for ALL learners
+// Current ai-service/src/modules/ai/ai.cache.ts
+quiz:        quiz:ai:{nodeId}:d{difficulty}:{familiarityLevel}   // per difficulty+familiarity
+explanation: explanation:{nodeId}:{familiarityLevel}              // per familiarity level
+remedial:    quiz:remedial:{nodeId}:{learnerId}                   // per learner, 2h TTL
+microQuiz:   micro-quiz:ai:{nodeId}                               // still global (lightweight)
 ```
 
-### 1.5 AI Prompts Have Zero Learner Context
+### 1.5 AI Prompts (at audit time) → Fully Contextualized (current)
 
-All three prompt builders receive only node metadata. No learner profile, no performance history, no learning preferences.
+All three prompt builders now receive a full `LearnerContext` object in addition to node metadata.
 
-**Quiz prompt** (`ai-service/src/modules/ai/prompts/quizGeneration.ts`):
-- Inputs: `nodeTitle`, `description`, `learningOutcomes`, `difficultyLevel` (static from ontology), `explanation` (optional)
-- Missing: learner's familiarity level, previous scores, weak areas, adapted difficulty
+| Prompt | Learner Context Used |
+|--------|---------------------|
+| `explanationGeneration.ts` | ✅ `familiarityLevel`, `preferredLearningStyle`, `learningGoal`, `priorSkills`, `aboutSelf` |
+| `quizGeneration.ts` | ✅ `adaptedDifficulty`, `familiarityLevel`, `learningGoal`, `weakAreas` (from failed attempts) |
+| `askQuestion.ts` | ✅ Full profile: level, goal, style, attempts, best score, progress, `aboutSelf` |
 
-**Explanation prompt** (`ai-service/src/modules/ai/prompts/explanationGeneration.ts`):
-- Inputs: `nodeTitle`, `description`, `learningOutcomes`
-- Missing: learner's experience level, learning style, goal, prior knowledge
+### 1.6 Missing Enrollment Parameters (at audit time) → Added
 
-**AI Instructor prompt** (`ai-service/src/modules/ai/prompts/askQuestion.ts`):
-- Inputs: `nodeTitle`, `description`, `learningOutcomes`, `question`, `explanation` context
-- Missing: learner's profile, quiz history, struggle areas, progress across the roadmap
+Both parameters are now collected and used:
 
-### 1.6 Missing Enrollment Parameters
+| Parameter | Status |
+|-----------|--------|
+| **`preferredLearningStyle`** (visual / reading / hands_on / video) | ✅ Added to `EnrollDialog.tsx` Step 2; stored in DB; drives explanation format |
+| **`priorSkills`** (free-text) | ✅ Added to `EnrollDialog.tsx` Step 2; stored in DB; drives node subtraction at enrollment |
 
-Two important learner attributes are not collected at enrollment:
+### 1.7 What Was Completely Missing (at audit time) → Now Implemented
 
-| Parameter | Why It Matters |
-|-----------|---------------|
-| **`preferredLearningStyle`** (visual / reading / hands_on / video) | Would drive explanation format (more diagrams vs. more text vs. more code snippets) and resource prioritization |
-| **`priorSkills`** (free-text or tags) | Would enable smarter node skipping — if a learner already knows HTML/CSS, they shouldn't see those as new content in a frontend roadmap |
+- ✅ **Learner context pipeline** — `learner-context.service.ts` builds a `LearnerContext` object from enrollment + progress data on every AI request
+- ✅ **Estimated completion dates** — `getTimelineEstimate()` in `progress.service.ts`, velocity-adjusted, shown in RoadmapPage and InsightsPage
+- ✅ **Adaptive quiz difficulty** — `computeAdaptiveDifficulty()` adjusts ±1 based on scores and overall average
+- ✅ **Post-failure content targeting** — `detectWeakAreas()` extracts wrong questions; quiz and explanation prompts inject `weakAreas`
+- ✅ **Roadmap shaping** — unlock acceleration (advanced/intermediate), node subtraction (priorSkills matching), node addition (primer/practice exam/portfolio nodes)
+- ✅ **Learning velocity tracking** — `LearnerVelocity` model, `velocity.service.ts`, feeds timeline multiplier
 
-### 1.7 What Is Completely Missing
+### 1.8 The Core Disconnect — Resolved
 
-- **No LearnerProfile model** — no cumulative tracking of learning velocity, strengths/weaknesses, or preferred content format
-- **No estimated completion dates** — despite storing `weeklyHours` (Enrollment) and `estimatedHours` (LearningNode), no code computes or displays expected completion
-- **No adaptive quiz difficulty** — `difficultyLevel` comes from the static ontology node, not from the learner's performance
-- **No post-failure content targeting** — when a learner fails a quiz, they get the same cached quiz on retry; the re-explanation doesn't target their specific wrong answers
-- **No roadmap shaping** — an advanced learner enrolled in "Web Development" sees the same roadmap as a complete beginner: same nodes, same order, same starting point
+The platform has a well-designed **Skeleton** (ontology DAG with prerequisites, branching, convergence, difficulty levels, estimated hours) and a functioning **Flesh** generation pipeline (Phi-4 → Ollama → Gemini fallback chain with circuit breaker).
 
-### 1.8 The Core Disconnect
-
-The platform has a well-designed **Skeleton** (ontology DAG with prerequisites, branching, convergence, difficulty levels, estimated hours) and a functioning **Flesh** generation pipeline (Phi-4 -> Ollama -> Gemini fallback chain with circuit breaker).
-
-The disconnect is at the junction: **the Flesh is generated without any knowledge of the learner wearing the Skeleton.**
+The disconnect — **Flesh generated without knowledge of the learner** — has been closed. Every AI call now carries a `LearnerContext` built from the learner's enrollment profile and live progress data.
 
 The enrollment form collects learner attributes, and the progress system tracks rich per-learner data — but none of this reaches the AI service. The result: a "personalized learning platform" that generates one-size-fits-all content.
 
 ---
 
-## Part 2 — Enhancement Plan
+## Part 2 — Enhancement Plan (All Phases Complete ✅)
 
-### Phase 0 — Foundation: Learner Context Pipeline + New Parameters (P0)
+### Phase 0 — Foundation: Learner Context Pipeline + New Parameters ✅ DONE
 
-#### 0A: Add New Enrollment Parameters
+#### 0A: Add New Enrollment Parameters ✅
 
 Capture a richer learner profile at enrollment time.
 
@@ -134,7 +132,7 @@ model Enrollment {
 
 ---
 
-#### 0B: Create Learner Context Pipeline
+#### 0B: Create Learner Context Pipeline ✅
 
 Build the infrastructure to pass learner context from learning-service to ai-service.
 
@@ -184,9 +182,9 @@ async function buildLearnerContext(
 
 ---
 
-### Phase 1 — Quick Wins: Use What We Collect (P0)
+### Phase 1 — Quick Wins: Use What We Collect ✅ DONE
 
-#### 1A: Personalized Explanations
+#### 1A: Personalized Explanations ✅
 
 Explanations adapted to the learner's profile. The same node produces different explanations for different learners.
 
@@ -222,7 +220,7 @@ This creates at most 4 cached variants per node (beginner, intermediate, advance
 
 ---
 
-#### 1B: Personalized AI Instructor
+#### 1B: Personalized AI Instructor ✅
 
 The AI instructor knows who the learner is, what they've struggled with, and their background.
 
@@ -262,7 +260,7 @@ and break concepts into smaller steps.
 
 ---
 
-#### 1C: Estimated Timelines
+#### 1C: Estimated Timelines ✅
 
 Show per-node and total completion estimates based on `weeklyHours` and `estimatedHours`.
 
@@ -299,9 +297,9 @@ async function getTimelineEstimate(enrollmentId: string, userId: string) {
 
 ---
 
-### Phase 2 — Adaptive Content (P1)
+### Phase 2 — Adaptive Content ✅ DONE
 
-#### 2A: Adaptive Quiz Difficulty + Explanation-Grounded Personalized Quizzes
+#### 2A: Adaptive Quiz Difficulty + Explanation-Grounded Personalized Quizzes ✅
 
 Two changes in one: adaptive difficulty AND quizzes grounded in the learner's personalized explanation.
 
@@ -348,7 +346,7 @@ Up to 15 variants per node (5 difficulty levels x 3 familiarity levels + default
 
 ---
 
-#### 2B: Adaptive Content After Failure
+#### 2B: Adaptive Content After Failure ✅
 
 When a learner fails a quiz, the re-explanation and re-quiz target their specific weak areas.
 
@@ -398,9 +396,9 @@ TTL: 2 hours (regenerate frequently as the learner improves).
 
 ---
 
-### Phase 3 — Roadmap Personalization (P1)
+### Phase 3 — Roadmap Personalization ✅ DONE
 
-#### 3A: Personalized Roadmap Generation — Unlock, Add, and Subtract Nodes
+#### 3A: Personalized Roadmap Generation — Unlock, Add, and Subtract Nodes ✅
 
 The roadmap should be shaped by the learner's profile at enrollment time. Three dimensions of personalization:
 
@@ -471,9 +469,9 @@ model SupplementaryNode {
 
 ---
 
-### Phase 4 — Learning Intelligence (P2)
+### Phase 4 — Learning Intelligence ✅ DONE
 
-#### 4A: Learning Velocity Tracking
+#### 4A: Learning Velocity Tracking ✅
 
 Track how fast a learner progresses vs. expected pace to refine timeline estimates.
 
@@ -515,7 +513,7 @@ model LearnerVelocity {
 
 ---
 
-#### 4B: Per-Learner Caching Strategy
+#### 4B: Per-Learner Caching Strategy ✅
 
 Replace global per-node caching with a tiered strategy that balances personalization with API cost.
 
@@ -557,15 +555,15 @@ Replace global per-node caching with a tiered strategy that balances personaliza
 [3A]  <-- depends on 0A (needs priorSkills for node subtraction)
 ```
 
-### Implementation Sequencing
+### Implementation Sequencing (Completed)
 
-| Phase | Enhancements | Timeline | Priority |
-|-------|-------------|----------|----------|
-| **Phase 0** | 0A (New Params), 0B (Context Pipeline) | Week 1-2 | P0 |
-| **Phase 1** | 1A (Explanations), 1B (AI Instructor), 1C (Timelines) | Week 2-4 | P0 |
-| **Phase 2** | 2A (Adaptive Quiz), 2B (Failure Targeting) | Week 4-6 | P1 |
-| **Phase 3** | 3A (Roadmap Shaping) | Week 4-6 (parallel with Phase 2) | P1 |
-| **Phase 4** | 4A (Velocity), 4B (Caching) | Week 7-9 | P2 |
+| Phase | Enhancements | Status |
+|-------|-------------|--------|
+| **Phase 0** | 0A (New Params), 0B (Context Pipeline) | ✅ Complete |
+| **Phase 1** | 1A (Explanations), 1B (AI Instructor), 1C (Timelines) | ✅ Complete |
+| **Phase 2** | 2A (Adaptive Quiz), 2B (Failure Targeting) | ✅ Complete |
+| **Phase 3** | 3A (Roadmap Shaping) | ✅ Complete |
+| **Phase 4** | 4A (Velocity), 4B (Caching) | ✅ Complete |
 
 ---
 
@@ -584,10 +582,10 @@ Replace global per-node caching with a tiered strategy that balances personaliza
 
 ## Summary
 
-The current platform collects personalization data and tracks rich per-learner progress, but none of it reaches the AI content generation pipeline. The enhancement plan closes this gap in four phases:
+All four phases are fully implemented as of 2026-05-26. The platform now delivers end-to-end personalization across every layer:
 
-1. **Foundation (P0):** Build the learner context pipeline and add missing enrollment parameters
-2. **Quick wins (P0):** Inject learner context into explanations, AI instructor, and timelines — immediate impact with minimal structural changes
-3. **Adaptive content (P1):** Quiz difficulty adapts to learner performance; failed content targets weak areas; quizzes are grounded in personalized explanations
-4. **Roadmap shaping (P1):** The roadmap itself changes based on the learner — skip known topics, add supplementary content for gaps, accelerate unlocking for experienced learners
-5. **Intelligence (P2):** Track learning velocity to refine estimates; implement a tiered caching strategy to balance personalization with cost
+1. ✅ **Foundation:** Learner context pipeline (`learner-context.service.ts`) passes enrollment profile + live progress data to every AI call. Two new enrollment parameters (`preferredLearningStyle`, `priorSkills`) are collected in the 3-step dialog and stored.
+2. ✅ **Quick wins:** Explanations adapt to familiarity level, learning style, and goal. The AI instructor knows the learner's progress and history. Timeline estimates use `weeklyHours` + `estimatedHours` + velocity multiplier.
+3. ✅ **Adaptive content:** Quiz difficulty adjusts ±1 from the static ontology value based on scores. On re-attempt, `detectWeakAreas()` targets the learner's specific wrong answers. Quizzes are grounded in the learner's personalized explanation.
+4. ✅ **Roadmap shaping:** The roadmap changes at enrollment — advanced learners skip trivial nodes, `priorSkills` auto-masters known content, beginners get primer nodes, certification goal gets a practice exam, job-seeker goal gets portfolio projects.
+5. ✅ **Intelligence:** `LearnerVelocity` tracks actual vs estimated hours per node. `getAverageVelocity()` feeds a multiplier into timeline estimates. AI cost is balanced by a four-tier cache strategy keyed on difficulty + familiarity level.
