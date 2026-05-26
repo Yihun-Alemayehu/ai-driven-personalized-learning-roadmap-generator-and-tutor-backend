@@ -7,6 +7,7 @@ import '../../core/providers/my_learning_provider.dart';
 import '../../core/utils/format.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_shimmer.dart';
+import '../decay/decay_panel.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -110,26 +111,10 @@ class DashboardScreen extends ConsumerWidget {
                   },
                 ),
               ),
-            const SizedBox(height: 20),
-            Text('Decay alerts',
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 10),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.warning_amber_rounded),
-                title: const Text('No active decay alerts yet'),
-                subtitle: const Text(
-                  'Decay alert logic is introduced fully in Phase 7.',
-                ),
-                trailing: TextButton(
-                  onPressed: enrollments.isEmpty
-                      ? null
-                      : () => context
-                          .go('/enrollments/${enrollments.first.id}/roadmap'),
-                  child: const Text('Review now'),
-                ),
-              ),
-            ),
+            // Decay panels for each enrollment
+            ...enrollments.map((enrollment) => DecayPanel(
+                  enrollmentId: enrollment.id,
+                )),
           ],
         );
       },

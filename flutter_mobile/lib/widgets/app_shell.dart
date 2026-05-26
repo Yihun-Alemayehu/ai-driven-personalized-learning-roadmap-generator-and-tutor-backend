@@ -78,6 +78,11 @@ class AppShell extends StatelessWidget {
         icon: Icons.grid_view_rounded,
       ),
       const _ShellDestination(
+        label: 'Achievements',
+        path: '/achievements',
+        icon: Icons.emoji_events_outlined,
+      ),
+      const _ShellDestination(
         label: 'Alerts',
         path: '/notifications',
         icon: Icons.notifications_none,
@@ -101,12 +106,27 @@ class AppShell extends StatelessWidget {
     }
 
     if (role == UserRole.admin) {
-      return <_ShellDestination>[
-        ...base,
-        const _ShellDestination(
-          label: 'Admin',
+      // Admins see only admin-relevant tabs
+      return const <_ShellDestination>[
+        _ShellDestination(
+          label: 'Stats',
           path: '/admin',
-          icon: Icons.admin_panel_settings_outlined,
+          icon: Icons.bar_chart_outlined,
+        ),
+        _ShellDestination(
+          label: 'Users',
+          path: '/admin/users',
+          icon: Icons.people_outline,
+        ),
+        _ShellDestination(
+          label: 'Domains',
+          path: '/admin/domains',
+          icon: Icons.domain_outlined,
+        ),
+        _ShellDestination(
+          label: 'Profile',
+          path: '/profile',
+          icon: Icons.person_outline_rounded,
         ),
       ];
     }
@@ -154,6 +174,9 @@ class AppShell extends StatelessWidget {
       return true;
     }
     if (location.startsWith('/enrollments/') && location.contains('/roadmap')) {
+      return true;
+    }
+    if (location == '/notifications') {
       return true;
     }
     return false;

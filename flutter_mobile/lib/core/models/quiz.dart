@@ -11,10 +11,11 @@ class QuizQuestion {
 
   factory QuizQuestion.fromJson(Map<String, dynamic> json) {
     return QuizQuestion(
-      id: json['id'] as String,
-      prompt: json['prompt'] as String,
+      id: (json['id'] as String?) ?? '',
+      // API uses 'questionText', we map it to 'prompt'
+      prompt: (json['questionText'] as String?) ?? '',
       options: (json['options'] as List<dynamic>? ?? <dynamic>[])
-          .map((item) => item as String)
+          .map((item) => item as String? ?? '')
           .toList(),
     );
   }
@@ -29,8 +30,8 @@ class Quiz {
 
   factory Quiz.fromJson(Map<String, dynamic> json) {
     return Quiz(
-      id: json['id'] as String,
-      title: json['title'] as String,
+      id: (json['id'] as String?) ?? '',
+      title: (json['title'] as String?) ?? 'Untitled Quiz',
       questions: (json['questions'] as List<dynamic>? ?? <dynamic>[])
           .map((item) => QuizQuestion.fromJson(item as Map<String, dynamic>))
           .toList(),

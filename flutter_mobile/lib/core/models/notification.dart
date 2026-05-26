@@ -1,29 +1,38 @@
 class AppNotification {
   const AppNotification({
     required this.id,
+    required this.userId,
+    required this.type,
     required this.title,
-    required this.message,
+    this.body,
+    this.data,
+    required this.read,
     required this.createdAt,
-    this.readAt,
   });
 
   final String id;
+  final String userId;
+  final String type;
   final String title;
-  final String message;
+  final String? body;
+  final Map<String, dynamic>? data;
+  final bool read;
   final DateTime createdAt;
-  final DateTime? readAt;
 
-  bool get isRead => readAt != null;
+  bool get isRead => read;
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     return AppNotification(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      message: json['message'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      readAt: json['readAt'] == null
-          ? null
-          : DateTime.parse(json['readAt'] as String),
+      id: (json['id'] as String?) ?? '',
+      userId: (json['userId'] as String?) ?? '',
+      type: (json['type'] as String?) ?? '',
+      title: (json['title'] as String?) ?? '',
+      body: json['body'] as String?,
+      data: json['data'] as Map<String, dynamic>?,
+      read: json['read'] as bool? ?? false,
+      createdAt: json['createdAt'] == null
+          ? DateTime.now()
+          : DateTime.parse(json['createdAt'] as String),
     );
   }
 }

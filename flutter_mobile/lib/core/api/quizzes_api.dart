@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/quiz.dart';
 import '../models/attempt_result.dart';
@@ -13,7 +14,9 @@ class QuizzesApi {
       '/nodes/$nodeId/quiz',
     );
     final data = response.data ?? <String, dynamic>{};
+    debugPrint('[QUIZZES_API] Response keys: ${data.keys}');
     final quizData = data['quiz'] as Map<String, dynamic>? ?? data;
+    debugPrint('[QUIZZES_API] Quiz keys: ${quizData.keys}');
     return Quiz.fromJson(quizData);
   }
 
@@ -36,7 +39,10 @@ class QuizzesApi {
     );
 
     final data = response.data ?? <String, dynamic>{};
-    return AttemptResult.fromJson(data);
+    debugPrint('[QUIZZES_API] Submit response keys: ${data.keys}');
+    // Response is nested under 'attempt' key
+    final attemptData = data['attempt'] as Map<String, dynamic>? ?? data;
+    return AttemptResult.fromJson(attemptData);
   }
 }
 

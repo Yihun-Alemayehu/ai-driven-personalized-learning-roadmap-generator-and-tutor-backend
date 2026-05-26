@@ -12,6 +12,7 @@ import '../../core/providers/enrollments_provider.dart';
 import '../../core/providers/roadmap_provider.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_shimmer.dart';
+import '../resources/resources_panel.dart';
 import 'mastery_legend.dart';
 import 'node_detail_sheet.dart';
 import 'node_widget.dart';
@@ -90,6 +91,15 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
                 SliverAppBar.large(
                   pinned: true,
                   title: Text(title),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.insights),
+                      tooltip: 'Insights',
+                      onPressed: () {
+                        context.push('/enrollments/${widget.enrollmentId}/insights');
+                      },
+                    ),
+                  ],
                 ),
                 SliverPersistentHeader(
                   pinned: true,
@@ -151,9 +161,10 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
                                             context.go('/enrollments/${widget.enrollmentId}/quiz/${mapped.id}');
                                           },
                                           onResources: () {
-                                            Navigator.of(context).pop();
-                                            context.go(
-                                              '/enrollments/${widget.enrollmentId}/learn/${mapped.id}',
+                                            // Keep node detail sheet open and show resources panel
+                                            showResourcesPanel(
+                                              context,
+                                              nodeId: mapped.id,
                                             );
                                           },
                                         ),
