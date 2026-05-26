@@ -1,0 +1,12 @@
+{
+  "state": {
+    "user": {
+      "id": "0c9c16e3-7507-4f15-9703-c5825f1e3db1",
+      "email": "e2e-learner@test.com",
+      "role": "learner"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYzljMTZlMy03NTA3LTRmMTUtOTcwMy1jNTgyNWYxZTNkYjEiLCJyb2xlIjoibGVhcm5lciIsImlhdCI6MTc3OTc5NDUxNSwiZXhwIjoxNzc5Nzk1NDE1fQ.OYMtsNnYC_mNc6zdmcK0bKTj5SFxxDBaGaH4NOytvts",
+    "refreshToken": "9d805350cd401dc0eb1115b3a0b6c1f5e48fae806623cac75d97f8e109834c44"
+  },
+  "version": 0
+}

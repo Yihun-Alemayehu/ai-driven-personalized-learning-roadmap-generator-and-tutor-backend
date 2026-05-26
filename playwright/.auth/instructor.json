@@ -1,0 +1,12 @@
+{
+  "state": {
+    "user": {
+      "id": "795e1b68-554b-46d2-b23c-6229d84185c1",
+      "email": "e2e-instructor@test.com",
+      "role": "instructor"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3OTVlMWI2OC01NTRiLTQ2ZDItYjIzYy02MjI5ZDg0MTg1YzEiLCJyb2xlIjoiaW5zdHJ1Y3RvciIsImlhdCI6MTc3OTc5NDUxNSwiZXhwIjoxNzc5Nzk1NDE1fQ.J-pcI9502cU4mRv0Q8b88C4_PKMpRMsBW_jfC9BAFX4",
+    "refreshToken": "06c54bc61477bc6810d1cca079ad6d3dc189b713bfb4d524a819ffd27fead725"
+  },
+  "version": 0
+}
