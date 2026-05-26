@@ -25,10 +25,12 @@ export function NotificationBell() {
   return (
     <div ref={ref} className="relative">
       <button
+        data-testid="notification-bell"
         onClick={() => setOpen((v) => !v)}
         className="relative w-8.5 h-8.5 rounded-lg border grid place-items-center transition-colors hover:bg-muted"
         style={{ borderColor: '#d6cfbf', color: '#6e645a' }}
         title="Notifications"
+        aria-label="Notifications"
       >
         <BellIcon size={17} strokeWidth={1.6} />
         {unread > 0 && (

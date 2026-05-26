@@ -24,6 +24,7 @@ export function DomainCard({ domain, enrollment }: DomainCardProps) {
 
   return (
     <div
+      data-testid="domain-card"
       className="border rounded-2xl p-6 flex flex-col gap-4 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group"
       style={{ background: '#faf7f1', borderColor: '#d6cfbf' }}
       onClick={handleClick}

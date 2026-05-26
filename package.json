@@ -1,0 +1,28 @@
+{
+  "name": "fyp",
+  "version": "1.0.0",
+  "description": "> A full-stack, microservices learning platform that builds personalised roadmaps, generates learner-specific AI explanations and quizzes, tracks mastery over time, and adapts the learning path in real time when a learner struggles or excels.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YegetaTaye/ai-driven-personalized-learning-roadmap-generator-and-tutor-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/YegetaTaye/ai-driven-personalized-learning-roadmap-generator-and-tutor-backend/issues"
+  },
+  "homepage": "https://github.com/YegetaTaye/ai-driven-personalized-learning-roadmap-generator-and-tutor-backend#readme"
+}

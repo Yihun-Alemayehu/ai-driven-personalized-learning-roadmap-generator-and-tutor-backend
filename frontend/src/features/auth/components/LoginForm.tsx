@@ -43,7 +43,7 @@ export function LoginForm() {
   const inputStyle = { borderColor: '#d6cfbf', background: '#faf7f1', color: '#3d342a', fontFamily: "'Crimson Pro', serif", fontSize: 15 };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
       {serverError && (
         <p className="rounded-lg px-3.5 py-2.5 text-sm" style={{ background: '#fef2f2', color: '#b91c1c', fontFamily: "'Crimson Pro', serif" }}>
           {serverError}

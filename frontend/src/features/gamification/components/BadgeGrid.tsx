@@ -43,6 +43,7 @@ export function BadgeGrid({ badges, earnedOnly = false }: BadgeGridProps) {
         return (
           <div
             key={badge.key}
+            data-testid="badge-item"
             title={badge.description}
             className="flex flex-col items-center gap-2 rounded-[14px] p-4 border transition-all"
             style={{
