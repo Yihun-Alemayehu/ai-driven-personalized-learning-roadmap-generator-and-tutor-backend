@@ -18,7 +18,7 @@ import {
 import { buildQuizPrompt } from './prompts/quizGeneration';
 import { buildMicroQuizPrompt } from './prompts/microQuizGeneration';
 import { buildExplanationPrompt, buildStreamExplanationPrompt } from './prompts/explanationGeneration';
-import { buildAskPrompt } from './prompts/askQuestion';
+import { buildAskPrompt, buildStreamAskPrompt } from './prompts/askQuestion';
 import { geminiStream } from './gemini.client';
 
 function parseAndValidate<T>(
@@ -293,6 +293,63 @@ export async function streamExplanation(
   if (!result) throw new Error('All explanation providers failed');
   await setCache(cacheKey, result, ttls.EXPLANATION_TTL);
   onChunk(formatExplanationAsText(result));
+}
+
+/**
+ * Stream an AI-instructor answer as text/SSE chunks.
+ * Provider order: Ollama (primary) → Gemini (secondary) → non-streaming burst (last resort).
+ * Answers are never cached — each is unique to the conversation.
+ */
+export async function streamAskQuestion(
+  input: AskQuestionInput,
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const prompt = buildStreamAskPrompt(input);
+  let streamedText = '';
+  const collect = (chunk: string) => { onChunk(chunk); streamedText += chunk; };
+
+  // ── 1. Ollama streaming (primary) ────────────────────────────────────────────
+  if (config.ollama.baseUrl) {
+    const ollamaCircuitOpen = await isCircuitOpen('ollama');
+    if (!ollamaCircuitOpen) {
+      try {
+        await ollamaStream(prompt, collect, signal);
+        if (streamedText.trim()) {
+          await recordSuccess('ollama');
+          logger.info({ nodeId: input.nodeId }, 'Ollama ask-stream succeeded');
+          return;
+        }
+        await recordFailure('ollama');
+      } catch (err) {
+        await recordFailure('ollama');
+        logger.warn({ nodeId: input.nodeId, err }, 'Ollama ask-stream failed — trying Gemini');
+        streamedText = '';
+      }
+    } else {
+      logger.warn({ nodeId: input.nodeId }, 'Ollama circuit open — skipping to Gemini for ask');
+    }
+  }
+
+  // ── 2. Gemini streaming (secondary) ─────────────────────────────────────────
+  if (config.gemini.apiKey) {
+    try {
+      await geminiStream(prompt, collect, signal);
+      if (streamedText.trim()) {
+        logger.info({ nodeId: input.nodeId }, 'Gemini ask-stream succeeded');
+        return;
+      }
+    } catch (err) {
+      logger.warn({ nodeId: input.nodeId, err }, 'Gemini ask-stream failed — falling back to burst');
+      streamedText = '';
+    }
+  }
+
+  // ── 3. Non-streaming burst (last resort) ─────────────────────────────────────
+  logger.warn({ nodeId: input.nodeId }, 'All streaming providers failed for ask — using burst');
+  const answer = await askQuestion(input);
+  if (!answer) throw new Error('All ask providers failed');
+  onChunk(answer);
 }
 
 export async function generateMicroQuiz(input: MicroQuizInput): Promise<GeneratedQuiz | null> {

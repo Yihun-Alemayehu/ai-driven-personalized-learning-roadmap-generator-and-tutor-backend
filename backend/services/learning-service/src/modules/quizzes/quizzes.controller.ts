@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as svc from './quizzes.service';
-import { streamAiExplanation } from '../../lib/aiClient';
+import { streamAiExplanation, streamAiAsk } from '../../lib/aiClient';
 import { submitAttemptSchema, listAttemptsSchema } from './quizzes.validation';
 import { ApiError } from '../../utils/ApiError';
 
@@ -102,6 +102,51 @@ export async function streamNodeExplanation(
     res.flushHeaders();
 
     await streamAiExplanation(ctx, res);
+  } catch (err) {
+    if (!res.headersSent) {
+      next(err);
+    } else {
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: 'Generation failed' })}\n\n`);
+        res.end();
+      }
+    }
+  }
+}
+
+export async function streamAskNodeQuestion(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { question, explanation, enrollmentId } = req.body as {
+      question: string;
+      explanation?: { summary: string; keyPoints: string[]; commonMistakes?: string[] } | null;
+      enrollmentId?: string;
+    };
+    if (!question || typeof question !== 'string' || question.trim().length < 2) {
+      res.status(400).json({ error: { message: 'question is required' } });
+      return;
+    }
+
+    // Build AI payload (auth + DB queries) before opening the stream
+    const payload = await svc.buildAskStreamContext(
+      req.params.nodeId,
+      req.user!.id,
+      question.trim(),
+      explanation ?? null,
+      enrollmentId,
+    );
+
+    // SSE headers
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    await streamAiAsk(payload, res);
   } catch (err) {
     if (!res.headersSent) {
       next(err);

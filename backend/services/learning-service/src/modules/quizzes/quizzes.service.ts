@@ -201,6 +201,40 @@ export async function buildExplanationStreamContext(nodeId: string, userId: stri
   };
 }
 
+/** Build the AI ask payload without calling AI — used by the streaming controller. */
+export async function buildAskStreamContext(
+  nodeId: string,
+  userId: string,
+  question: string,
+  explanation: AiAskPayload['explanation'],
+  enrollmentId?: string,
+): Promise<AiAskPayload> {
+  const progress = await assertNodeUnlocked(nodeId, userId);
+
+  const node = await prisma.learningNode.findUnique({
+    where: { id: nodeId },
+    select: { title: true, description: true, learningOutcomes: true },
+  });
+  if (!node) throw ApiError.notFound('Node not found');
+
+  const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+  const learnerContext = await buildLearnerContext(
+    userId,
+    enrollmentId ?? progress.enrollmentId,
+    nodeId,
+  );
+
+  return {
+    nodeId,
+    nodeTitle: node.title,
+    question,
+    description: node.description ?? undefined,
+    learningOutcomes: outcomes,
+    explanation,
+    learnerContext,
+  };
+}
+
 export async function askNodeQuestion(
   nodeId: string,
   userId: string,

@@ -221,5 +221,7 @@ router.get('/nodes/:nodeId/explanation/stream', authenticate, ctrl.streamNodeExp
  *         description: Node is locked
  */
 router.post('/nodes/:nodeId/ask', authenticate, ctrl.askNodeQuestion);
+/** SSE streaming variant — emits answer tokens as they are generated */
+router.post('/nodes/:nodeId/ask/stream', authenticate, ctrl.streamAskNodeQuestion);
 
 export default router;

@@ -155,6 +155,38 @@ export async function streamExplanation(
   }
 }
 
+export async function streamAskQuestion(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const { error, value } = askQuestionSchema.validate(req.body);
+  if (error) return next(ApiError.badRequest(error.message));
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const sendChunk = (text: string) => {
+    if (!res.writableEnded) res.write(`data: ${JSON.stringify({ t: text })}\n\n`);
+  };
+
+  const abortController = new AbortController();
+  req.on('close', () => abortController.abort());
+
+  try {
+    await svc.streamAskQuestion(value, sendChunk, abortController.signal);
+    if (!res.writableEnded) res.write('data: [DONE]\n\n');
+  } catch {
+    if (!res.writableEnded) res.write(`data: ${JSON.stringify({ error: 'Generation failed' })}\n\n`);
+  } finally {
+    if (!res.writableEnded) res.end();
+  }
+}
+
 export async function healthDetail(
   _req: Request,
   res: Response,
