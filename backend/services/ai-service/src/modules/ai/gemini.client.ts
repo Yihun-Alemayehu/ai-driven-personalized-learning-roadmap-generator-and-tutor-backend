@@ -54,7 +54,7 @@ export async function geminiStream(
     const model = client.getGenerativeModel({ model: config.gemini.model });
     const result = await model.generateContentStream({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+      generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
     });
 
     for await (const chunk of result.stream) {

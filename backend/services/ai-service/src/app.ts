@@ -15,7 +15,11 @@ const app = express();
 
 app.use(securityHeaders);
 app.use(corsOptions);
-app.use(compression());
+// Disable gzip for SSE routes — compression buffers the stream and prevents real-time delivery
+app.use(compression({
+  filter: (req, res) =>
+    req.path.endsWith('/stream') ? false : compression.filter(req, res),
+}));
 app.use(express.json({ limit: '512kb' }));
 app.use(inputSanitizer);
 app.use(pinoHttp({ logger }));
