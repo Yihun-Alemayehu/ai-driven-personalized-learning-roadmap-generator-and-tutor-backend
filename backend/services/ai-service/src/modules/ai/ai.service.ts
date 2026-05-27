@@ -1,7 +1,7 @@
 import logger from '../../utils/logger';
 import config from '../../config';
 import { phi4Generate } from './phi4.client';
-import { ollamaGenerate } from './ollama.client';
+import { ollamaGenerate, ollamaStream } from './ollama.client';
 import { geminiGenerate } from './gemini.client';
 import { isCircuitOpen, recordSuccess, recordFailure } from './ai.circuit-breaker';
 import { getCached, setCache, cacheKeys, ttls } from './ai.cache';
@@ -224,7 +224,8 @@ async function backfillExplanationCache(
 
 /**
  * Stream an explanation as text/SSE chunks.
- * onChunk is called once per token (Gemini) or once for the whole text (cache hit / fallback).
+ * Provider order: Ollama (primary) → Gemini (secondary) → non-streaming burst (last resort).
+ * onChunk is called once per token when streaming, or once for the whole text on cache hit / burst.
  */
 export async function streamExplanation(
   input: ExplanationInput,
@@ -241,23 +242,49 @@ export async function streamExplanation(
     return;
   }
 
-  // ── Gemini streaming (primary) ───────────────────────────────────────────────
   const prompt = buildStreamExplanationPrompt(input);
   let streamedText = '';
-  try {
-    await geminiStream(
-      prompt,
-      (chunk) => { onChunk(chunk); streamedText += chunk; },
-      signal,
-    );
-    // Backfill the JSON cache so quizzes can use this explanation as context
-    backfillExplanationCache(input.nodeId, familiarityLevel, streamedText).catch(() => {});
-    return;
-  } catch (err) {
-    logger.warn({ nodeId: input.nodeId, err }, 'Gemini stream failed — falling back to regular generate');
+  const collect = (chunk: string) => { onChunk(chunk); streamedText += chunk; };
+
+  // ── 1. Ollama streaming (primary) ────────────────────────────────────────────
+  if (config.ollama.baseUrl) {
+    const ollamaCircuitOpen = await isCircuitOpen('ollama');
+    if (!ollamaCircuitOpen) {
+      try {
+        await ollamaStream(prompt, collect, signal);
+        if (streamedText.trim()) {
+          await recordSuccess('ollama');
+          backfillExplanationCache(input.nodeId, familiarityLevel, streamedText).catch(() => {});
+          return;
+        }
+        // Empty output counts as a soft failure
+        await recordFailure('ollama');
+      } catch (err) {
+        await recordFailure('ollama');
+        logger.warn({ nodeId: input.nodeId, err }, 'Ollama stream failed — trying Gemini');
+        streamedText = ''; // reset so we don't backfill partial text
+      }
+    } else {
+      logger.warn({ nodeId: input.nodeId }, 'Ollama circuit open — skipping to Gemini');
+    }
   }
 
-  // ── Fallback: regular generate → emit as single burst ───────────────────────
+  // ── 2. Gemini streaming (secondary) ─────────────────────────────────────────
+  if (config.gemini.apiKey) {
+    try {
+      await geminiStream(prompt, collect, signal);
+      if (streamedText.trim()) {
+        backfillExplanationCache(input.nodeId, familiarityLevel, streamedText).catch(() => {});
+        return;
+      }
+    } catch (err) {
+      logger.warn({ nodeId: input.nodeId, err }, 'Gemini stream failed — falling back to burst generate');
+      streamedText = '';
+    }
+  }
+
+  // ── 3. Non-streaming burst (last resort) ─────────────────────────────────────
+  logger.warn({ nodeId: input.nodeId }, 'All streaming providers failed — using non-streaming generate');
   const result = await generate<GeneratedExplanation>(
     buildExplanationPrompt(input),
     generatedExplanationSchema as never,
