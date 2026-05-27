@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { XIcon, SendIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { useAskInstructorStream } from '@/api/instructor-chat';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import type { RoadmapNode } from '@/types';
 
 interface Explanation {
@@ -333,11 +334,13 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
                   {/* Streaming placeholder — show dots while waiting for first token */}
                   {msg.streaming && !msg.text ? (
                     <TypingDots />
-                  ) : (
-                    <>
-                      {msg.text}
+                  ) : msg.role === 'bot' ? (
+                    <div style={{ minWidth: 0 }}>
+                      <MarkdownRenderer context="chat">{msg.text}</MarkdownRenderer>
                       {msg.streaming && <StreamCursor />}
-                    </>
+                    </div>
+                  ) : (
+                    msg.text
                   )}
                 </div>
               </div>

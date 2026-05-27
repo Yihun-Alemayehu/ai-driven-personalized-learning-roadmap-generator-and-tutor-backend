@@ -4,6 +4,7 @@ import { useExplanationStream } from '@/api/explanation';
 import { MASTERY_CONFIG } from '@/lib/masteryConfig';
 import { useMyLearningStore } from '@/store/myLearning.store';
 import { InlineQuiz } from './InlineQuiz';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import type { RoadmapNode } from '@/types';
 
 interface Explanation {
@@ -212,13 +213,10 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
             {/* Summary — appears first and grows as the model streams */}
             <div>
               <SectionLabel>Summary</SectionLabel>
-              <p
-                className="text-[17px] leading-relaxed"
-                style={{ fontFamily: "'Crimson Pro', serif", color: '#2a2420' }}
-              >
-                {sections.summary}
+              <div className="text-[17px]">
+                <MarkdownRenderer context="content">{sections.summary}</MarkdownRenderer>
                 {isStreaming && !sections.keyPoints.length && <StreamCursor />}
-              </p>
+              </div>
             </div>
 
             {/* Key Points — render as they arrive */}
@@ -234,16 +232,13 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
                       >
                         {i + 1}
                       </span>
-                      <p
-                        className="text-[15px] leading-snug"
-                        style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}
-                      >
-                        {point}
+                      <div className="min-w-0 flex-1">
+                        <MarkdownRenderer context="content">{point}</MarkdownRenderer>
                         {/* Cursor on the last point while still streaming key points */}
                         {isStreaming && !sections.commonMistakes.length && i === sections.keyPoints.length - 1 && (
                           <StreamCursor />
                         )}
-                      </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -261,13 +256,10 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
                   {sections.commonMistakes.map((mistake, i) => (
                     <div key={i} className="flex items-start gap-2.5">
                       <span className="shrink-0 text-[13px] mt-0.5" style={{ color: 'oklch(0.62 0.18 28)' }}>⚠</span>
-                      <p
-                        className="text-[14px] leading-snug"
-                        style={{ fontFamily: "'Crimson Pro', serif", color: '#5a3020' }}
-                      >
-                        {mistake}
+                      <div className="min-w-0 flex-1" style={{ color: '#5a3020' }}>
+                        <MarkdownRenderer context="content">{mistake}</MarkdownRenderer>
                         {isStreaming && i === sections.commonMistakes.length - 1 && <StreamCursor />}
-                      </p>
+                      </div>
                     </div>
                   ))}
                 </div>
