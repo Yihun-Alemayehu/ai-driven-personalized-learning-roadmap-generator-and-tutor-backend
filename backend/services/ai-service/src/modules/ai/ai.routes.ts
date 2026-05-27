@@ -65,6 +65,8 @@ router.post('/generate-quiz', ctrl.generateQuiz);
  *         description: Generated explanation (null if both providers failed)
  */
 router.post('/generate-explanation', ctrl.generateExplanation);
+/** SSE streaming variant — emits text/event-stream chunks as the model generates */
+router.post('/generate-explanation/stream', ctrl.streamExplanation);
 
 /**
  * @swagger

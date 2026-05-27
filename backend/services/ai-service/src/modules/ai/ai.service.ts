@@ -17,8 +17,9 @@ import {
 } from './ai.types';
 import { buildQuizPrompt } from './prompts/quizGeneration';
 import { buildMicroQuizPrompt } from './prompts/microQuizGeneration';
-import { buildExplanationPrompt } from './prompts/explanationGeneration';
+import { buildExplanationPrompt, buildStreamExplanationPrompt } from './prompts/explanationGeneration';
 import { buildAskPrompt } from './prompts/askQuestion';
+import { geminiStream } from './gemini.client';
 
 function parseAndValidate<T>(
   raw: string | null,
@@ -181,6 +182,90 @@ export async function askQuestion(input: AskQuestionInput): Promise<string | nul
     `ask:${input.nodeId}`,
   );
   return result?.answer ?? null;
+}
+
+/** Format a cached JSON explanation as the section-text format used by the stream endpoint. */
+function formatExplanationAsText(e: GeneratedExplanation): string {
+  const lines: string[] = ['[SUMMARY]', e.summary, '', '[KEY_POINTS]'];
+  for (const p of e.keyPoints) lines.push(`- ${p}`);
+  if (e.commonMistakes && e.commonMistakes.length > 0) {
+    lines.push('', '[COMMON_MISTAKES]');
+    for (const m of e.commonMistakes) lines.push(`- ${m}`);
+  }
+  return lines.join('\n');
+}
+
+/** Parse streamed section text back into the JSON shape and cache it for quiz use. */
+async function backfillExplanationCache(
+  nodeId: string,
+  familiarityLevel: string | null | undefined,
+  text: string,
+): Promise<void> {
+  const summaryM = text.match(/\[SUMMARY\]([\s\S]*?)(?=\[KEY_POINTS\]|\[COMMON_MISTAKES\]|$)/);
+  const pointsM  = text.match(/\[KEY_POINTS\]([\s\S]*?)(?=\[COMMON_MISTAKES\]|$)/);
+  const mistakesM = text.match(/\[COMMON_MISTAKES\]([\s\S]*?)$/);
+
+  const summary = summaryM?.[1]?.trim() ?? '';
+  const keyPoints = (pointsM?.[1] ?? '')
+    .split('\n').filter(l => l.trim().startsWith('-'))
+    .map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean);
+  const commonMistakes = (mistakesM?.[1] ?? '')
+    .split('\n').filter(l => l.trim().startsWith('-'))
+    .map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean);
+
+  if (summary && keyPoints.length > 0) {
+    await setCache(
+      cacheKeys.explanation(nodeId, familiarityLevel),
+      { summary, keyPoints, commonMistakes },
+      ttls.EXPLANATION_TTL,
+    );
+  }
+}
+
+/**
+ * Stream an explanation as text/SSE chunks.
+ * onChunk is called once per token (Gemini) or once for the whole text (cache hit / fallback).
+ */
+export async function streamExplanation(
+  input: ExplanationInput,
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const familiarityLevel = input.learnerContext?.familiarityLevel;
+  const cacheKey = cacheKeys.explanation(input.nodeId, familiarityLevel);
+  const cached = await getCached<GeneratedExplanation>(cacheKey);
+
+  // ── Cache hit: format and emit immediately ───────────────────────────────────
+  if (cached) {
+    onChunk(formatExplanationAsText(cached));
+    return;
+  }
+
+  // ── Gemini streaming (primary) ───────────────────────────────────────────────
+  const prompt = buildStreamExplanationPrompt(input);
+  let streamedText = '';
+  try {
+    await geminiStream(
+      prompt,
+      (chunk) => { onChunk(chunk); streamedText += chunk; },
+      signal,
+    );
+    // Backfill the JSON cache so quizzes can use this explanation as context
+    backfillExplanationCache(input.nodeId, familiarityLevel, streamedText).catch(() => {});
+    return;
+  } catch (err) {
+    logger.warn({ nodeId: input.nodeId, err }, 'Gemini stream failed — falling back to regular generate');
+  }
+
+  // ── Fallback: regular generate → emit as single burst ───────────────────────
+  const result = await generate<GeneratedExplanation>(
+    buildExplanationPrompt(input),
+    generatedExplanationSchema as never,
+    `explanation:${input.nodeId}`,
+  );
+  if (!result) throw new Error('All explanation providers failed');
+  await setCache(cacheKey, result, ttls.EXPLANATION_TTL);
+  onChunk(formatExplanationAsText(result));
 }
 
 export async function generateMicroQuiz(input: MicroQuizInput): Promise<GeneratedQuiz | null> {

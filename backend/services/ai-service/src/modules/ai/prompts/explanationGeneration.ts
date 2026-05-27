@@ -52,6 +52,51 @@ function buildLearnerSection(ctx: LearnerContext): string {
   return parts.join('\n');
 }
 
+/**
+ * Prompt for streaming text output.
+ * Outputs structured sections instead of JSON so tokens can be shown progressively.
+ */
+export function buildStreamExplanationPrompt(input: ExplanationInput): string {
+  const { nodeTitle, description, learningOutcomes, weakAreas, learnerContext } = input;
+
+  const outcomesBlock = learningOutcomes.length > 0
+    ? `After reading this explanation, the learner should understand:\n${learningOutcomes.map((o, i) => `${i + 1}. ${o}`).join('\n')}`
+    : 'Base the explanation on the topic title and description only.';
+
+  const learnerBlock = learnerContext
+    ? `\nLearner profile:\n${buildLearnerSection(learnerContext)}\n`
+    : '';
+
+  const weakAreasBlock = weakAreas && weakAreas.length > 0
+    ? `\nThe learner previously struggled with:\n${weakAreas.map((w, i) => `${i + 1}. ${w}`).join('\n')}\nGive extra attention to these areas.\n`
+    : '';
+
+  return `You are a technical educator. Write a learning explanation for: "${nodeTitle}".
+
+${description ? `Context: ${description}` : ''}
+${outcomesBlock}
+${learnerBlock}${weakAreasBlock}
+Rules:
+- Adapt depth and style to the learner profile above.
+- Keep the summary under 150 words.
+- Provide 3 to 5 key points as complete sentences.
+- Optionally list 1 to 3 common mistakes (omit the section if none apply).
+- Write only about the listed learning outcomes.
+
+Output your response in EXACTLY this format with these section markers on their own lines:
+
+[SUMMARY]
+Write 2-3 sentences summarising the topic here.
+
+[KEY_POINTS]
+- Write each key point as a complete sentence starting with a dash
+- Include 3 to 5 points
+
+[COMMON_MISTAKES]
+- Write each mistake starting with a dash
+- Include 1 to 3 (or omit this section entirely if not applicable)`;
+}
+
 export function buildExplanationPrompt(input: ExplanationInput): string {
   const { nodeTitle, description, learningOutcomes, weakAreas, learnerContext } = input;
 

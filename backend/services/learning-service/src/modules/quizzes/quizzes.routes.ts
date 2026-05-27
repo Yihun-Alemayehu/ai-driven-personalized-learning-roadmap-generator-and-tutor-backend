@@ -188,6 +188,8 @@ router.get('/nodes/:nodeId/challenge', authenticate, ctrl.getChallengeProject);
  *         description: Node is locked
  */
 router.get('/nodes/:nodeId/explanation', authenticate, ctrl.getNodeExplanation);
+/** SSE streaming variant — emits text tokens as they are generated */
+router.get('/nodes/:nodeId/explanation/stream', authenticate, ctrl.streamNodeExplanation);
 
 /**
  * @swagger

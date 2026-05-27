@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useExplanationQuery } from '@/api/explanation';
+import { useExplanationStream } from '@/api/explanation';
 import { MASTERY_CONFIG } from '@/lib/masteryConfig';
 import { useMyLearningStore } from '@/store/myLearning.store';
 import { InlineQuiz } from './InlineQuiz';
@@ -19,26 +19,30 @@ interface LearnContentProps {
   onExplanationData?: (explanation: Explanation | null) => void;
 }
 
-function Skeleton() {
+/** Blinking cursor shown while the stream is active */
+function StreamCursor() {
   return (
-    <div className="flex flex-col gap-5 py-4 animate-pulse">
-      <div className="flex flex-col gap-2.5">
+    <span
+      className="inline-block w-[2px] h-[1em] ml-0.5 align-middle animate-pulse"
+      style={{ background: 'oklch(0.62 0.18 28)', borderRadius: 1 }}
+    />
+  );
+}
+
+function StreamingPlaceholder() {
+  return (
+    <div className="flex flex-col gap-5 py-4">
+      {/* First skeleton line fades in quickly, rest pulse */}
+      <div className="flex flex-col gap-2.5 animate-pulse">
         <div className="h-3 rounded w-1/3" style={{ background: '#ebe6db' }} />
         <div className="h-4 rounded w-full" style={{ background: '#ebe6db' }} />
         <div className="h-4 rounded w-5/6" style={{ background: '#ebe6db' }} />
-        <div className="h-4 rounded w-4/5" style={{ background: '#ebe6db' }} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <div className="h-3 rounded w-1/4" style={{ background: '#ebe6db' }} />
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-3.5 rounded w-full" style={{ background: '#ebe6db' }} />
-        ))}
       </div>
       <p
-        className="text-[12px] text-center mt-4"
+        className="text-[12px] text-center mt-2"
         style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
       >
-        Generating explanation… this may take up to 30 seconds
+        Generating explanation…
       </p>
     </div>
   );
@@ -59,18 +63,26 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
   const navigate = useNavigate();
   const hasVisited = useMyLearningStore((s) => s.visitedExplanationNodeIds.includes(node.id));
   const markExplanationVisited = useMyLearningStore((s) => s.markExplanationVisited);
-  // Auto-enable if the user previously requested this explanation (persisted across sessions)
   const [enabled, setEnabled] = useState(() => hasVisited && node.unlocked);
   const [view, setView] = useState<'explanation' | 'quiz'>('explanation');
-  const { data, isLoading, isError } = useExplanationQuery(node.id, enabled);
 
+  const { sections, isStreaming, isDone, isError } = useExplanationStream(node.id, enabled);
+
+  // Notify parent when the explanation is ready (for AI instructor context)
   useEffect(() => {
-    onExplanationData?.(data?.explanation ?? null);
-  }, [data?.explanation, onExplanationData]);
+    if (isDone && sections.summary) {
+      onExplanationData?.({
+        summary: sections.summary,
+        keyPoints: sections.keyPoints,
+        commonMistakes: sections.commonMistakes,
+      });
+    }
+  }, [isDone, sections, onExplanationData]);
 
   const cfg = MASTERY_CONFIG[node.masteryState];
   const isLocked = !node.unlocked;
-  const canTakeQuiz = node.unlocked;
+  // Allow quiz once the node is unlocked and the stream is either done or hasn't started
+  const canTakeQuiz = node.unlocked && (!enabled || isDone);
 
   if (view === 'quiz') {
     return <InlineQuiz nodeId={node.id} enrollmentId={enrollmentId} onBack={() => setView('explanation')} />;
@@ -181,160 +193,88 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
           </div>
         )}
 
-        {enabled && isLoading && <Skeleton />}
+        {/* While the stream is running but no content yet → skeleton */}
+        {enabled && isStreaming && !sections.summary && <StreamingPlaceholder />}
 
         {enabled && isError && (
           <p
             className="text-[14px] py-10 text-center italic"
             style={{ fontFamily: "'Crimson Pro', serif", color: '#9a9088' }}
           >
-            Could not load explanation. Please try again later.
+            Could not generate explanation. Please try again later.
           </p>
         )}
 
-        {enabled && !isLoading && !isError && data && (() => {
-          const { explanation, weakAreas, fallback } = data;
+        {/* Progressive streaming render — sections appear as tokens arrive */}
+        {enabled && !isError && sections.summary && (
+          <div className="flex flex-col gap-8 max-w-2xl">
 
-          if (explanation) {
-            return (
-              <div className="flex flex-col gap-8 max-w-2xl">
-                {/* Weak areas banner */}
-                {weakAreas && weakAreas.length > 0 && (
-                  <div
-                    className="flex items-start gap-3 px-4 py-3 rounded-[10px] border"
-                    style={{
-                      background: 'color-mix(in srgb, oklch(0.72 0.13 70) 8%, #faf7f1)',
-                      borderColor: 'oklch(0.82 0.1 70)',
-                    }}
-                  >
-                    <span className="shrink-0 text-[14px] mt-0.5" style={{ color: 'oklch(0.62 0.18 28)' }}>
-                      ↻
-                    </span>
-                    <div>
-                      <div
-                        className="text-[14px] font-semibold mb-0.5"
-                        style={{ fontFamily: "'Crimson Pro', serif", color: '#1a1614' }}
+            {/* Summary — appears first and grows as the model streams */}
+            <div>
+              <SectionLabel>Summary</SectionLabel>
+              <p
+                className="text-[17px] leading-relaxed"
+                style={{ fontFamily: "'Crimson Pro', serif", color: '#2a2420' }}
+              >
+                {sections.summary}
+                {isStreaming && !sections.keyPoints.length && <StreamCursor />}
+              </p>
+            </div>
+
+            {/* Key Points — render as they arrive */}
+            {sections.keyPoints.length > 0 && (
+              <div>
+                <SectionLabel>Key points</SectionLabel>
+                <div className="flex flex-col gap-3">
+                  {sections.keyPoints.map((point, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <span
+                        className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono mt-0.5"
+                        style={{ background: 'oklch(0.62 0.18 28)', color: '#fff' }}
                       >
-                        Focused on your weak areas
-                      </div>
-                      <div
-                        className="text-[13px] leading-snug"
-                        style={{ fontFamily: "'Crimson Pro', serif", color: '#6e645a' }}
+                        {i + 1}
+                      </span>
+                      <p
+                        className="text-[15px] leading-snug"
+                        style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}
                       >
-                        This explanation emphasizes topics you missed in your last quiz attempt.
-                      </div>
+                        {point}
+                        {/* Cursor on the last point while still streaming key points */}
+                        {isStreaming && !sections.commonMistakes.length && i === sections.keyPoints.length - 1 && (
+                          <StreamCursor />
+                        )}
+                      </p>
                     </div>
-                  </div>
-                )}
-
-                {/* Summary */}
-                <div>
-                  <SectionLabel>Summary</SectionLabel>
-                  <p
-                    className="text-[17px] leading-relaxed"
-                    style={{ fontFamily: "'Crimson Pro', serif", color: '#2a2420' }}
-                  >
-                    {explanation.summary}
-                  </p>
+                  ))}
                 </div>
-
-                {/* Key Points */}
-                {explanation.keyPoints.length > 0 && (
-                  <div>
-                    <SectionLabel>Key points</SectionLabel>
-                    <div className="flex flex-col gap-3">
-                      {explanation.keyPoints.map((point, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                          <span
-                            className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono mt-0.5"
-                            style={{ background: 'oklch(0.62 0.18 28)', color: '#fff' }}
-                          >
-                            {i + 1}
-                          </span>
-                          <p
-                            className="text-[15px] leading-snug"
-                            style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}
-                          >
-                            {point}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Common Mistakes */}
-                {explanation.commonMistakes && explanation.commonMistakes.length > 0 && (
-                  <div>
-                    <SectionLabel>Common mistakes</SectionLabel>
-                    <div
-                      className="rounded-[10px] border p-4 flex flex-col gap-2.5"
-                      style={{ borderColor: '#f0d9c8', background: 'color-mix(in srgb, oklch(0.62 0.18 28) 5%, #faf7f1)' }}
-                    >
-                      {explanation.commonMistakes.map((mistake, i) => (
-                        <div key={i} className="flex items-start gap-2.5">
-                          <span className="shrink-0 text-[13px] mt-0.5" style={{ color: 'oklch(0.62 0.18 28)' }}>⚠</span>
-                          <p
-                            className="text-[14px] leading-snug"
-                            style={{ fontFamily: "'Crimson Pro', serif", color: '#5a3020' }}
-                          >
-                            {mistake}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-            );
-          }
+            )}
 
-          if (fallback) {
-            return (
-              <div className="flex flex-col gap-6 max-w-2xl">
+            {/* Common Mistakes — render when section appears */}
+            {sections.commonMistakes.length > 0 && (
+              <div>
+                <SectionLabel>Common mistakes</SectionLabel>
                 <div
-                  className="text-[12px] px-3 py-2 rounded-[8px]"
-                  style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088', background: '#f3efe7', border: '1px solid #ebe6db' }}
+                  className="rounded-[10px] border p-4 flex flex-col gap-2.5"
+                  style={{ borderColor: '#f0d9c8', background: 'color-mix(in srgb, oklch(0.62 0.18 28) 5%, #faf7f1)' }}
                 >
-                  AI explanation unavailable — showing node content
-                </div>
-
-                {fallback.description && (
-                  <div>
-                    <SectionLabel>Description</SectionLabel>
-                    <p
-                      className="text-[16px] leading-relaxed"
-                      style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}
-                    >
-                      {fallback.description}
-                    </p>
-                  </div>
-                )}
-
-                {fallback.learningOutcomes.length > 0 && (
-                  <div>
-                    <SectionLabel>Learning outcomes</SectionLabel>
-                    <div className="flex flex-col gap-2">
-                      {fallback.learningOutcomes.map((o, i) => (
-                        <div key={i} className="flex items-start gap-2.5">
-                          <span className="shrink-0 text-[14px] mt-0.5" style={{ color: '#9a9088' }}>·</span>
-                          <p
-                            className="text-[15px]"
-                            style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}
-                          >
-                            {o}
-                          </p>
-                        </div>
-                      ))}
+                  {sections.commonMistakes.map((mistake, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span className="shrink-0 text-[13px] mt-0.5" style={{ color: 'oklch(0.62 0.18 28)' }}>⚠</span>
+                      <p
+                        className="text-[14px] leading-snug"
+                        style={{ fontFamily: "'Crimson Pro', serif", color: '#5a3020' }}
+                      >
+                        {mistake}
+                        {isStreaming && i === sections.commonMistakes.length - 1 && <StreamCursor />}
+                      </p>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
-            );
-          }
-
-          return null;
-        })()}
+            )}
+          </div>
+        )}
       </div>
 
       {/* Footer CTA */}

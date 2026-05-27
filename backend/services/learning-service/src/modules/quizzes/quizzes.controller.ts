@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as svc from './quizzes.service';
+import { streamAiExplanation } from '../../lib/aiClient';
 import { submitAttemptSchema, listAttemptsSchema } from './quizzes.validation';
 import { ApiError } from '../../utils/ApiError';
 
@@ -81,6 +82,35 @@ export async function getNodeExplanation(
     res.json(result);
   } catch (err) {
     next(err);
+  }
+}
+
+export async function streamNodeExplanation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    // Build context (auth + DB queries) before opening the stream
+    const ctx = await svc.buildExplanationStreamContext(req.params.nodeId, req.user!.id);
+
+    // SSE headers — X-Accel-Buffering: no disables nginx buffering for this response
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    await streamAiExplanation(ctx, res);
+  } catch (err) {
+    if (!res.headersSent) {
+      next(err);
+    } else {
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: 'Generation failed' })}\n\n`);
+        res.end();
+      }
+    }
   }
 }
 
