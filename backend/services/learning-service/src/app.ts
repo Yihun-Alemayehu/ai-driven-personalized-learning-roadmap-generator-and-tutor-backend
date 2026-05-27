@@ -21,6 +21,7 @@ import branchingRouter from './modules/branching/branching.routes';
 import adminRouter from './modules/admin/admin.routes';
 import instructorRouter from './modules/instructor/instructor.routes';
 import gamificationRouter from './modules/gamification/gamification.routes';
+import certificatesRouter from './modules/certificates/certificates.routes';
 import logger from './utils/logger';
 
 const app = express();
@@ -53,6 +54,7 @@ app.use('/api/v1', branchingRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/instructor', instructorRouter);
 app.use('/api/v1', gamificationRouter);
+app.use('/api/v1', certificatesRouter);
 
 app.use(errorHandler);
 

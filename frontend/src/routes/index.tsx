@@ -39,6 +39,10 @@ export const router = createBrowserRouter([
   },
   { path: '/unauthorized', element: <UnauthorizedPage /> },
   { path: '/404', element: <NotFoundPage /> },
+  {
+    path: '/verify/:publicId',
+    lazy: () => import('@/features/certificates/VerifyCertificatePage').then((m) => ({ Component: m.default })),
+  },
 
   // Protected shell (AppShell layout)
   {
@@ -83,6 +87,10 @@ export const router = createBrowserRouter([
       {
         path: 'quiz-attempts/:id',
         lazy: () => import('@/features/quiz/AttemptReviewPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'enrollments/:id/certificate',
+        lazy: () => import('@/features/certificates/CertificatePage').then((m) => ({ Component: m.default })),
       },
 
     ],
