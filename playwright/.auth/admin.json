@@ -5,8 +5,8 @@
       "email": "e2e-admin@test.com",
       "role": "admin"
     },
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0YTBiMGEyNi03MTllLTRlNzEtYWQ5Ni1iMjAzZTYyY2NmMTkiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzk3OTQ1MTUsImV4cCI6MTc3OTc5NTQxNX0.L66dWl9B5pCthxH5vaust2paEcgAjWSq1A_k9ZgpKBY",
-    "refreshToken": "85cf8488b124b1aa64f03d954158df0d09b7f85c52f5bcc7459e81550cccaa55"
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0YTBiMGEyNi03MTllLTRlNzEtYWQ5Ni1iMjAzZTYyY2NmMTkiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Nzk4NjU1ODIsImV4cCI6MTc3OTg2NjQ4Mn0.eCqqSRVpyVgAk5NfCa3jPTHUFBLszhxaN7U0JTn1DEc",
+    "refreshToken": "926d3b65b5c4d9d75a25549a3c87d05d96a4d2ac0076b95f971d7f8fc988d82c"
   },
   "version": 0
 }
