@@ -34,6 +34,7 @@ model User {
   xp                       UserXp?
   xpEvents                 XpEvent[]
   badges                   UserBadge[]
+  certificates             Certificate[]
 
   @@map("users")
 }
@@ -86,6 +87,7 @@ model Domain {
   whitelist        DomainWhitelist[]
   enrollments      Enrollment[]
   ontologyVersions OntologyVersion[]
+  certificates     Certificate[]
 
   @@map("domains")
 }
@@ -173,9 +175,30 @@ model Enrollment {
   nodeProgress           LearnerNodeProgress[]
   supplementaryNodes     SupplementaryNode[]
   velocityRecords        LearnerVelocity[]
+  certificate            Certificate?
 
   @@unique([userId, domainId])
   @@map("enrollments")
+}
+
+model Certificate {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId      String     @unique @db.VarChar(20)            @map("public_id")
+  userId        String     @db.Uuid                           @map("user_id")
+  enrollmentId  String     @unique @db.Uuid                   @map("enrollment_id")
+  domainId      String     @db.Uuid                           @map("domain_id")
+  recipientName String     @db.VarChar(255)                   @map("recipient_name")
+  courseName    String     @db.VarChar(255)                   @map("course_name")
+  hoursInvested Decimal?   @db.Decimal(6, 1)                  @map("hours_invested")
+  averageScore  Decimal?   @db.Decimal(5, 2)                  @map("average_score")
+  completedAt   DateTime   @db.Timestamptz(6)                 @map("completed_at")
+  issuedAt      DateTime   @default(now()) @db.Timestamptz(6) @map("issued_at")
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  domain        Domain     @relation(fields: [domainId], references: [id])
+
+  @@index([userId])
+  @@map("certificates")
 }
 
 model SupplementaryNode {

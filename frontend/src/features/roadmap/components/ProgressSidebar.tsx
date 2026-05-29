@@ -93,6 +93,34 @@ export function ProgressSidebar({
         </div>
       </div>
 
+      {/* Certificate CTA — appears once the roadmap is fully mastered */}
+      {stats.completionPercent === 100 && stats.totalNodes > 0 && (
+        <button
+          onClick={() => navigate(`/enrollments/${enrollmentId}/certificate`)}
+          className="w-full rounded-[10px] border px-3.5 py-3 text-left flex items-center gap-3 transition-all hover:opacity-90"
+          style={{
+            background: 'linear-gradient(135deg, #fdfbf6 0%, #f4e7c9 100%)',
+            borderColor: '#d8b878',
+          }}
+        >
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'radial-gradient(circle at 35% 30%, #d8b878, #b8924a 70%)', color: '#fff', fontSize: 17 }}
+          >
+            ★
+          </span>
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1a1614' }}>
+              Get your certificate
+            </div>
+            <div className="text-[10px] tracking-[0.05em]" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#8f6f33' }}>
+              roadmap complete · claim now
+            </div>
+          </div>
+          <span className="ml-auto text-[13px]" style={{ color: '#b8924a' }}>→</span>
+        </button>
+      )}
+
       {/* Timeline estimate */}
       {timeline && timeline.estimatedWeeksRemaining !== null && (
         <>

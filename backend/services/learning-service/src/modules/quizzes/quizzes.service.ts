@@ -172,6 +172,69 @@ export async function getNodeExplanation(nodeId: string, userId: string) {
   };
 }
 
+/**
+ * Build the AI context needed for the streaming explanation endpoint.
+ * Does NOT call the AI service — the controller pipes the stream directly.
+ */
+export async function buildExplanationStreamContext(nodeId: string, userId: string) {
+  const progress = await assertNodeUnlocked(nodeId, userId);
+
+  const node = await prisma.learningNode.findUnique({
+    where: { id: nodeId },
+    select: { title: true, description: true, learningOutcomes: true },
+  });
+  if (!node) throw ApiError.notFound('Node not found');
+
+  const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+  const learnerContext = await buildLearnerContext(userId, progress.enrollmentId, nodeId);
+  const weakAreas = learnerContext.currentNodeAttempts > 0
+    ? await detectWeakAreas(userId, nodeId)
+    : [];
+
+  return {
+    nodeId,
+    nodeTitle: node.title,
+    description: node.description ?? undefined,
+    learningOutcomes: outcomes,
+    weakAreas: weakAreas.length > 0 ? weakAreas : undefined,
+    learnerContext,
+  };
+}
+
+/** Build the AI ask payload without calling AI — used by the streaming controller. */
+export async function buildAskStreamContext(
+  nodeId: string,
+  userId: string,
+  question: string,
+  explanation: AiAskPayload['explanation'],
+  enrollmentId?: string,
+): Promise<AiAskPayload> {
+  const progress = await assertNodeUnlocked(nodeId, userId);
+
+  const node = await prisma.learningNode.findUnique({
+    where: { id: nodeId },
+    select: { title: true, description: true, learningOutcomes: true },
+  });
+  if (!node) throw ApiError.notFound('Node not found');
+
+  const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+  const learnerContext = await buildLearnerContext(
+    userId,
+    enrollmentId ?? progress.enrollmentId,
+    nodeId,
+  );
+
+  return {
+    nodeId,
+    nodeTitle: node.title,
+    question,
+    description: node.description ?? undefined,
+    learningOutcomes: outcomes,
+    explanation,
+    learnerContext,
+  };
+}
+
 export async function askNodeQuestion(
   nodeId: string,
   userId: string,

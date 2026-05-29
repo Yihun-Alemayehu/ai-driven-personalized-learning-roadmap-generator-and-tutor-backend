@@ -21,13 +21,18 @@ import branchingRouter from './modules/branching/branching.routes';
 import adminRouter from './modules/admin/admin.routes';
 import instructorRouter from './modules/instructor/instructor.routes';
 import gamificationRouter from './modules/gamification/gamification.routes';
+import certificatesRouter from './modules/certificates/certificates.routes';
 import logger from './utils/logger';
 
 const app = express();
 
 app.use(securityHeaders);
 app.use(corsOptions);
-app.use(compression());
+// Disable gzip for SSE routes — compression buffers the stream and prevents real-time delivery
+app.use(compression({
+  filter: (req, res) =>
+    req.path.endsWith('/stream') ? false : compression.filter(req, res),
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(inputSanitizer);
 app.use(pinoHttp({ logger }));
@@ -49,6 +54,7 @@ app.use('/api/v1', branchingRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/instructor', instructorRouter);
 app.use('/api/v1', gamificationRouter);
+app.use('/api/v1', certificatesRouter);
 
 app.use(errorHandler);
 

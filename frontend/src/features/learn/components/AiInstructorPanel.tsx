@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { XIcon, SendIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { useAskInstructorMutation } from '@/api/instructor-chat';
+import { useAskInstructorStream } from '@/api/instructor-chat';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import type { RoadmapNode } from '@/types';
 
 interface Explanation {
@@ -12,6 +13,8 @@ interface Explanation {
 interface Message {
   role: 'bot' | 'user';
   text: string;
+  /** true while the model is still generating this message */
+  streaming?: boolean;
 }
 
 interface Props {
@@ -43,11 +46,11 @@ function buildSuggestedPrompts(node: RoadmapNode, explanation: Explanation | nul
 
 function TypingDots() {
   return (
-    <div className="flex items-center gap-[3px] py-0.5">
+    <div className="flex items-center gap-0.75 py-0.5">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="w-[5px] h-[5px] rounded-full animate-bounce"
+          className="w-1.25 h-1.25 rounded-full animate-bounce"
           style={{
             background: 'oklch(0.6 0.1 60)',
             animationDelay: `${i * 0.15}s`,
@@ -56,6 +59,17 @@ function TypingDots() {
         />
       ))}
     </div>
+  );
+}
+
+/** Blinking text cursor shown while streaming */
+function StreamCursor() {
+  return (
+    <span
+      className="inline-block w-0.5 h-[1em] ml-px align-middle animate-pulse"
+      style={{ background: 'oklch(0.45 0.14 60)', borderRadius: 1 }}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -72,7 +86,9 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const suggestedPrompts = buildSuggestedPrompts(node, explanation);
-  const ask = useAskInstructorMutation(node.id);
+
+  const { ask, isStreaming } = useAskInstructorStream(node.id);
+
   const showSuggestions = messages.length === 1;
   const hasHistory = messages.length > 1;
 
@@ -84,28 +100,52 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
 
   function send(question: string) {
     const q = question.trim();
-    if (!q || ask.isPending) return;
+    if (!q || isStreaming) return;
 
-    setMessages((prev) => [...prev, { role: 'user', text: q }]);
+    // Add user message + streaming bot placeholder
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', text: q },
+      { role: 'bot', text: '', streaming: true },
+    ]);
     setInput('');
 
-    ask.mutate(
+    ask(
       { question: q, explanation, enrollmentId },
       {
-        onSuccess: (answer) => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'bot',
-              text: answer ?? "I wasn't able to generate an answer. Please try again.",
-            },
-          ]);
+        onChunk: (chunk) => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.role === 'bot') {
+              next[next.length - 1] = { ...last, text: last.text + chunk };
+            }
+            return next;
+          });
+        },
+        onDone: () => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.role === 'bot') {
+              next[next.length - 1] = { ...last, streaming: false };
+            }
+            return next;
+          });
         },
         onError: () => {
-          setMessages((prev) => [
-            ...prev,
-            { role: 'bot', text: 'Something went wrong. Please try again.' },
-          ]);
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.role === 'bot' && last.streaming) {
+              next[next.length - 1] = {
+                role: 'bot',
+                text: last.text || 'Something went wrong. Please try again.',
+                streaming: false,
+              };
+            }
+            return next;
+          });
         },
       },
     );
@@ -209,7 +249,7 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
                     AI Instructor
                   </div>
                   <div
-                    className="text-[11px] mt-0.5 truncate max-w-[180px]"
+                    className="text-[11px] mt-0.5 truncate max-w-45"
                     style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
                   >
                     {node.title}
@@ -287,36 +327,24 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
                           borderRadius: '14px 14px 14px 3px',
                           border: '1px solid oklch(0.89 0.06 60)',
                           boxShadow: '0 1px 2px rgba(180,160,130,0.08)',
+                          minHeight: msg.streaming && !msg.text ? 32 : undefined,
                         }
                   }
                 >
-                  {msg.text}
+                  {/* Streaming placeholder — show dots while waiting for first token */}
+                  {msg.streaming && !msg.text ? (
+                    <TypingDots />
+                  ) : msg.role === 'bot' ? (
+                    <div style={{ minWidth: 0 }}>
+                      <MarkdownRenderer context="chat">{msg.text}</MarkdownRenderer>
+                      {msg.streaming && <StreamCursor />}
+                    </div>
+                  ) : (
+                    msg.text
+                  )}
                 </div>
               </div>
             ))}
-
-            {/* Typing indicator */}
-            {ask.isPending && (
-              <div className="flex items-end gap-2 justify-start">
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mb-0.5"
-                  style={{ background: 'oklch(0.9 0.08 60)', color: 'oklch(0.45 0.14 60)' }}
-                >
-                  <BotIcon size={10} />
-                </div>
-                <div
-                  className="px-3.5 py-2.5"
-                  style={{
-                    background: '#fff',
-                    border: '1px solid oklch(0.89 0.06 60)',
-                    borderRadius: '14px 14px 14px 3px',
-                    boxShadow: '0 1px 2px rgba(180,160,130,0.08)',
-                  }}
-                >
-                  <TypingDots />
-                </div>
-              </div>
-            )}
 
             <div ref={bottomRef} />
           </div>
@@ -342,7 +370,7 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
               {suggestedPrompts.map((prompt, i) => (
                 <button
                   key={i}
-                  disabled={ask.isPending}
+                  disabled={isStreaming}
                   className="w-full text-left flex items-start gap-2 px-3 py-2.5 transition-colors disabled:opacity-50"
                   style={{
                     fontFamily: "'Crimson Pro', serif",
@@ -371,7 +399,7 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
           {/* Input */}
           <div className="px-3 pb-3 pt-1 shrink-0">
             <div
-              className="flex items-end gap-2 rounded-[12px] px-3 py-2.5 transition-shadow"
+              className="flex items-end gap-2 rounded-xl px-3 py-2.5 transition-shadow"
               style={{
                 background: '#f3efe7',
                 border: inputFocused ? '1px solid oklch(0.65 0.1 60)' : '1px solid #d6cfbf',
@@ -387,7 +415,7 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
                 placeholder="Ask anything about this lesson…"
-                disabled={ask.isPending}
+                disabled={isStreaming}
                 className="flex-1 resize-none bg-transparent text-[13.5px] outline-none leading-relaxed placeholder:text-[#b8b0a8]"
                 style={{
                   fontFamily: "'Crimson Pro', serif",
@@ -402,11 +430,11 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
                 }}
               />
               <button
-                disabled={!input.trim() || ask.isPending}
+                disabled={!input.trim() || isStreaming}
                 onClick={() => send(input)}
                 className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-all disabled:opacity-35"
                 style={{
-                  background: input.trim() && !ask.isPending ? '#1a1614' : '#c2b9a6',
+                  background: input.trim() && !isStreaming ? '#1a1614' : '#c2b9a6',
                   color: '#faf7f1',
                 }}
               >

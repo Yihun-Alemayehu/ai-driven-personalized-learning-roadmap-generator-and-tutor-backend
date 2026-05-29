@@ -34,6 +34,39 @@ export async function geminiGenerate(prompt: string): Promise<string | null> {
   }
 }
 
+/**
+ * Stream tokens from Gemini, calling onChunk for each text piece.
+ * Uses plain text output (not JSON) — suitable for SSE streaming.
+ */
+export async function geminiStream(
+  prompt: string,
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const client = getClient();
+  if (!client) throw new Error('Gemini not configured');
+
+  const abortController = new AbortController();
+  if (signal) signal.addEventListener('abort', () => abortController.abort());
+  const timer = setTimeout(() => abortController.abort(), 90_000);
+
+  try {
+    const model = client.getGenerativeModel({ model: config.gemini.model });
+    const result = await model.generateContentStream({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
+    });
+
+    for await (const chunk of result.stream) {
+      if (abortController.signal.aborted) break;
+      const text = chunk.text();
+      if (text) onChunk(text);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function isGeminiConfigured(): boolean {
   return Boolean(config.gemini.apiKey);
 }

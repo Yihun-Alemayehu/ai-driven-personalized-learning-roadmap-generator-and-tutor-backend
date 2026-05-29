@@ -1,7 +1,7 @@
 import logger from '../../utils/logger';
 import config from '../../config';
 import { phi4Generate } from './phi4.client';
-import { ollamaGenerate } from './ollama.client';
+import { ollamaGenerate, ollamaStream } from './ollama.client';
 import { geminiGenerate } from './gemini.client';
 import { isCircuitOpen, recordSuccess, recordFailure } from './ai.circuit-breaker';
 import { getCached, setCache, cacheKeys, ttls } from './ai.cache';
@@ -17,8 +17,9 @@ import {
 } from './ai.types';
 import { buildQuizPrompt } from './prompts/quizGeneration';
 import { buildMicroQuizPrompt } from './prompts/microQuizGeneration';
-import { buildExplanationPrompt } from './prompts/explanationGeneration';
-import { buildAskPrompt } from './prompts/askQuestion';
+import { buildExplanationPrompt, buildStreamExplanationPrompt } from './prompts/explanationGeneration';
+import { buildAskPrompt, buildStreamAskPrompt } from './prompts/askQuestion';
+import { geminiStream } from './gemini.client';
 
 function parseAndValidate<T>(
   raw: string | null,
@@ -181,6 +182,174 @@ export async function askQuestion(input: AskQuestionInput): Promise<string | nul
     `ask:${input.nodeId}`,
   );
   return result?.answer ?? null;
+}
+
+/** Format a cached JSON explanation as the section-text format used by the stream endpoint. */
+function formatExplanationAsText(e: GeneratedExplanation): string {
+  const lines: string[] = ['[SUMMARY]', e.summary, '', '[KEY_POINTS]'];
+  for (const p of e.keyPoints) lines.push(`- ${p}`);
+  if (e.commonMistakes && e.commonMistakes.length > 0) {
+    lines.push('', '[COMMON_MISTAKES]');
+    for (const m of e.commonMistakes) lines.push(`- ${m}`);
+  }
+  return lines.join('\n');
+}
+
+/** Parse streamed section text back into the JSON shape and cache it for quiz use. */
+async function backfillExplanationCache(
+  nodeId: string,
+  familiarityLevel: string | null | undefined,
+  text: string,
+): Promise<void> {
+  const summaryM = text.match(/\[SUMMARY\]([\s\S]*?)(?=\[KEY_POINTS\]|\[COMMON_MISTAKES\]|$)/);
+  const pointsM  = text.match(/\[KEY_POINTS\]([\s\S]*?)(?=\[COMMON_MISTAKES\]|$)/);
+  const mistakesM = text.match(/\[COMMON_MISTAKES\]([\s\S]*?)$/);
+
+  const summary = summaryM?.[1]?.trim() ?? '';
+  const keyPoints = (pointsM?.[1] ?? '')
+    .split('\n').filter(l => l.trim().startsWith('-'))
+    .map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean);
+  const commonMistakes = (mistakesM?.[1] ?? '')
+    .split('\n').filter(l => l.trim().startsWith('-'))
+    .map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean);
+
+  if (summary && keyPoints.length > 0) {
+    await setCache(
+      cacheKeys.explanation(nodeId, familiarityLevel),
+      { summary, keyPoints, commonMistakes },
+      ttls.EXPLANATION_TTL,
+    );
+  }
+}
+
+/**
+ * Stream an explanation as text/SSE chunks.
+ * Provider order: Ollama (primary) → Gemini (secondary) → non-streaming burst (last resort).
+ * onChunk is called once per token when streaming, or once for the whole text on cache hit / burst.
+ */
+export async function streamExplanation(
+  input: ExplanationInput,
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const familiarityLevel = input.learnerContext?.familiarityLevel;
+  const cacheKey = cacheKeys.explanation(input.nodeId, familiarityLevel);
+  const cached = await getCached<GeneratedExplanation>(cacheKey);
+
+  // ── Cache hit: format and emit immediately ───────────────────────────────────
+  if (cached) {
+    onChunk(formatExplanationAsText(cached));
+    return;
+  }
+
+  const prompt = buildStreamExplanationPrompt(input);
+  let streamedText = '';
+  const collect = (chunk: string) => { onChunk(chunk); streamedText += chunk; };
+
+  // ── 1. Ollama streaming (primary) ────────────────────────────────────────────
+  if (config.ollama.baseUrl) {
+    const ollamaCircuitOpen = await isCircuitOpen('ollama');
+    if (!ollamaCircuitOpen) {
+      try {
+        await ollamaStream(prompt, collect, signal);
+        if (streamedText.trim()) {
+          await recordSuccess('ollama');
+          backfillExplanationCache(input.nodeId, familiarityLevel, streamedText).catch(() => {});
+          return;
+        }
+        // Empty output counts as a soft failure
+        await recordFailure('ollama');
+      } catch (err) {
+        await recordFailure('ollama');
+        logger.warn({ nodeId: input.nodeId, err }, 'Ollama stream failed — trying Gemini');
+        streamedText = ''; // reset so we don't backfill partial text
+      }
+    } else {
+      logger.warn({ nodeId: input.nodeId }, 'Ollama circuit open — skipping to Gemini');
+    }
+  }
+
+  // ── 2. Gemini streaming (secondary) ─────────────────────────────────────────
+  if (config.gemini.apiKey) {
+    try {
+      await geminiStream(prompt, collect, signal);
+      if (streamedText.trim()) {
+        backfillExplanationCache(input.nodeId, familiarityLevel, streamedText).catch(() => {});
+        return;
+      }
+    } catch (err) {
+      logger.warn({ nodeId: input.nodeId, err }, 'Gemini stream failed — falling back to burst generate');
+      streamedText = '';
+    }
+  }
+
+  // ── 3. Non-streaming burst (last resort) ─────────────────────────────────────
+  logger.warn({ nodeId: input.nodeId }, 'All streaming providers failed — using non-streaming generate');
+  const result = await generate<GeneratedExplanation>(
+    buildExplanationPrompt(input),
+    generatedExplanationSchema as never,
+    `explanation:${input.nodeId}`,
+  );
+  if (!result) throw new Error('All explanation providers failed');
+  await setCache(cacheKey, result, ttls.EXPLANATION_TTL);
+  onChunk(formatExplanationAsText(result));
+}
+
+/**
+ * Stream an AI-instructor answer as text/SSE chunks.
+ * Provider order: Ollama (primary) → Gemini (secondary) → non-streaming burst (last resort).
+ * Answers are never cached — each is unique to the conversation.
+ */
+export async function streamAskQuestion(
+  input: AskQuestionInput,
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const prompt = buildStreamAskPrompt(input);
+  let streamedText = '';
+  const collect = (chunk: string) => { onChunk(chunk); streamedText += chunk; };
+
+  // ── 1. Ollama streaming (primary) ────────────────────────────────────────────
+  if (config.ollama.baseUrl) {
+    const ollamaCircuitOpen = await isCircuitOpen('ollama');
+    if (!ollamaCircuitOpen) {
+      try {
+        await ollamaStream(prompt, collect, signal);
+        if (streamedText.trim()) {
+          await recordSuccess('ollama');
+          logger.info({ nodeId: input.nodeId }, 'Ollama ask-stream succeeded');
+          return;
+        }
+        await recordFailure('ollama');
+      } catch (err) {
+        await recordFailure('ollama');
+        logger.warn({ nodeId: input.nodeId, err }, 'Ollama ask-stream failed — trying Gemini');
+        streamedText = '';
+      }
+    } else {
+      logger.warn({ nodeId: input.nodeId }, 'Ollama circuit open — skipping to Gemini for ask');
+    }
+  }
+
+  // ── 2. Gemini streaming (secondary) ─────────────────────────────────────────
+  if (config.gemini.apiKey) {
+    try {
+      await geminiStream(prompt, collect, signal);
+      if (streamedText.trim()) {
+        logger.info({ nodeId: input.nodeId }, 'Gemini ask-stream succeeded');
+        return;
+      }
+    } catch (err) {
+      logger.warn({ nodeId: input.nodeId, err }, 'Gemini ask-stream failed — falling back to burst');
+      streamedText = '';
+    }
+  }
+
+  // ── 3. Non-streaming burst (last resort) ─────────────────────────────────────
+  logger.warn({ nodeId: input.nodeId }, 'All streaming providers failed for ask — using burst');
+  const answer = await askQuestion(input);
+  if (!answer) throw new Error('All ask providers failed');
+  onChunk(answer);
 }
 
 export async function generateMicroQuiz(input: MicroQuizInput): Promise<GeneratedQuiz | null> {
