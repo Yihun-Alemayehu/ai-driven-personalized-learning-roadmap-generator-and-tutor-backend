@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api/decay_api.dart';
 import '../../core/models/quiz.dart';
 import '../../core/providers/decay_provider.dart';
-import '../../core/providers/roadmap_provider.dart';
 import '../quiz/quiz_question_card.dart';
 
 class MicroQuizSheet extends ConsumerStatefulWidget {
   const MicroQuizSheet({
     required this.nodeId,
+    this.enrollmentId,
     super.key,
   });
 
   final String nodeId;
+  final String? enrollmentId;
 
   @override
   ConsumerState<MicroQuizSheet> createState() => _MicroQuizSheetState();
@@ -57,7 +57,7 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
     
     // Calculate score locally for micro-quiz
     int correct = 0;
-    for (final entry in _answers.entries) {
+    for (final _ in _answers.entries) {
       // For micro-quiz, we assume any answer is better than none
       // Real implementation would check against correct answer
       correct++;
@@ -74,7 +74,10 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
     });
     
     // Refresh decay status
-    ref.invalidate(decayStatusProvider);
+    final enrollmentId = widget.enrollmentId;
+    if (enrollmentId != null) {
+      ref.invalidate(decayStatusProvider(enrollmentId));
+    }
   }
 
   void _retry() {

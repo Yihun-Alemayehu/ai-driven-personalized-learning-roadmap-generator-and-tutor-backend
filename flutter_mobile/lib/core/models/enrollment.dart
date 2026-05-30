@@ -4,6 +4,8 @@ enum FamiliarityLevel { beginner, intermediate, advanced }
 
 enum LearningGoal { getJob, upskill, hobby, certification }
 
+enum PreferredLearningStyle { visual, reading, handsOn, video }
+
 FamiliarityLevel? familiarityLevelFromJson(String? value) {
   switch (value) {
     case 'beginner':
@@ -53,6 +55,90 @@ String learningGoalToJson(LearningGoal value) {
       return 'hobby';
     case LearningGoal.certification:
       return 'certification';
+  }
+}
+
+PreferredLearningStyle? preferredLearningStyleFromJson(String? value) {
+  switch (value) {
+    case 'visual':
+      return PreferredLearningStyle.visual;
+    case 'reading':
+      return PreferredLearningStyle.reading;
+    case 'hands_on':
+      return PreferredLearningStyle.handsOn;
+    case 'video':
+      return PreferredLearningStyle.video;
+    default:
+      return null;
+  }
+}
+
+String preferredLearningStyleToJson(PreferredLearningStyle value) {
+  switch (value) {
+    case PreferredLearningStyle.visual:
+      return 'visual';
+    case PreferredLearningStyle.reading:
+      return 'reading';
+    case PreferredLearningStyle.handsOn:
+      return 'hands_on';
+    case PreferredLearningStyle.video:
+      return 'video';
+  }
+}
+
+/// POST /enrollments response (matches web `EnrollResult`).
+class EnrollPersonalization {
+  const EnrollPersonalization({
+    required this.skippedNodes,
+    required this.supplementaryNodes,
+    this.unlockAcceleration,
+  });
+
+  final int skippedNodes;
+  final int supplementaryNodes;
+  final String? unlockAcceleration;
+
+  factory EnrollPersonalization.fromJson(Map<String, dynamic> json) {
+    return EnrollPersonalization(
+      skippedNodes: (json['skippedNodes'] as num?)?.toInt() ?? 0,
+      supplementaryNodes: (json['supplementaryNodes'] as num?)?.toInt() ?? 0,
+      unlockAcceleration: json['unlockAcceleration'] as String?,
+    );
+  }
+
+  bool get hasSummary =>
+      skippedNodes > 0 ||
+      supplementaryNodes > 0 ||
+      (unlockAcceleration != null && unlockAcceleration!.isNotEmpty);
+}
+
+class EnrollResult {
+  const EnrollResult({
+    required this.enrollment,
+    required this.totalNodes,
+    required this.unlockedNodes,
+    required this.personalization,
+  });
+
+  final Enrollment enrollment;
+  final int totalNodes;
+  final int unlockedNodes;
+  final EnrollPersonalization personalization;
+
+  factory EnrollResult.fromJson(Map<String, dynamic> json) {
+    final enrollmentPayload = json['enrollment'] as Map<String, dynamic>? ?? json;
+    final enrollment = Enrollment.fromJson(
+      Map<String, dynamic>.from(enrollmentPayload),
+    );
+
+    return EnrollResult(
+      enrollment: enrollment,
+      totalNodes: (json['totalNodes'] as num?)?.toInt() ?? 0,
+      unlockedNodes: (json['unlockedNodes'] as num?)?.toInt() ?? 0,
+      personalization: EnrollPersonalization.fromJson(
+        json['personalization'] as Map<String, dynamic>? ?? {},
+      ),
+    );
   }
 }
 

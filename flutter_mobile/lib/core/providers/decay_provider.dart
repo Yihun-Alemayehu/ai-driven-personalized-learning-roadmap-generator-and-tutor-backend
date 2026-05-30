@@ -15,23 +15,12 @@ final decayStatusProvider = FutureProvider.family<DecayStatus, String>(
   },
 );
 
-// Provider that returns only nodes needing review
-final decayReviewNodesProvider = Provider.family<List<DecayNodeStatus>, String>(
+// Actionable decay nodes for dashboard (review, relearn, or mastered with decay info)
+final decayAlertsProvider = Provider.family<List<DecayNodeStatus>, String>(
   (ref, enrollmentId) {
     final decayAsync = ref.watch(decayStatusProvider(enrollmentId));
     return decayAsync.whenOrNull(
-          data: (status) => status.reviewNeededNodes,
-        ) ??
-        [];
-  },
-);
-
-// Provider that returns only nodes needing relearn
-final decayRelearnNodesProvider = Provider.family<List<DecayNodeStatus>, String>(
-  (ref, enrollmentId) {
-    final decayAsync = ref.watch(decayStatusProvider(enrollmentId));
-    return decayAsync.whenOrNull(
-          data: (status) => status.relearnNodes,
+          data: (status) => status.alertNodes,
         ) ??
         [];
   },

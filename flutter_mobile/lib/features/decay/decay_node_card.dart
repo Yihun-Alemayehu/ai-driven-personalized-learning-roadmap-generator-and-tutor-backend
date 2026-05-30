@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/decay_status.dart';
+import '../../core/theme/app_colors.dart';
 
 class DecayNodeCard extends StatelessWidget {
   const DecayNodeCard({
@@ -12,92 +13,101 @@ class DecayNodeCard extends StatelessWidget {
   final DecayNodeStatus node;
   final VoidCallback onReview;
 
-  Color _getStateColor() {
-    return switch (node.masteryState) {
-      'relearn' => Colors.red,
-      'review_needed' => Colors.orange,
-      _ => Colors.grey,
-    };
-  }
-
-  String _getStateLabel() {
-    return switch (node.masteryState) {
-      'relearn' => 'Relearn needed',
-      'review_needed' => 'Review needed',
-      _ => node.masteryState,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final stateColor = _getStateColor();
+    final isRelearn = node.isRelearn;
+    final bgColor = isRelearn
+        ? const Color(0xFFB85C38).withValues(alpha: 0.06)
+        : const Color(0xFFD97706).withValues(alpha: 0.06);
+    final borderColor = isRelearn
+        ? const Color(0xFFB85C38).withValues(alpha: 0.35)
+        : const Color(0xFFD97706).withValues(alpha: 0.3);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    node.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: stateColor.withAlpha(26),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    _getStateLabel(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: stateColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+    final subtitle = _subtitle();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              isRelearn ? '🔴' : '⚠',
+              style: const TextStyle(fontSize: 15),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 4),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
                 Text(
-                  '${node.daysSinceReview} days since review',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
+                  node.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1614),
+                    height: 1.3,
                   ),
                 ),
-                const Spacer(),
-                if (node.decayLevel > 0.5)
-                  Icon(Icons.trending_down, size: 16, color: stateColor),
+                if (subtitle.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onReview,
-                icon: const Icon(Icons.quiz),
-                label: const Text('Review now'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: stateColor,
-                  foregroundColor: Colors.white,
-                ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: onReview,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF1A1614),
+              foregroundColor: AppColors.background,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
-          ],
-        ),
+            child: Text(
+              isRelearn ? 'Relearn' : 'Review now',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  String _subtitle() {
+    final days = node.daysSinceReview;
+    final lastReviewed = days != null
+        ? 'Last reviewed ${days}d ago'
+        : 'Never reviewed';
+
+    if (node.isRelearn) {
+      return '$lastReviewed · relearn required';
+    }
+    if (node.isReviewNeeded) {
+      return lastReviewed;
+    }
+    if (node.isMastered && node.daysUntilDecay != null) {
+      return '$lastReviewed · ${node.daysUntilDecay}d until decay';
+    }
+    return lastReviewed;
   }
 }

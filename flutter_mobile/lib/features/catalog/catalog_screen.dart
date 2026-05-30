@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/enrollment.dart';
 import '../../core/providers/domains_provider.dart';
 import '../../core/providers/enrollments_provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_shimmer.dart';
+import 'catalog_search_field.dart';
 import 'domain_card.dart';
 
 class CatalogScreen extends ConsumerStatefulWidget {
@@ -25,6 +28,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     super.dispose();
   }
 
+  void _clearSearch() {
+    setState(() {
+      _searchQuery = '';
+      _searchController.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final domainsAsync = ref.watch(domainsProvider);
@@ -37,94 +47,134 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         onRetry: () => ref.invalidate(domainsProvider),
       ),
       data: (domains) {
-        final enrolledDomainIds = enrollmentsAsync.valueOrNull
-                ?.map((item) => item.domainId)
-                .toSet() ??
-            <String>{};
+        final enrollmentByDomainId = <String, Enrollment>{
+          for (final e in enrollmentsAsync.valueOrNull ?? <Enrollment>[])
+            e.domainId: e,
+        };
 
-        // Filter domains based on search query
-        final filteredDomains = _searchQuery.isEmpty
+        final query = _searchQuery.trim().toLowerCase();
+        final filtered = query.isEmpty
             ? domains
-            : domains.where((domain) {
-                final query = _searchQuery.toLowerCase();
-                return domain.name.toLowerCase().contains(query) ||
-                    domain.displayDescription.toLowerCase().contains(query);
+            : domains.where((d) {
+                return d.name.toLowerCase().contains(query) ||
+                    d.displayDescription.toLowerCase().contains(query);
               }).toList();
 
         final width = MediaQuery.sizeOf(context).width;
         final crossAxisCount = width >= 980
-            ? 3
+            ? 4
             : width >= 700
                 ? 3
-                : 2;
+                : width >= 480
+                    ? 2
+                    : 1;
 
-        return Column(
-          children: [
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: SearchBar(
-                controller: _searchController,
-                hintText: 'Search domains...',
-                leading: const Icon(Icons.search),
-                trailing: _searchQuery.isNotEmpty
-                    ? [
-                        IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() {
-                              _searchQuery = '';
-                              _searchController.clear();
-                            });
-                          },
-                        ),
-                      ]
-                    : null,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
+        return CustomScrollView(
+          slivers: <Widget>[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Explore Learning Domains',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontSize: 28,
+                            height: 1.15,
+                            color: const Color(0xFF3D342A),
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Choose a domain to start your personalised roadmap',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 15,
+                            color: const Color(0xFF6E645A),
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    CatalogSearchField(
+                      controller: _searchController,
+                      onChanged: (value) =>
+                          setState(() => _searchQuery = value),
+                      onClear: _clearSearch,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
-            // Results count
-            if (_searchQuery.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${filteredDomains.length} result${filteredDomains.length == 1 ? '' : 's'}',
-                    style: Theme.of(context).textTheme.bodySmall,
+            if (filtered.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.search_off_outlined,
+                          size: 40,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          query.isEmpty
+                              ? 'No domains available'
+                              : 'No domains match your search',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          query.isEmpty
+                              ? 'Check back soon.'
+                              : 'Try a different search term.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: crossAxisCount == 1 ? 1.55 : 0.82,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final domain = filtered[index];
+                      final enrollment = enrollmentByDomainId[domain.id];
+
+                      return DomainCard(
+                        domain: domain,
+                        enrollment: enrollment,
+                        onTap: () {
+                          if (enrollment != null) {
+                            context.go(
+                              '/enrollments/${enrollment.id}/roadmap',
+                            );
+                          } else {
+                            context.go('/catalog/${domain.slug}');
+                          }
+                        },
+                      );
+                    },
+                    childCount: filtered.length,
                   ),
                 ),
               ),
-            // Grid
-            Expanded(
-              child: filteredDomains.isEmpty && _searchQuery.isNotEmpty
-                  ? const Center(
-                      child: Text('No domains match your search.'),
-                    )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        childAspectRatio: 0.95,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
-                      itemCount: filteredDomains.length,
-                      itemBuilder: (_, index) {
-                        final domain = filteredDomains[index];
-
-                        return DomainCard(
-                          domain: domain,
-                          isEnrolled: enrolledDomainIds.contains(domain.id),
-                          onTap: () => context.go('/catalog/${domain.slug}'),
-                        );
-                      },
-                    ),
-            ),
           ],
         );
       },

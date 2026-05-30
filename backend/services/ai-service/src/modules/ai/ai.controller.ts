@@ -22,6 +22,13 @@ const learnerContextSchema = Joi.object({
   totalNodes: Joi.number().integer().min(0).optional(),
 }).optional();
 
+/** Grounding context produced by generate-explanation (learning-service passes this into generate-quiz). */
+const explanationSchema = Joi.object({
+  summary: Joi.string().required(),
+  keyPoints: Joi.array().items(Joi.string()).required(),
+  commonMistakes: Joi.array().items(Joi.string()).optional(),
+}).optional();
+
 const nodeContextSchema = Joi.object({
   nodeId: Joi.string().required(),
   nodeTitle: Joi.string().required(),
@@ -36,6 +43,7 @@ const nodeContextSchema = Joi.object({
     commonMistakes: Joi.array().items(Joi.string()).optional(),
   }).allow(null).optional(),
   weakAreas: Joi.array().items(Joi.string()).max(10).optional(),
+  explanation: explanationSchema,
   learnerContext: learnerContextSchema,
 });
 
@@ -90,11 +98,7 @@ const askQuestionSchema = Joi.object({
   question: Joi.string().min(3).max(1000).required(),
   description: Joi.string().allow('').optional(),
   learningOutcomes: Joi.array().items(Joi.string()).optional(),
-  explanation: Joi.object({
-    summary: Joi.string().required(),
-    keyPoints: Joi.array().items(Joi.string()).required(),
-    commonMistakes: Joi.array().items(Joi.string()).optional(),
-  }).allow(null).optional(),
+  explanation: explanationSchema.allow(null),
   learnerContext: learnerContextSchema,
 });
 

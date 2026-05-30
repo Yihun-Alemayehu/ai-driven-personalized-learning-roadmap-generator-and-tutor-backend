@@ -1,10 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/admin/admin_shell.dart';
-import '../../features/admin/domain_management_screen.dart';
-import '../../features/admin/system_stats_screen.dart';
-import '../../features/admin/user_management_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/catalog/catalog_screen.dart';
@@ -14,6 +10,7 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/instructor/analytics_screen.dart';
 import '../../features/instructor/flagged_events_screen.dart';
 import '../../features/instructor/instructor_shell.dart';
+import '../../features/insights/global_insights_screen.dart';
 import '../../features/insights/insights_screen.dart';
 import '../../features/instructor/learner_list_screen.dart';
 import '../../features/instructor/learner_progress_screen.dart';
@@ -95,6 +92,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(
+            path: '/insights',
+            builder: (_, __) => const GlobalInsightsScreen(),
+          ),
+          GoRoute(
             path: '/achievements',
             builder: (_, __) => const AchievementsScreen(),
           ),
@@ -160,19 +161,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/instructor/flagged',
             builder: (_, __) => const FlaggedEventsScreen(),
           ),
-          GoRoute(path: '/admin', builder: (_, __) => const AdminShell()),
-          GoRoute(
-            path: '/admin/users',
-            builder: (_, __) => const UserManagementScreen(),
-          ),
-          GoRoute(
-            path: '/admin/domains',
-            builder: (_, __) => const DomainManagementScreen(),
-          ),
-          GoRoute(
-            path: '/admin/stats',
-            builder: (_, __) => const SystemStatsScreen(),
-          ),
+          // Note: Admin routes removed - admin dashboard is web-only
         ],
       ),
     ],

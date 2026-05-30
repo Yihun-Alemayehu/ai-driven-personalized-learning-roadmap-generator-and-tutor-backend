@@ -1,83 +1,175 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/insights_models.dart';
+import '../../../core/theme/app_colors.dart';
+import 'insights_shared.dart';
 
-/// Profile card showing completion and mastery stats
+const _familiarityLabels = <String, String>{
+  'beginner': 'Beginner — new to the field',
+  'intermediate': 'Intermediate — some experience',
+  'advanced': 'Advanced — solid foundation',
+};
+
+const _goalLabels = <String, ({String icon, String label})>{
+  'get_job': (icon: '💼', label: 'Get a job'),
+  'upskill': (icon: '📈', label: 'Upskill at work'),
+  'hobby': (icon: '🎯', label: 'Personal interest'),
+  'certification': (icon: '🏆', label: 'Certification'),
+};
+
+const _styleLabels = <String, ({String icon, String label})>{
+  'visual': (icon: '🖼', label: 'Visual learner'),
+  'reading': (icon: '📖', label: 'Reading / text'),
+  'hands_on': (icon: '🛠', label: 'Hands-on practice'),
+  'video': (icon: '🎬', label: 'Video content'),
+};
+
+const _branchLabels = <String, String>{
+  'frontend': 'Frontend',
+  'backend': 'Backend',
+  'data_science': 'Data Science',
+};
+
 class ProfileCard extends StatelessWidget {
-  final ProfileStats profile;
-  final String domainName;
+  const ProfileCard({required this.profile, super.key});
 
-  const ProfileCard({
-    required this.profile,
-    required this.domainName,
-    super.key,
-  });
+  final LearningProfile profile;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              domainName,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: profile.completionPercentage / 100,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
-                minHeight: 10,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${profile.completionPercentage.toInt()}% Complete',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _statItem('Mastered', profile.masteredNodes, Colors.green),
-                _statItem('In Progress', profile.inProgressNodes, Colors.blue),
-                _statItem('Not Started', profile.notStartedNodes, Colors.grey),
-              ],
-            ),
-          ],
+    final rows = _buildRows();
+    if (rows.isEmpty) {
+      return const InsightsCard(
+        child: Text(
+          'No profile information provided at enrollment.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: AppColors.textMuted),
         ),
+      );
+    }
+
+    return InsightsCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        children: rows,
       ),
     );
   }
 
-  Widget _statItem(String label, int value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value.toString(),
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: color,
+  List<Widget> _buildRows() {
+    final rows = <Widget>[];
+
+    void add(String icon, String label, String value) {
+      rows.add(_ProfileRow(icon: icon, label: label, value: value));
+    }
+
+    final familiarity = profile.familiarityLevel;
+    if (familiarity != null) {
+      add(
+        '🎓',
+        'Experience level',
+        _familiarityLabels[familiarity] ?? familiarity,
+      );
+    }
+
+    final goal = profile.learningGoal;
+    if (goal != null) {
+      final g = _goalLabels[goal];
+      add(g?.icon ?? '🎯', 'Learning goal', g?.label ?? goal);
+    }
+
+    if (profile.weeklyHours != null) {
+      add('⏱', 'Weekly commitment', '${profile.weeklyHours} hours per week');
+    }
+
+    final style = profile.preferredLearningStyle;
+    if (style != null) {
+      final s = _styleLabels[style];
+      add(s?.icon ?? '📚', 'Learning style', s?.label ?? style);
+    }
+
+    final branch = profile.selectedBranchPath;
+    if (branch != null) {
+      add('🌿', 'Selected path', _branchLabels[branch] ?? branch);
+    }
+
+    if (profile.priorSkills != null && profile.priorSkills!.isNotEmpty) {
+      final skills = profile.priorSkills!
+          .split(RegExp(r'[,;]+'))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .take(8)
+          .join(', ');
+      if (skills.isNotEmpty) {
+        add('✓', 'Prior skills', skills);
+      }
+    }
+
+    if (profile.aboutSelf != null && profile.aboutSelf!.isNotEmpty) {
+      final about = profile.aboutSelf!;
+      add(
+        '👤',
+        'About',
+        about.length > 180 ? '${about.substring(0, 180)}…' : about,
+      );
+    }
+
+    return rows;
+  }
+}
+
+class _ProfileRow extends StatelessWidget {
+  const _ProfileRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final String icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE8E2D9))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 28,
+            child: Text(icon, style: const TextStyle(fontSize: 16)),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
-      ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 1,
+                    fontFamily: 'monospace',
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -7,13 +7,15 @@ class AppConfig {
     if (kIsWeb) {
       return const String.fromEnvironment(
         'ATLAS_API_BASE_URL',
-        defaultValue: 'http://10.100.205.105:8080/api/v1',
+
+        defaultValue: 'http://10.140.43.145:8080/api/v1',
+
       );
     }
 
     return const String.fromEnvironment(
       'ATLAS_API_BASE_URL',
-      defaultValue: 'http://10.100.205.105:8080/api/v1',
+      defaultValue: 'http://10.140.43.145:8080/api/v1',
     );
   }
 }
