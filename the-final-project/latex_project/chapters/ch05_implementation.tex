@@ -466,7 +466,7 @@ export async function claimCertificate(enrollmentId: string, userId: string) {
   const completion = await computeCompletion(enrollmentId);
   if (completion.completionPercent < 100) {
     throw ApiError.forbidden(
-      `Roadmap is ${completion.completionPercent}% complete — master every node first.`
+      `Roadmap is ${completion.completionPercent}% complete -- master every node first.`
     );
   }
 
