@@ -35,15 +35,15 @@ To design, develop, and validate an ontology-guided, adaptive learning roadmap g
 
 \textbf{Objective 1: Design and Implement a Hybrid AI Architecture.} Develop and operationalise the \enquote{Skeleton \& Flesh} hybrid architecture that separates curriculum knowledge representation (the verified ontology skeleton) from runtime tutoring (the adaptive AI flesh). Specifically:
 \begin{itemize}
-    \item Create a domain-specific ontology (DAG of learning nodes, prerequisites, learning outcomes) for three initial domains: Frontend Development (HTML/CSS/JavaScript/React), Backend Development (Node.js/Databases), and Data Science Fundamentals (Python/Pandas/Basic ML).
+    \item Create domain-specific ontologies (DAG of learning nodes, prerequisites, learning outcomes) for five initial domains: Frontend Development (HTML/CSS/JavaScript/React), Backend Development (Node.js/Databases/APIs), Data Science (Python/Pandas/ML), DevOps Engineering (Docker/CI-CD/Cloud), and Python (core language fundamentals).
     \item Implement a Teacher Model (offline LLM-based generator) that produces the initial ontology with human expert verification.
-    \item Implement a Tutor Model (runtime, lightweight AI) that generates explanations, quizzes, and resource recommendations grounded in the ontology, preventing hallucination.
+    \item Implement a Tutor Model (runtime, three-tier AI stack) that generates explanations, adaptive quizzes, and conversational answers grounded in the ontology, preventing hallucination through skeleton-constrained generation.
 \end{itemize}
 
 \textbf{Objective 2: Implement the Gatekeeper Pattern for Assessment-Driven Progression.} Engineer and validate the Gatekeeper Pattern, an assessment-driven progression mechanism where learners cannot advance to subsequent learning nodes without passing performance thresholds on adaptive quizzes. Specifically:
 \begin{itemize}
     \item Design three-tier quiz outcomes: Pass ($\ge 80\%$ $\rightarrow$ unlock next node + challenge project), Marginal Pass ($70$--$79\%$ $\rightarrow$ unlock node + flag for spaced repetition), Fail ($<70\%$ $\rightarrow$ trigger resource adaptation or prerequisite review).
-    \item Implement adaptive resource swapping: if a learner fails ($<70\%$), replace documentation-style links (e.g., MDN) with tutorial-style links (e.g., FreeCodeCamp), recognising modality mismatch in learning.
+    \item Implement adaptive content modality: if a learner fails ($<70\%$), trigger a \texttt{resource\_swap} adaptation event that instructs the Tutor Model to regenerate the node explanation in a more tutorial-oriented, step-by-step style rather than a reference-documentation style, recognising modality mismatch in learning.
     \item Implement prerequisite validation: if a learner fails ($<50\%$), recommend review of foundational nodes before retry.
 \end{itemize}
 
@@ -61,18 +61,19 @@ To design, develop, and validate an ontology-guided, adaptive learning roadmap g
     \item Validate that paths maintain prerequisite dependencies and learning outcome alignment.
 \end{itemize}
 
-\textbf{Objective 5: Develop Resource Aggregation and Verification Pipeline.} Build a scalable, quality-assured resource curation system that aggregates high-quality learning resources from trusted domains without manual review of each resource. Specifically:
+\textbf{Objective 5: Develop AI-Grounded Resource Generation.} Build a quality-assured content generation pipeline that produces node-specific learning resources and references anchored entirely within the verified ontology skeleton. Specifically:
 \begin{itemize}
-    \item Integrate Google Programmable Search Engine (PSE) API to fetch resource links only from pre-approved, high-quality domains (GeeksForGeeks, FreeCodeCamp, MDN, official documentation).
-    \item Implement automated link validation: check HTTP status, detect broken links, assess content freshness.
-    \item Maintain a domain whitelist that domain experts can update as new trusted resources emerge, enabling system-level adaptation without manual resource re-creation.
+    \item Generate node explanations and supplementary resource recommendations at runtime using the Tutor Model, constrained to the node's verified learning outcomes so that no external hallucinated links are introduced.
+    \item Attach curated reference links to ontology nodes during the offline authoring phase, verified by domain experts before publication.
+    \item Enable domain expert instructors to review and update node resources through the administrator ontology builder interface, maintaining content quality without system downtime.
 \end{itemize}
 
-\textbf{Objective 6: Develop Cross-Platform User Interfaces.} Create intuitive, responsive user interfaces for both web and mobile platforms enabling learner interaction with the roadmap. Specifically:
+\textbf{Objective 6: Develop Role-Stratified User Interfaces.} Create intuitive, responsive interfaces for all three system roles---learner, domain expert instructor, and administrator---enabling end-to-end interaction with the platform. Specifically:
 \begin{itemize}
-    \item Develop a web interface (React) for desktop/laptop learners, displaying the roadmap as an interactive DAG visualisation, progress tracking, quiz interfaces, and resource recommendations.
-    \item Develop a mobile interface (Flutter) for learners studying on phones/tablets, with optimized navigation, offline capability, and push notifications for spaced repetition reviews.
-    \item Ensure UI/UX consistency across platforms while respecting platform-specific affordances (e.g., touch-optimized interactions on mobile, keyboard shortcuts on web).
+    \item Develop a full-featured web application (React~18 + TypeScript) providing learners with an interactive roadmap DAG, progress dashboards, quiz flows, streaming AI explanations, an AI Instructor chatbot, learning insights analytics, achievement tracking, and certificate download/sharing.
+    \item Develop an instructor portal enabling domain experts to monitor learner progress, view domain-level analytics, review flagged quiz events, and manage ontology content.
+    \item Develop an administrative console for user management, domain lifecycle management, ontology construction, and system statistics monitoring.
+    \item Develop a Flutter-based mobile application (Android/iOS) as a complementary access channel, providing roadmap navigation and quiz interactions for learners on mobile devices.
 \end{itemize}
 
 \textbf{Objective 7: Validate System Effectiveness with Ethiopian Learners.} Conduct empirical evaluation of \projectname's learning efficacy and usability with real learners. Specifically:
@@ -85,10 +86,10 @@ To design, develop, and validate an ontology-guided, adaptive learning roadmap g
 
 \textbf{Objective 8: Ensure System Scalability and Sustainability.} Design and implement \projectname{} as a scalable, maintainable, open-source system capable of extension to additional domains and deployment in resource-constrained environments. Specifically:
 \begin{itemize}
-    \item Deploy on cost-effective cloud infrastructure (AWS or similar) with containerization (Docker) and automated deployment (CI/CD).
-    \item Implement monitoring, logging, and error tracking for system reliability.
+    \item Deploy using Docker Compose with an Nginx reverse proxy, enabling reproducible, infrastructure-agnostic deployment on any VPS or cloud host without vendor lock-in.
+    \item Implement circuit breakers on all three AI providers to guarantee graceful degradation and uninterrupted service when individual AI backends are unavailable.
+    \item Maintain Redis-based response caching to minimise redundant AI API calls and reduce operating costs at scale.
     \item Create comprehensive documentation and developer guides enabling future contributors to extend the system to new domains or platforms.
-    \item Establish a governance model for ontology maintenance and resource curation, enabling community contribution while maintaining quality standards.
 \end{itemize}
 
 \section{Scope and Limitations}
@@ -98,9 +99,9 @@ To design, develop, and validate an ontology-guided, adaptive learning roadmap g
 
 The \projectname{} system encompasses the following capabilities and features:
 
-\textbf{1. Learning Domains:} Three initial technical domains are in scope: (a) Frontend Development (HTML, CSS, JavaScript ES6+, React.js, responsive design), (b) Backend Development (Node.js, Express, RESTful API design, SQL/NoSQL databases), and (c) Data Science Fundamentals (Python, Pandas, NumPy, basic ML algorithms, data visualisation). These domains were selected as high-demand skills with well-defined prerequisite structures and abundant free learning resources from trusted sources.
+\textbf{1. Learning Domains:} Five technical domains are in scope: (a) Frontend Development (HTML, CSS, JavaScript ES6+, React.js, responsive design), (b) Backend Development (Node.js, Express, RESTful API design, SQL/NoSQL databases), (c) Data Science (Python, Pandas, NumPy, basic ML algorithms, data visualisation), (d) DevOps Engineering (Docker, CI/CD pipelines, cloud infrastructure fundamentals), and (e) Python (core language fundamentals, OOP, standard library). These domains were selected as high-demand skills with well-defined prerequisite structures and representational breadth across modern software engineering.
 
-\textbf{2. Hybrid AI Architecture:} Full implementation of the Skeleton \& Flesh strategy, including (a) a Teacher Model that uses LLMs to generate the initial ontology DAG with expert verification, (b) a runtime Tutor Model that generates explanations, quizzes, and resource recommendations constrained by the ontology, and (c) mechanisms to prevent hallucination through RAG-like grounding of LLM outputs in the verified skeleton.
+\textbf{2. Hybrid AI Architecture:} Full implementation of the Skeleton \& Flesh strategy, including (a) a Teacher Model that uses LLMs to generate the initial ontology DAG with expert verification, (b) a runtime Tutor Model implementing a three-tier provider chain (Phi-4-Multimodal $\to$ Ollama/Qwen2.5 $\to$ Gemini 2.5 Flash) that generates explanations, adaptive quizzes, and conversational answers constrained by the verified ontology, and (c) circuit-breaker-guarded provider failover to ensure continuous availability when individual AI backends are unreachable.
 
 \textbf{3. Gatekeeper Pattern:} Complete implementation of assessment-driven progression, including (a) adaptive quiz generation for each node, (b) three-tier outcome logic (Pass/Marginal Pass/Fail), (c) adaptive resource swapping triggered by failure modes, (d) prerequisite validation and enforcement, and (e) challenge project recommendations for learners who pass with high scores.
 
@@ -108,13 +109,15 @@ The \projectname{} system encompasses the following capabilities and features:
 
 \textbf{5. Multi-Path Branching:} Implementation of learner choice at key curriculum junctures, including (a) branching questions (e.g., \enquote{Prefer frontend or backend?}), (b) alternative learning sequences for each path, (c) prerequisites maintained within each path, and (d) reconvergence points at advanced topics.
 
-\textbf{6. Resource Aggregation and Verification:} Full implementation of PSE API integration for resource discovery from whitelisted domains, including (a) automated link validation (HTTP status checks, freshness detection), (b) domain whitelist management, and (c) learner feedback mechanisms to rate resource quality.
+\textbf{6. AI-Grounded Content and Resource Generation:} Full implementation of ontology-constrained content generation, including (a) streaming AI explanations delivered token-by-token via Server-Sent Events (SSE), (b) a conversational AI Instructor chatbot supporting real-time question-and-answer within each learning node, and (c) node-level resource references curated offline by domain experts and surfaced at runtime.
 
-\textbf{7. User Interfaces:} Complete development of (a) a web interface (React + TypeScript) for desktop/laptop learners with roadmap DAG visualisation, progress dashboards, quiz interfaces, and resource panels, and (b) a mobile interface (Flutter) for iOS/Android with touch-optimized navigation and push notifications.
+\textbf{7. User Interfaces:} Complete development of (a) a web application (React 18 + TypeScript) for desktop/laptop learners with roadmap DAG visualisation, progress dashboards, quiz flows, streaming AI panels, learning insights analytics, gamification achievements, and certificate management; (b) an instructor portal for learner monitoring, domain analytics, and flagged event review; (c) an admin console for user, domain, and ontology management; and (d) a Flutter mobile application (Android/iOS) as a complementary access channel.
+
+\textbf{7a. Certificates:} Full implementation of verifiable completion certificates, including (a) server-issued certificates with Crockford base-32 public identifiers upon roadmap mastery, (b) client-side PDF and PNG download via html-to-image and jsPDF, and (c) a publicly accessible, no-authentication verification page at \texttt{/verify/:publicId} for sharing and employer validation.
 
 \textbf{8. User Base:} Initial deployment targets Ethiopian software engineering students (university-level), self-taught engineers, and career-transitioning professionals. A target user base of 50--100 test users for initial validation, with potential to scale to thousands.
 
-\textbf{9. Deployment and Scalability:} Deployment on cloud infrastructure (AWS EC2, RDS, S3) with containerization (Docker), automated deployment (GitHub Actions CI/CD), monitoring (CloudWatch), and cost optimization for resource-constrained deployments.
+\textbf{9. Deployment and Scalability:} Deployment using Docker Compose orchestration with Nginx as a reverse proxy, providing infrastructure-agnostic containerized deployment suitable for any Linux VPS or cloud host. The microservices architecture (API Gateway, Learning Service, AI Service) with Redis caching enables horizontal scaling of individual services independently.
 
 \textbf{10. Methodology:} Agile-Scrum development methodology with 2-week sprints, daily standups, sprint reviews, and retrospectives, ensuring iterative delivery and stakeholder feedback integration.
 
@@ -125,8 +128,8 @@ The following elements are explicitly excluded from this project:
     \item \textbf{Spoken Language Learning:} The system does not support learning of spoken languages. It focuses exclusively on programming languages and technical content, where precision and verification are more tractable.
     \item \textbf{Paid Content Integration:} The system does not aggregate links to paid courses or license proprietary content. It restricts to free, openly accessible resources, ensuring accessibility for Ethiopian learners with limited financial means.
     \item \textbf{Video Content Scraping:} The system does not scrape, host, or re-distribute video content. While it may link to high-quality YouTube videos from trusted educational channels, it does not download or modify video content.
-    \item \textbf{Advanced Gamification:} While the system includes basic progress visualisation, advanced gamification elements (badges, leaderboards, competitive challenges) are out of scope.
-    \item \textbf{Formal Certification:} The system does not issue formal certificates or credentials. Learners receive verifiable completion records, but these are not formally recognised by employers or institutions in the initial deployment.
+    \item \textbf{Advanced Gamification:} While the system implements basic achievement tracking and progress visualisation, advanced competitive gamification elements (leaderboards, peer challenges, community rankings) are out of scope.
+    \item \textbf{Institutional Accreditation:} The system issues verifiable digital certificates of completion with publicly accessible verification links. However, these certificates are not formally accredited by academic institutions or professional certification bodies in the initial deployment.
     \item \textbf{Collaborative Learning:} The system does not include peer collaboration features (discussion forums, pair programming rooms, group projects). Learning paths are individualised.
     \item \textbf{LMS Integration:} Integration with existing Learning Management Systems (Moodle, Canvas, Blackboard) is out of scope. The system operates as a standalone platform.
     \item \textbf{Advanced Personalisation Based on Learning Styles:} While Multi-Path Branching provides some personalisation, the system does not implement advanced learning style detection~\cite{pashler2008}.
@@ -137,7 +140,7 @@ The following elements are explicitly excluded from this project:
 The project acknowledges the following realistic constraints:
 \begin{enumerate}
     \item \textbf{Ontology Verification Bottleneck:} The quality of the skeleton ontology depends on expert verification. If domain experts are unavailable or provide incomplete feedback, the ontology may contain errors or omissions.
-    \item \textbf{Resource Variability:} The quality and availability of resources in whitelisted domains vary. If high-quality resources are unavailable for a node, learning efficacy may be impacted.
+    \item \textbf{Resource Variability:} The quality of AI-generated explanations and supplementary resources varies with LLM provider quality. If the primary and fallback AI providers are both unavailable, the system falls back to cached responses or static node content, which may be less tailored to the learner.
     \item \textbf{Algorithm Calibration:} The Mastery Decay algorithm parameters (14-day yellow threshold, 30-day red threshold, 80\% pass score) are initial estimates informed by research but may require calibration based on real learner data.
     \item \textbf{Scalability Constraints:} At extreme scale, costs for LLM API calls, database queries, and computation may become prohibitive. Cost optimization may be needed.
     \item \textbf{LLM Costs:} While the three-tier fallback architecture reduces LLM costs to approximately \$15 over the project duration---a 99.5\% reduction from the originally planned GPT-4---the Gemini API still incurs costs at scale.
@@ -164,12 +167,12 @@ The project acknowledges the following realistic constraints:
 \projectname{} is architected as a modular microservices system with clear separation of concerns:
 
 \begin{enumerate}
-    \item \textbf{Frontend Layer (Presentation):} Web interface (React + TypeScript) with Redux state management, responsive design, and interactive DAG visualisation. Mobile interface (Flutter) with Dart, optimized for iOS/Android, with offline-first architecture and local SQLite database.
-    \item \textbf{API Gateway Layer (Routing and Authentication):} Node.js/Express API server handling HTTP requests, JWT-based authentication, rate limiting, and request routing to backend services.
-    \item \textbf{Core Business Logic Layer (Application Services):} Learner Service (user profiles, progress tracking), Quiz Service (generation, evaluation, scoring), Resource Service (link management, validation), Adaptation Service (Gatekeeper, Decay, Branching), and Ontology Service (learning nodes, prerequisites).
-    \item \textbf{Data Layer (Persistence):} PostgreSQL (learner profiles, quiz responses, system metadata), Redis Cache (frequently accessed data), and AWS S3 (static assets, backups).
-    \item \textbf{AI/ML Layer (Tutor Model):} LLM API integration with three-tier fallback for runtime explanation and quiz generation.
-    \item \textbf{External Integrations:} Google Programmable Search Engine API for resource discovery, AWS cloud infrastructure.
+    \item \textbf{Frontend Layer (Presentation):} Web application (React 18 + TypeScript + Vite) with Zustand state management, Tailwind CSS, responsive design, and interactive DAG roadmap visualisation via React Flow. Flutter mobile application (Dart) for iOS/Android as a complementary access channel.
+    \item \textbf{API Gateway Layer (Routing and Authentication):} Node.js/Express service handling HTTP request routing, JWT issuance and verification, Google/GitHub OAuth2 flows, rate limiting, and service-to-service proxying.
+    \item \textbf{Learning Service (Core Business Logic):} Node.js/Express/Prisma service encapsulating all domain logic: enrollment management, learner progress tracking, Gatekeeper assessment evaluation, Mastery Decay computation, multi-path branching, certificate issuance, notifications, achievements, and instructor/admin operations.
+    \item \textbf{AI Service (Tutor Model):} Dedicated Node.js service orchestrating the three-tier LLM provider chain (Phi-4 $\to$ Ollama $\to$ Gemini) with circuit breakers, Redis caching, SSE streaming, and structured prompt engineering for quiz generation, explanation generation, and AI Instructor chat.
+    \item \textbf{Data Layer (Persistence):} PostgreSQL with Prisma ORM (learner profiles, ontology, progress, quiz attempts, certificates, achievements), Redis (AI response cache, session data).
+    \item \textbf{Infrastructure Layer:} Docker Compose orchestration, Nginx reverse proxy (routing, SSE buffering control, SSL termination), and GitHub Actions CI/CD pipeline.
 \end{enumerate}
 
 \subsection{Hybrid AI Strategy: Skeleton \& Flesh}
@@ -187,7 +190,7 @@ Learners progress through the roadmap by passing performance thresholds defined 
 \begin{itemize}
     \item \textbf{Tier 1 -- Strong Mastery ($\ge 80\%$):} Quiz score $\ge 80\%$: Node marked \enquote{Done}, learner unlocks the next node. The learner receives a challenge project recommendation (a small real-world problem requiring application of the node's concepts). Node marked as \enquote{Mastered} (green status) with a 14-day decay timer initiated.
     \item \textbf{Tier 2 -- Marginal Mastery ($70$--$79\%$):} Quiz score 70--79\%: Node marked \enquote{Done}, learner unlocks next node, but node is flagged for spaced repetition review. Learners are not offered a challenge project immediately. Node marked as \enquote{Mastered} with a 7-day decay timer (faster decay due to lower initial mastery).
-    \item \textbf{Tier 3 -- Insufficient Mastery ($< 70\%$):} Node remains locked. Score 50--69\% triggers resource adaptation (documentation swapped for tutorial). Score $<50\%$ triggers prerequisite review. Score $<30\%$ flags node for instructor review or escalation.
+    \item \textbf{Tier 3 -- Insufficient Mastery ($< 70\%$):} Node remains locked. Score 50--69\% triggers a \texttt{resource\_swap} adaptation event (Tutor Model regenerates in tutorial-oriented style). Score $<50\%$ triggers prerequisite review. Score $<30\%$ escalates to the instructor via a flagged event.
 \end{itemize}
 
 \subsection{Spaced Repetition Integration: Mastery Decay Algorithm}
@@ -213,17 +216,17 @@ After completing foundational nodes (e.g., \enquote{Core Programming Fundamental
 
 Each path maintains prerequisite integrity. Paths converge at \enquote{Full-Stack Integration} (Frontend/Backend) or \enquote{AI/ML Systems Design} (Data Science) nodes, ensuring foundational coherence while respecting learner agency.
 
-\subsection{Resource Aggregation: PSE API Integration}
+\subsection{Resource Generation: Ontology-Grounded AI Content}
 
-Resource discovery and validation are automated through a hybrid curation model:
+Learning content is delivered through a two-layer approach that prevents hallucination by anchoring all AI output within the verified ontology:
 
-\textbf{Domain Whitelisting:} During ontology creation, domain experts specify trusted content providers. Example whitelist for \enquote{JavaScript Fundamentals} includes MDN Web Docs, JavaScript.info, FreeCodeCamp, official ECMAScript specifications, and trusted educational blogs.
+\textbf{Offline Curation Layer:} During ontology authoring, domain experts attach curated reference links directly to each learning node. These resources are reviewed for accuracy and availability before publication and are served immediately to learners without AI mediation.
 
-\textbf{Runtime Resource Fetching:} The Resource Service queries the Google PSE API using pre-configured search filters restricted to whitelisted domains. Results are ranked by relevance and freshness, with the top 3--5 results presented to the learner.
+\textbf{Runtime AI Generation Layer:} When a learner enters a node, the Learning Service invokes the AI Service to generate a node-specific explanation. The prompt includes the node's title, learning outcomes, difficulty level, and prerequisite chain---all drawn from the verified skeleton. The Tutor Model may not introduce concepts or topics outside this context, preventing factual deviation. Explanations are streamed token-by-token to the client via SSE for immediate display.
 
-\textbf{Link Validation Pipeline:} All recommended links undergo HTTP status checks (ensuring links are live), content freshness checks (flagging outdated tutorials), and optional NLP-based content summarisation.
+\textbf{AI Instructor (Conversational):} Each learning node hosts a persistent AI Instructor chatbot. Learner questions are sent with the same node context block, ensuring answers remain grounded. Chat responses also stream via SSE, providing a responsive conversational experience without waiting for full response generation.
 
-\textbf{Feedback Loop:} Learners rate resources. Domain experts periodically review low-rated resources and update the whitelist, removing consistently poor sources or adding new high-quality sources.
+\textbf{Instructor Oversight:} Domain expert instructors can monitor flagged quiz events and learner analytics to identify nodes where learners consistently struggle, informing future ontology refinements or resource additions.
 
 \subsection{Technology Stack and Justifications}
 
@@ -237,20 +240,22 @@ Table~\ref{tab:ch01_tech_stack} details the technology stack and rationale for e
         \toprule
         Component & Technology & Justification \\
         \midrule
-        Frontend Web & React 18 + TypeScript & Type safety, large ecosystem \\
-        Frontend Mobile & Flutter (Dart) & Cross-platform, offline-first \\
-        DAG Visualization & D3.js or Vis.js & Powerful graph visualisation \\
-        API Server & Node.js + Express & Non-blocking I/O \\
-        Authentication & JWT + OAuth2 & Stateless, scalable \\
-        Database & PostgreSQL & ACID compliance \\
+        Frontend Web & React 18 + TypeScript + Vite & Type safety, fast HMR, large ecosystem \\
+        Frontend Mobile & Flutter (Dart) & Cross-platform iOS/Android \\
+        DAG Visualization & React Flow & Declarative node-graph with React \\
+        API Gateway & Node.js + Express & Routing, JWT auth, rate limiting \\
+        Learning Service & Node.js + Express + Prisma & Business logic, ORM type safety \\
+        AI Service & Node.js + Express & AI provider orchestration \\
+        Authentication & JWT + Google/GitHub OAuth2 & Stateless, social login support \\
+        Database & PostgreSQL + Prisma ORM & ACID compliance, type-safe queries \\
         Cache & Redis & In-memory cache, sub-ms latency \\
-        File Storage & AWS S3 & Scalable object storage \\
-        LLM Integration & Three-tier fallback & Cost optimization, reliability \\
-        Search Integration & Google PSE API & Domain-restricted search \\
-        Cloud Infrastructure & AWS (EC2, RDS, S3) & Scalability \\
-        Containerization & Docker & Reproducible deployments \\
-        CI/CD & GitHub Actions & Automated testing/deployment \\
-        Monitoring & CloudWatch + Sentry & Real-time monitoring \\
+        LLM --- Primary & Phi-4-Multimodal & Zero-cost, MIT licence \\
+        LLM --- Fallback & Ollama (Qwen2.5-3B) & Local CPU inference, offline capable \\
+        LLM --- Last Resort & Gemini 2.5 Flash API & High quality, cost-optimized \\
+        AI Streaming & Server-Sent Events (SSE) & Real-time token streaming \\
+        Reverse Proxy & Nginx & Load balancing, SSE buffering control \\
+        Containerization & Docker + Docker Compose & Reproducible, portable deployment \\
+        CI/CD & GitHub Actions & Automated testing and deployment \\
         Code Repository & GitHub & Open-source collaboration \\
         \bottomrule
     \end{tabular}
@@ -262,7 +267,7 @@ The LLM architecture employs a three-tier fallback system designed to optimise f
 
 \textbf{Tier 1 --- Primary: Phi-4-Multimodal (Microsoft).} Phi-4-Multimodal (5.6B parameters, $\sim$11GB in FP16) runs on Kaggle's free T4 GPU (16GB VRAM), providing LLM inference at zero financial cost---no cloud API fees, no credit card required, no usage limits. It is released under the permissive MIT license, ensuring no vendor lock-in. With native multimodal support (text, image, audio), it opens future possibilities for voice-based tutoring and diagram analysis. At $\sim$74\% MMLU, it provides adequate quality for quiz generation and explanation tasks. The primary limitation is inference speed ($\sim$16 tok/s) on Kaggle's T4 GPU, mitigated by response caching.
 
-\textbf{Tier 2 --- Secondary: Qwen2.5-3B (Alibaba, via Ollama).} Qwen2.5-3B runs on any modern laptop CPU via Ollama with no GPU required. At only 3 billion parameters ($\sim$6GB in FP16), inference on CPU completes in 30--90 seconds---slow but functional. Despite its small size, Qwen2.5-3B achieves 65.9\% on MATH, 86.7\% on GSM8K, and 74.4\% on HumanEval. Crucially, it offers complete offline capability---the system remains functional even when both the Gemini API and the Kaggle tunnel are unavailable, a realistic scenario for Ethiopian learners in areas with unreliable internet.
+\textbf{Tier 2 --- Secondary: Ollama (Qwen2.5-3B, Alibaba).} The Ollama runtime serves Qwen2.5-3B on any modern CPU with no GPU required. At only 3 billion parameters ($\sim$6GB in FP16), inference completes in 30--90 seconds---slow but functional for cached or low-traffic scenarios. Despite its small size, Qwen2.5-3B achieves 65.9\% on MATH, 86.7\% on GSM8K, and 74.4\% on HumanEval. Crucially, Ollama provides complete offline capability---the system remains functional even when both the Phi-4 endpoint and the Gemini API are unavailable, a realistic scenario for Ethiopian deployments in areas with intermittent internet connectivity. The Ollama server is deployed alongside the AI Service container within the same Docker Compose stack.
 
 \textbf{Tier 3 --- Tertiary: Gemini 2.5 Flash (Google).} Gemini 2.5 Flash is the last-resort fallback, used only when both local models are unavailable. With 88.4\% on MMLU and 82.8\% on GPQA Diamond, it outperforms both local alternatives by a wide margin. At 186--232 output tokens per second with a time-to-first-token of $\sim$0.44 seconds, it is 10--14x faster than Phi-4-Multimodal. The 1,048,576 token context window enables loading entire textbooks and comprehensive documentation into a single prompt. At \$0.15 per million input tokens and \$0.60 per million output tokens (with cached input at \$0.03/1M), it represents a 99.9\% cost reduction from the original GPT-4 budget estimate of \$450/month. The critical limitation is that it is proprietary and API-only, requiring internet connectivity.
 
@@ -293,7 +298,7 @@ The project is divided into six sequential phases over six months:
 \begin{itemize}
     \item \textbf{Phase 1 (Weeks 1--4): Foundation \& Architecture.} System architecture documentation, database schema design, API specification, frontend component library setup, CI/CD pipeline configuration. Milestone: Architecture review approved, development environment setup complete.
     \item \textbf{Phase 2 (Weeks 5--8): Ontology Design \& Teacher Model.} Domain ontology for Frontend Development (30--50 learning nodes), ontology validation framework, Teacher Model implementation, expert verification process. Milestone: Pilot ontology created and verified.
-    \item \textbf{Phase 3 (Weeks 9--12): Core Features --- Gatekeeper \& Tutor Model.} Gatekeeper Pattern implementation, Tutor Model (runtime LLM integration), quiz generation and evaluation logic, resource discovery (PSE API). Milestone: Gatekeeper logic tested, first resource recommendations surfaced.
+    \item \textbf{Phase 3 (Weeks 9--12): Core Features --- Gatekeeper \& Tutor Model.} Gatekeeper Pattern implementation, Tutor Model (runtime LLM integration), quiz generation and evaluation logic, SERP API integration for supplementary resource discovery. Milestone: Gatekeeper logic tested, first resource recommendations surfaced.
     \item \textbf{Phase 4 (Weeks 13--16): Adaptation \& Persistence.} Mastery Decay algorithm, multi-path branching UI, learner progress persistence, spaced repetition notifications, learner dashboard. Milestone: Branching paths selectable in UI, progress data persisted.
     \item \textbf{Phase 5 (Weeks 17--20): Platforms \& Optimization.} Web interface fully functional, mobile interface MVP, performance optimization, scalability testing, cost analysis. Milestone: Web platform user testing with 10 learners, performance benchmarks meeting SLAs.
     \item \textbf{Phase 6 (Weeks 21--24): Validation \& Deployment.} Empirical evaluation with 50--100 Ethiopian learners, final bug fixes, production deployment, documentation and developer guides. Milestone: Pre/post assessments completed, statistical analysis of learning gains.
@@ -324,10 +329,10 @@ Table~\ref{tab:ch01_plan} provides a detailed weekly breakdown across 12 sprints
     5--6   & Sprint 3  & Ontology framework, Teacher Model prototype & Ontology JSON schema, Teacher Model prototype, expert interview notes & Ontology structure finalised, sample skeleton generated & AI Engineer \\
     7--8   & Sprint 4  & Pilot domain ontology (Frontend), expert verification & Frontend ontology (40 nodes), verification checklist (50 items) & Pilot ontology created and verified & AI Engineer \\
     9--10  & Sprint 5  & Gatekeeper Pattern implementation, quiz service & Gatekeeper logic, quiz service API, LLM quiz generation & Three-tier outcomes validated & Backend Lead + AI \\
-    11--12 & Sprint 6  & Tutor Model, resource discovery (PSE API) & Tutor Model service, PSE API wrapper, learner feedback survey & Tutor Model generates explanations, resources fetched & Backend Lead + AI \\
+    11--12 & Sprint 6  & Tutor Model, resource discovery (SERP API) & Tutor Model service, SERP API wrapper, learner feedback survey & Tutor Model generates explanations, resources fetched & Backend Lead + AI \\
     13--14 & Sprint 7  & Mastery Decay, spaced repetition, dashboard UI & Decay algorithm, micro-quiz generation, dashboard wireframes & Decay states correct, micro-quizzes triggered & Full-Stack \\
     15--16 & Sprint 8  & Multi-path branching, prerequisite validation & Branching logic, prerequisite graph validation, React branching UI & Paths selectable, validation prevents invalid paths & Frontend + Backend \\
-    17--18 & Sprint 9  & React web interface (DAG, quiz, dashboard) & React components (D3.js DAG viewer, quiz UI, dashboard, resource panel) & Web interface functional, DAG interactive, quiz flow smooth & Frontend Lead \\
+    17--18 & Sprint 9  & React web interface (DAG, quiz, dashboard) & React components (React Flow DAG viewer, quiz UI, dashboard, AI panels) & Web interface functional, DAG interactive, quiz flow smooth & Frontend Lead \\
     19--20 & Sprint 10 & Flutter mobile interface & Flutter widgets (roadmap, quiz, notifications, offline DB) & Mobile app installable, offline tested, notifications triggered & Mobile Lead \\
     21--22 & Sprint 11 & Performance optimization, scalability testing & Performance benchmarks (load $<$2s, API $<$500ms), load test report (1000 concurrent) & SLAs met, system handles 1000 concurrent users & Tech Lead + DevOps \\
     23--24 & Sprint 12 & Empirical evaluation, production deployment & User study results, deployment checklist, documentation & Pre/post assessments analysed, production deployed & QA + Tech Lead \\
@@ -338,25 +343,8 @@ Table~\ref{tab:ch01_plan} provides a detailed weekly breakdown across 12 sprints
 
 Table~\ref{tab:ch01_budget} presents the six-month budget for development, testing, and initial deployment for 50--100 concurrent test users.
 
-\begin{table}[htbp]
-    \centering
-    \caption{Detailed budget}
-    \label{tab:ch01_budget}
-    \begin{tabular}{llrrr}
-        \toprule
-        Budget Category & Item & Unit Cost & Quantity/Duration & Subtotal \\
-        \midrule
-        Cloud Infrastructure & AWS EC2 t3.medium & \$35/month & 6 months & \$210 \\
-        API \& Services & Gemini 2.5 Flash API & $\sim$\$0.15/1M tokens & $\sim$5M tokens/month & $\sim$\$15 \\
-        & Google PSE API & \$100/month & 6 months & \$600 \\
-        Domain \& SSL & Domain registration & \$12/year & 1 & \$12 \\
-        \midrule
-        \multicolumn{4}{l}{\textbf{TOTAL}} & \$837.00 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
 
-The three-tier fallback architecture reduces LLM costs from the originally planned \$2,700 to approximately \$15---a 99.5\% reduction. Phi-4-Multimodal runs on Kaggle's free T4 GPU at no cost (primary). Qwen2.5-3B runs locally via Ollama on CPU at no cost (secondary fallback). Gemini 2.5 Flash API (tertiary, last resort) is used only when both local models are unavailable. If API costs become significant at scale, the system can shift to using Phi-4-Multimodal and Qwen2.5-3B exclusively, eliminating API costs entirely while maintaining acceptable generation quality.
+
 
 \section{Significance of the Project}
 \label{sec:significance}
@@ -373,7 +361,7 @@ The three-tier fallback architecture reduces LLM costs from the originally plann
 
 \subsection{Regional and Socioeconomic Significance (Ethiopian Context)}
 
-\textbf{1. Educational Access and Democratization:} In Ethiopia, access to quality technical education is limited by geographic constraints, institutional capacity, and cost. \projectname{} is free, web/mobile accessible, and locally developed, removing these barriers. By aggregating high-quality resources and adapting them to learner needs, the system enables thousands of Ethiopian students to achieve technical competence without expensive mentorship or bootcamps.
+\textbf{1. Educational Access and Democratization:} In Ethiopia, access to quality technical education is limited by geographic constraints, institutional capacity, and cost. \projectname{} is free, web-accessible, and locally developed, removing these barriers. By generating personalized learning content grounded in expert-verified curricula and adapting it to each learner's performance, the system enables thousands of Ethiopian students to achieve technical competence without expensive mentorship or bootcamps.
 
 \textbf{2. Employment Readiness and Economic Mobility:} The software engineering job market in Ethiopia is growing rapidly, with demand far exceeding supply. \projectname's focus on contemporary programming domains and assessment-driven progression ensures learners develop verifiable, job-aligned competencies, enhancing employment prospects and reducing skill gaps for employers.
 
@@ -385,7 +373,7 @@ The three-tier fallback architecture reduces LLM costs from the originally plann
 
 \textbf{Scalability of Adaptive Learning:} By decoupling curriculum knowledge (the skeleton) from runtime tutoring (the flesh), \projectname{} demonstrates how adaptive learning can scale beyond manual curation. The system can extend to additional domains by generating new skeletons with expert verification, without redesigning the tutoring engine.
 
-\textbf{Resource Curation Patterns:} The use of Google PSE API for domain-restricted resource discovery demonstrates a practical approach to aggregating high-quality learning materials at scale, applicable to other contexts (medical education, legal education, language learning).
+\textbf{Search-Augmented Resource Discovery:} The use of SERP API for supplementary resource discovery demonstrates a practical approach to surfacing high-quality, domain-relevant learning materials at scale, applicable to other contexts (medical education, legal education, language learning) where curated search is preferable to open-web retrieval.
 
 \textbf{Open-Source EdTech Contribution:} \projectname{} contributes to the open-source EdTech ecosystem alongside platforms like Moodle and Open edX, enabling researchers worldwide to build upon the work.
 
@@ -397,7 +385,7 @@ The three-tier fallback architecture reduces LLM costs from the originally plann
 
 \textbf{Employers:} An increased pool of technically skilled, job-ready graduates benefits employers. The system can be integrated into corporate training programs.
 
-\textbf{Content Creators and Open-Source Communities (Indirect):} By aggregating and recommending high-quality resources from trusted creators, \projectname{} increases visibility and usage of these resources, supporting creators' missions.
+\textbf{Open-Source and Developer Communities (Indirect):} As an open-source platform, \projectname{} invites contributions from the developer community---new domain ontologies, AI prompt improvements, UI components, and language adaptations. This creates a compounding knowledge base that benefits both the project and contributors seeking practical EdTech experience.
 
 \section{Outline of the Study}
 \label{sec:outline}
@@ -405,11 +393,11 @@ The three-tier fallback architecture reduces LLM costs from the originally plann
 This document is structured as follows:
 
 \begin{description}
-    \item[Chapter 1: Introduction (Current Chapter)] Articulates the problem landscape (tutorial hell, absence of adaptive feedback, lack of mastery-based progression, cognitive overload, generic roadmaps, hallucination). Defines objectives for system design, implementation, and validation. Specifies scope and limitations, outlines methodology (Agile-Scrum, microservices, Skeleton \& Flesh, Gatekeeper, Mastery Decay, Multi-Path Branching, PSE API curation), details the plan of activities, presents the budget, and justifies academic, regional, technical, and stakeholder significance.
+    \item[Chapter 1: Introduction (Current Chapter)] Articulates the problem landscape (tutorial hell, absence of adaptive feedback, lack of mastery-based progression, cognitive overload, generic roadmaps, hallucination). Defines objectives for system design, implementation, and validation. Specifies scope and limitations, outlines methodology (Agile-Scrum, microservices, Skeleton \& Flesh, Gatekeeper, Mastery Decay, Multi-Path Branching, SERP API integration), details the plan of activities, presents the budget, and justifies academic, regional, technical, and stakeholder significance.
     \item[Chapter 2: Literature Review] Synthesises research on ITS evolution, adaptive learning, knowledge representation (ontologies and RAG), assessment-driven progression, spaced repetition, personalisation, resource aggregation, and content curation. Analyses gaps in existing solutions and establishes three core lessons: ontology-guided LLM solves hallucination, assessment-driven resource adaptation extends tutoring, and decay-aware adaptation operationalises spacing research.
     \item[Chapter 3: Problem Analysis and Modeling] Provides detailed requirements elicitation methodology, specifies functional and non-functional requirements, and presents system models: use case diagrams, UML class diagrams, sequence diagrams, activity diagrams, and state machine diagrams.
     \item[Chapter 4: System Design and Architecture] Presents the detailed system architecture including microservices layers, Skeleton \& Flesh hybrid AI, Gatekeeper Pattern, Mastery Decay, Multi-Path Branching, database schema, API specifications, and deployment architecture.
-    \item[Chapter 5: Implementation and Development] Documents development process, technologies used, code organisation, integration of LLM APIs and Google PSE API, testing strategy, and lessons learned.
+    \item[Chapter 5: Implementation and Development] Documents development process, technologies used, code organisation, integration of the three-tier LLM stack and SERP API, SSE streaming implementation, certificate system, testing strategy, and lessons learned.
     \item[Chapter 6: Evaluation and Validation] Specifies evaluation methodology with empirical user study, defines success metrics (learning gains, engagement, usability), presents results, and discusses findings and limitations.
     \item[Chapter 7: Conclusions and Recommendations] Summarises project achievements, discusses how objectives were met, identifies technical and research contributions, and recommends future work and sustainability strategies.
 \end{description}

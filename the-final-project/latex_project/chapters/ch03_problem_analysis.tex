@@ -37,7 +37,7 @@ The stakeholders affected by these limitations are:
 \begin{itemize}
     \item \textbf{Primary Stakeholders---Learners (Ethiopian Students, Junior Developers, Career-Changers):} Frustration from \enquote{tutorial hell} leads to demotivation, skill gaps, and delayed career progression. In Ethiopia, where premium mentorship is prohibitive, this perpetuates economic inequality---learners waste time (85\% report inefficient paths), experience high dropout, and face retention decay, hindering employability in tech sectors.
     \item \textbf{Secondary Stakeholders---Educators and Institutions (e.g., AASTU Faculty):} Overburdened with remedial teaching due to self-directed gaps; limited tools for integrating adaptive systems into curricula, reducing institutional efficacy.
-    \item \textbf{Tertiary Stakeholders---Content Providers and Communities (e.g., FreeCodeCamp, Reddit):} Underutilised high-quality resources due to discovery barriers; community biases amplify unreliable content, eroding trust.
+    \item \textbf{Tertiary Stakeholders---Instructors and Domain Experts:} Lack tools to monitor learner progress at scale, identify struggling learners early, or contribute domain knowledge to structured curricula without significant manual effort. Existing platforms provide no instructor-facing analytics or intervention mechanisms.
 \end{itemize}
 
 \textbf{Overall Impact:} These limitations create a vicious cycle: fragmentation increases cognitive load, lack of feedback fosters false confidence, and decay causes repeated failures, impacting motivation and long-term skill acquisition. In developing economies, this widens the digital divide, as learners cannot compete with those in resource-rich environments.
@@ -77,59 +77,99 @@ Functional requirements specify what the system must do, organised by use case a
             \item[\textbf{FR1.3:}] The system shall persist and version ontologies, maintaining a history of changes and enabling rollback if necessary.
         \end{enumerate}
 
-    \item[\textbf{FR2:}] \textbf{Learner Management}
+    \item[\textbf{FR2:}] \textbf{Learner Management and Enrollment}
         \begin{enumerate}
-            \item[\textbf{FR2.1:}] The system shall enable user registration (email, social login via Google/GitHub) and profile creation.
-            \item[\textbf{FR2.2:}] The system shall track learner progress, including node completion status, quiz scores, attempts, and timestamps.
-            \item[\textbf{FR2.3:}] The system shall compute and display learner statistics (total nodes completed, average quiz score, time spent, learning pace).
+            \item[\textbf{FR2.1:}] The system shall enable user registration via email/password, Google OAuth, and GitHub OAuth, with JWT-based session management and automatic token refresh.
+            \item[\textbf{FR2.2:}] The system shall provide an enrollment flow in which the learner selects a domain, chooses an initial branch path (\texttt{frontend}, \texttt{backend}, or \texttt{data\_science}), and submits a learner profile capturing: weekly hours available (\texttt{weeklyHours}), domain familiarity level (\texttt{familiarityLevel}), learning goal (\texttt{learningGoal}), free-text self-description (\texttt{aboutSelf}), preferred learning style (\texttt{preferredLearningStyle}), and prior skills (\texttt{priorSkills}). These fields shall be persisted in the \texttt{Enrollment} record and used to personalise AI-generated content.
+            \item[\textbf{FR2.3:}] The system shall track learner progress per enrolled domain, including node mastery state, quiz scores, attempt counts, mastery timestamps, and adaptation events.
+            \item[\textbf{FR2.4:}] The system shall compute and display learner statistics per enrollment: total nodes completed, mastery breakdown by state, average quiz score, estimated completion timeline, and learning velocity ratio.
         \end{enumerate}
 
     \item[\textbf{FR3:}] \textbf{Quiz Generation and Delivery}
         \begin{enumerate}
             \item[\textbf{FR3.1:}] The system shall generate domain-specific quizzes using the Tutor Model (runtime LLM), producing 3--5 questions per node, grounded in the node's learning outcomes.
-            \item[\textbf{FR3.2:}] The system shall support multiple question types: multiple-choice, short-answer, code-completion, true-false, matching.
+            \item[\textbf{FR3.2:}] The system shall generate multiple-choice questions (MCQ) with four answer options per question, one correct answer, and an explanation of the correct answer. Question prompts may include inline code snippets where appropriate for the domain.
             \item[\textbf{FR3.3:}] The system shall evaluate quiz responses, compute scores, and provide immediate feedback on correctness.
             \item[\textbf{FR3.4:}] The system shall generate micro-quizzes (2--3 questions) triggered by Mastery Decay transitions.
         \end{enumerate}
 
     \item[\textbf{FR4:}] \textbf{Gatekeeper Pattern Implementation}
         \begin{enumerate}
-            \item[\textbf{FR4.1:}] The system shall enforce three-tier progression logic: Pass (\(\ge 80\%\) $\rightarrow$ unlock next node + challenge project), Marginal Pass (70--79\% $\rightarrow$ unlock but flag for review), Fail (\(<70\%\) $\rightarrow$ lock and trigger remediation).
+            \item[\textbf{FR4.1:}] The system shall enforce five-tier progression logic: Strong Pass (\(\ge 80\%\) $\rightarrow$ node mastered, 14-day decay timer, challenge project recommended), Marginal Pass (70--79\% $\rightarrow$ node mastered, 7-day accelerated decay timer), Fail-Low (50--69\% $\rightarrow$ \texttt{resource\_swap} adaptation event, node stays locked), Fail-Fundamental (30--49\% $\rightarrow$ \texttt{prerequisite\_review} adaptation event), Fail-Severe (\(<30\%\) $\rightarrow$ \texttt{instructor\_escalation} event).
             \item[\textbf{FR4.2:}] The system shall validate prerequisites before unlocking nodes, preventing progression if prerequisites are not mastered.
             \item[\textbf{FR4.3:}] Upon Pass (\(\ge 80\%\)), the system shall recommend a challenge project relevant to the node's outcomes.
             \item[\textbf{FR4.4:}] Upon Fail (\(<70\%\)), the system shall trigger resource adaptation or prerequisite review based on failure severity.
         \end{enumerate}
 
-    \item[\textbf{FR5:}] \textbf{Resource Recommendation and Curation}
+    \item[\textbf{FR5:}] \textbf{Content Generation and Resource Curation}
         \begin{enumerate}
-            \item[\textbf{FR5.1:}] The system shall integrate the Google Programmable Search Engine (PSE) API to fetch resource links from pre-approved whitelisted domains.
-            \item[\textbf{FR5.2:}] The system shall validate recommended links via automated checks (HTTP status, content freshness, relevance).
-            \item[\textbf{FR5.3:}] The system shall support learner feedback on resource quality (rating, comments) and use ratings to inform future recommendations.
-            \item[\textbf{FR5.4:}] Upon resource adaptation (triggered by Gatekeeper Fail), the system shall recommend alternative resources with different modalities (e.g., swap documentation for tutorial).
+            \item[\textbf{FR5.1:}] The system shall generate node-specific explanations at runtime using the Tutor Model (three-tier LLM stack), with the prompt constrained to the node's verified title, learning outcomes, difficulty level, and prerequisite chain to prevent hallucination.
+            \item[\textbf{FR5.2:}] The system shall deliver AI-generated explanations token-by-token to the client via Server-Sent Events (SSE), with the first token visible within 1 second of the learner's request.
+            \item[\textbf{FR5.3:}] The system shall support offline expert curation: domain expert instructors shall be able to attach, update, and remove curated reference links and reading materials directly to each ontology node via the admin interface.
+            \item[\textbf{FR5.4:}] The system shall integrate the SERP API to surface supplementary resources scoped to a node's verified learning outcomes, available to instructors for promotion into the curated layer.
+            \item[\textbf{FR5.5:}] Upon a \texttt{resource\_swap} adaptation event (Gatekeeper fail at 50--69\%), the system shall re-invoke the Tutor Model with a tutorial-oriented style instruction, delivering regenerated content in a more scaffolded, step-by-step format.
         \end{enumerate}
 
     \item[\textbf{FR6:}] \textbf{Mastery Decay and Spaced Repetition}
         \begin{enumerate}
-            \item[\textbf{FR6.1:}] The system shall track the time since a node was last reviewed and compute decay state (Green $\le 14$ days, Yellow $14$--$30$ days, Red $>30$ days).
+            \item[\textbf{FR6.1:}] The system shall track the time since a node was last reviewed and compute decay state. Strong-pass nodes transition Green $\to$ Yellow after 14 days and Yellow $\to$ Red after 30 days. Marginal-pass nodes use an accelerated 7-day Green $\to$ Yellow threshold, reflecting lower initial encoding strength.
             \item[\textbf{FR6.2:}] Upon transition to Yellow or Red, the system shall automatically generate and present a micro-quiz to the learner.
             \item[\textbf{FR6.3:}] The system shall visualise decay states in the learner's roadmap (colour-coded nodes).
-            \item[\textbf{FR6.4:}] The system shall send notifications (in-app or email) alerting learners to nodes requiring review.
+            \item[\textbf{FR6.4:}] The system shall send in-app notifications alerting learners when one or more nodes transition to Yellow or Red decay state, with a direct link to the affected node.
         \end{enumerate}
 
     \item[\textbf{FR7:}] \textbf{Multi-Path Branching}
         \begin{enumerate}
-            \item[\textbf{FR7.1:}] The system shall identify branching points in the ontology where learners can choose alternative paths (e.g., Frontend vs.\ Backend).
-            \item[\textbf{FR7.2:}] Upon reaching a branching point, the system shall present a choice question and path recommendations.
-            \item[\textbf{FR7.3:}] After learner selection, the system shall dynamically adjust the roadmap to display the selected path and its prerequisites.
-            \item[\textbf{FR7.4:}] The system shall ensure paths reconverge at advanced nodes, maintaining semantic coherence.
+            \item[\textbf{FR7.1:}] The ontology shall tag each learning node with a \texttt{branchPath} attribute (\texttt{frontend}, \texttt{backend}, \texttt{data\_science}, or \texttt{shared}). Shared nodes are displayed on all paths; branch-specific nodes are displayed only when that path is active.
+            \item[\textbf{FR7.2:}] At enrollment time, the learner shall select an initial branch path. This selection shall be persisted on the \texttt{Enrollment} record and used to determine the initial roadmap view (covered under FR2.2).
+            \item[\textbf{FR7.3:}] After enrollment, the learner shall be able to switch their active branch path at any time via the roadmap sidebar branch selector. The roadmap shall re-render immediately to show the selected branch's nodes.
+            \item[\textbf{FR7.4:}] The system shall ensure that prerequisite integrity is maintained across branch switches: nodes that require prerequisites from a different branch shall remain locked until those prerequisites are mastered.
         \end{enumerate}
 
-    \item[\textbf{FR8:}] \textbf{User Interfaces}
+    \item[\textbf{FR8:}] \textbf{Learner Web Interface}
         \begin{enumerate}
-            \item[\textbf{FR8.1:}] The web interface (React) shall display the ontology as an interactive DAG visualisation with zoom, pan, and filtering capabilities.
-            \item[\textbf{FR8.2:}] The web interface shall include quiz delivery UI, progress dashboard, resource panel, and learner settings.
-            \item[\textbf{FR8.3:}] The mobile interface (Flutter) shall provide touch-optimized navigation, offline support (cached roadmap data), and push notifications.
-            \item[\textbf{FR8.4:}] Both interfaces shall be responsive, adapting to different screen sizes (mobile, tablet, desktop).
+            \item[\textbf{FR8.1:}] The web interface (React 18 + TypeScript) shall display the ontology as an interactive DAG visualisation (React Flow) with zoom, pan, node selection, mastery-state colour coding, and decay-state indicators.
+            \item[\textbf{FR8.2:}] The web interface shall include: quiz delivery UI, streaming AI explanation panel, AI Instructor chatbot panel, progress sidebar with mastery breakdown and timeline estimate, learning insights analytics page, gamification achievements page, and certificate management page.
+            \item[\textbf{FR8.3:}] The mobile interface (Flutter) shall provide touch-optimized roadmap navigation, quiz delivery, and push notifications for decay reminders.
+            \item[\textbf{FR8.4:}] The web interface shall be fully responsive, supporting mobile, tablet, and desktop viewports without loss of functionality.
+        \end{enumerate}
+
+    \item[\textbf{FR9:}] \textbf{AI Instructor --- Streaming Conversational Tutor}
+        \begin{enumerate}
+            \item[\textbf{FR9.1:}] Each learning node shall host a persistent AI Instructor chat panel. Learners may ask any question about the current node and receive an AI-generated answer grounded in the node's ontology context.
+            \item[\textbf{FR9.2:}] AI Instructor responses shall be streamed token-by-token to the client via SSE, with the first token visible within 1 second.
+            \item[\textbf{FR9.3:}] Every AI Instructor call shall include the full node context (title, learning outcomes, difficulty, prerequisite chain) in the system prompt; the model may not introduce topics outside that context.
+        \end{enumerate}
+
+    \item[\textbf{FR10:}] \textbf{Completion Certificates}
+        \begin{enumerate}
+            \item[\textbf{FR10.1:}] The system shall issue a certificate when a learner's roadmap reaches 100\% mastery. The certificate shall be idempotent: claiming it a second time returns the existing certificate.
+            \item[\textbf{FR10.2:}] Each certificate shall carry a unique Crockford base-32 public identifier (format \texttt{ATL-XXXX-XXXX}) stored in the database with learner name, course name, hours invested, average quiz score, and completion date.
+            \item[\textbf{FR10.3:}] The learner shall be able to download the certificate as a high-resolution PDF (A4 landscape) or PNG file, generated client-side from the rendered certificate canvas.
+            \item[\textbf{FR10.4:}] A publicly accessible, no-authentication verification page at \texttt{/verify/:publicId} shall re-render the certificate and display a ``Verified Authentic'' badge, enabling employer or institutional verification via a shareable link.
+        \end{enumerate}
+
+    \item[\textbf{FR11:}] \textbf{Gamification and Achievements}
+        \begin{enumerate}
+            \item[\textbf{FR11.1:}] The system shall award experience points (XP) for quiz passes, scaled by score tier (strong pass earns more XP than marginal pass) and attempt efficiency (bonus XP for first-attempt mastery).
+            \item[\textbf{FR11.2:}] The system shall compute a learner level from cumulative XP and display a progress bar toward the next level threshold.
+            \item[\textbf{FR11.3:}] The system shall track daily activity streaks and award streak badges at milestone thresholds (e.g., 3-day, 7-day, 30-day).
+            \item[\textbf{FR11.4:}] The system shall define and automatically award named achievement badges for significant milestones (e.g., first mastery, quiz ace, speed learner, completionist, decay defender).
+            \item[\textbf{FR11.5:}] The system shall define weekly learning goals (a target number of nodes to master per week) and display a progress indicator toward the current week's goal, resetting every Monday.
+        \end{enumerate}
+
+    \item[\textbf{FR12:}] \textbf{Learning Analytics and Insights}
+        \begin{enumerate}
+            \item[\textbf{FR12.1:}] The system shall record velocity data per mastered node (\texttt{estimatedHours}, \texttt{actualHours}, \texttt{startedAt}, \texttt{completedAt}) and compute a \texttt{velocityRatio} (actual / estimated).
+            \item[\textbf{FR12.2:}] The system shall compute a velocity-adjusted completion forecast from remaining unmastered node hours, the learner's weekly hours input, and their average \texttt{velocityRatio}.
+            \item[\textbf{FR12.3:}] The system shall surface a per-enrollment Insights dashboard displaying: activity heatmap (daily study sessions), velocity trend over time, mastery breakdown by state, and the estimated completion timeline with velocity multiplier.
+            \item[\textbf{FR12.4:}] The system shall provide a global Insights page aggregating analytics across all of the learner's active enrollments, giving an overview of total study activity and progress across domains.
+        \end{enumerate}
+
+    \item[\textbf{FR13:}] \textbf{Instructor and Administrator Portals}
+        \begin{enumerate}
+            \item[\textbf{FR13.1:}] A domain expert instructor portal shall display: list of enrolled learners with progress summaries, per-learner node-level progress drill-down, domain-level analytics (completion rates, average scores, common failure nodes), and a flagged events queue (\texttt{instructor\_escalation} adaptation events). Instructors shall be able to resolve flagged events, recording acknowledgement and optional notes.
+            \item[\textbf{FR13.2:}] An administrator console shall provide: user management (list, role assignment, deactivation), domain management (create, publish, archive domains), ontology builder (graphical node editor for learning nodes, prerequisites, and learning outcomes), and system statistics (total users, enrollments, quiz attempts, adaptation event counts).
         \end{enumerate}
 \end{enumerate}
 
@@ -142,7 +182,8 @@ Non-functional requirements specify quality attributes and constraints:
         \begin{enumerate}
             \item[\textbf{NFR1.1:}] Page load time for roadmap visualisation shall not exceed 2 seconds on typical internet connections (\(>5\) Mbps).
             \item[\textbf{NFR1.2:}] API response time for quiz delivery and scoring shall not exceed 500 milliseconds (p95).
-            \item[\textbf{NFR1.3:}] LLM-based quiz generation shall complete within 3 seconds of user request, leveraging caching to accelerate repeated requests.
+            \item[\textbf{NFR1.3:}] LLM-based quiz generation shall complete within 3 seconds of user request, leveraging Redis caching to serve repeated requests instantly.
+            \item[\textbf{NFR1.4:}] For SSE-streamed AI content (explanations and AI Instructor responses), the first token shall be visible to the learner within 1 second of the request, regardless of total generation time. The Nginx reverse proxy shall be configured with \texttt{proxy\_buffering off} on SSE routes to prevent token accumulation.
         \end{enumerate}
 
     \item[\textbf{NFR2:}] \textbf{Scalability}
@@ -156,12 +197,12 @@ Non-functional requirements specify quality attributes and constraints:
         \begin{enumerate}
             \item[\textbf{NFR3.1:}] System uptime shall be \(\ge 99.5\%\) (measured monthly).
             \item[\textbf{NFR3.2:}] Critical data (learner progress, quiz responses) shall be backed up daily, with recovery capability within 4 hours.
-            \item[\textbf{NFR3.3:}] The system shall implement graceful degradation: if LLM API is unavailable, fallback to pre-generated quizzes and explanations.
+            \item[\textbf{NFR3.3:}] The system shall implement graceful degradation through a three-tier LLM provider chain with per-provider circuit breakers: if the primary provider (Phi-4) is unavailable, the system automatically fails over to Ollama (local Qwen2.5-3B); if Ollama is unavailable, it falls over to Gemini 2.5 Flash. Redis-cached responses serve repeat requests without any AI provider call.
         \end{enumerate}
 
     \item[\textbf{NFR4:}] \textbf{Security}
         \begin{enumerate}
-            \item[\textbf{NFR4.1:}] User authentication shall use JWT tokens with secure token storage (httpOnly cookies).
+            \item[\textbf{NFR4.1:}] User authentication shall use short-lived JWT access tokens (15-minute expiry) paired with long-lived refresh tokens. Access tokens are stored in client-side application state (Zustand persisted store); refresh tokens are stored securely in the database and rotated on each use.
             \item[\textbf{NFR4.2:}] Sensitive data (user profiles, quiz responses) shall be encrypted in transit (HTTPS) and at rest (database encryption).
             \item[\textbf{NFR4.3:}] The system shall implement role-based access control (RBAC): learner, instructor, admin, system administrator roles with distinct permissions.
             \item[\textbf{NFR4.4:}] The system shall sanitize user inputs and API responses to prevent SQL injection and XSS attacks.
@@ -185,9 +226,9 @@ Non-functional requirements specify quality attributes and constraints:
 
     \item[\textbf{NFR7:}] \textbf{Localization and Cultural Adaptation}
         \begin{enumerate}
-            \item[\textbf{NFR7.1:}] The UI shall support Amharic, English, and Oromo languages initially, with extensibility to other Ethiopian languages.
-            \item[\textbf{NFR7.2:}] Content and examples shall reflect Ethiopian context (e.g., local tech companies, Ethiopian learner profiles, culturally appropriate imagery).
-            \item[\textbf{NFR7.3:}] The system shall work reliably on low-bandwidth networks (\(<2\) Mbps), common in rural Ethiopia.
+            \item[\textbf{NFR7.1:}] The system shall be deployed in English as the primary language in the initial release. The frontend codebase shall be structured with internationalisation (i18n) patterns to support future localisation into Amharic, Oromo, and other Ethiopian languages without architectural changes.
+            \item[\textbf{NFR7.2:}] The system shall be accessible to learners without requiring payment, premium subscriptions, or proprietary software, reflecting the resource-constrained context of Ethiopian learners.
+            \item[\textbf{NFR7.3:}] The system shall work reliably on low-bandwidth networks (\(<2\) Mbps): roadmap and quiz pages shall render correctly without all assets loading; SSE streams shall degrade gracefully if the connection is interrupted.
         \end{enumerate}
 \end{enumerate}
 
@@ -206,14 +247,21 @@ Use cases capture interactions between actors (users) and the system. Table~\ref
         \toprule
         \textbf{Use Case} & \textbf{Primary Actor} & \textbf{Preconditions} & \textbf{Main Flow} & \textbf{Postconditions} \\
         \midrule
-        UC1: Browse Roadmap & Learner & Logged in, ontology loaded & 1. Display DAG visualisation 2. Learner explores nodes 3. System shows details, learning outcomes, prerequisites & Learner understands path and requirements \\
-        UC2: Attempt Quiz & Learner & Node unlocked, learner selected Take Quiz & 1. Generate quiz (3--5 questions) 2. Learner answers 3. Evaluate responses, compute score & Score recorded; Gatekeeper triggered \\
-        UC3: Resource Recommendation & Learner & Quiz failed (\(<70\%\)), adaptation triggered & 1. Identify adapted resources 2. Present 3--5 links with descriptions 3. Learner selects resources & Alternative materials accessed \\
+        UC0: Enrol in Domain & Learner & Logged in, domain selected from catalogue & 1. Display enrolment form 2. Learner selects branch path and submits learner profile (weeklyHours, familiarityLevel, learningGoal, aboutSelf, preferredLearningStyle, priorSkills) 3. System creates Enrollment record and initialises progress rows & Learner enrolled; roadmap populated \\
+        UC1: Browse Roadmap & Learner & Enrolled, roadmap loaded & 1. Display DAG visualisation 2. Learner explores nodes 3. System shows details, learning outcomes, mastery state, prerequisites & Learner understands path and requirements \\
+        UC2: Attempt Quiz & Learner & Node unlocked, learner selected Take Quiz & 1. Generate quiz (4 MCQ questions) 2. Learner answers 3. Evaluate responses, compute score 4. Gatekeeper records outcome and adaptation event & Score recorded; mastery state updated \\
+        UC3: Adaptive Content Regeneration & Learner & Quiz failed 50--69\% (\texttt{resource\_swap} event fired) & 1. Tutor Model regenerates explanation in tutorial-oriented style 2. Updated content displayed with step-by-step scaffolding 3. Learner reviews adapted content 4. Learner retries quiz & Learner receives modality-adapted explanation \\
         UC4: Spaced Repetition Reminder & Learner & Node in Yellow/Red decay state & 1. Generate micro-quiz notification 2. Present micro-quiz (2--3 questions) 3. Learner attempts, system scores & Decay state updated; learner re-engaged \\
         UC5: Select Learning Path & Learner & Reached branching point & 1. Present choice question and descriptions 2. Learner selects path 3. Update roadmap with selected path nodes & Roadmap personalised \\
         UC6: Verify Ontology & Domain Expert & Ontology generated by Teacher Model & 1. Expert reviews nodes, prerequisites, outcomes 2. Marks correct or flags for revision 3. Aggregates feedback, expert confirms & Verified ontology deployed \\
-        UC7: Manage Domain Whitelist & Admin/Domain Curator & Need to update trusted providers & 1. View current whitelist (e.g., MDN) 2. Add/remove domains 3. System applies to PSE API queries & Resources restricted to approved \\
+        UC7: Manage Ontology Content & Admin/Instructor & Domain published in system & 1. Open ontology builder 2. Add/edit/remove learning nodes and prerequisites 3. Attach or update curated resource links 4. Publish updated ontology version & Updated ontology live; active enrollments unaffected \\
         UC8: View Progress Dashboard & Learner & Logged in & 1. Display statistics (nodes completed, avg score, time) 2. Show decay state visualisation (Green/Yellow/Red) 3. Filter by domain or time & Visibility into learning progress \\
+        UC9: Use AI Instructor & Learner & Node selected, learning session active & 1. Learner types question in chat panel 2. System builds node-context prompt 3. AI streams answer token-by-token via SSE & Learner receives grounded, contextual answer \\
+        UC10: Claim Certificate & Learner & All roadmap nodes mastered & 1. System shows ``Claim certificate'' button 2. Learner clicks claim 3. Backend issues certificate with unique public ID 4. Learner downloads PDF/PNG or copies share link & Certificate stored; shareable verify URL active \\
+        UC11: View Achievements & Learner & Logged in & 1. Display earned badges and XP level 2. Show locked achievements with unlock criteria 3. Display streak count & Learner motivated by visible progress milestones \\
+        UC12: View Learning Insights & Learner & At least one node mastered & 1. Display activity heatmap 2. Show velocity trend and completion forecast 3. Display mastery breakdown & Learner understands pace and estimated completion \\
+        UC13: Monitor Learner Progress & Instructor & Enrolled learners exist in instructor's domain & 1. View learner list with completion summaries 2. Drill into individual learner node progress 3. Review flagged escalation events 4. View domain analytics & Instructor identifies struggling learners; data-driven intervention \\
+        UC14: Administer System & Admin & Logged in as admin role & 1. Manage users (view, assign roles, deactivate) 2. Manage domains (create, publish, archive) 3. Review system-wide statistics 4. Build/edit ontology nodes & System maintained; domain content governed \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -231,14 +279,21 @@ Table~\ref{tab:ch03_traceability} maps each use case to the functional requireme
         \toprule
         \textbf{Use Case} & \textbf{Functional Requirements} \\
         \midrule
-        UC1: Browse Roadmap & FR1.1, FR1.3, FR8.1 \\
-        UC2: Attempt Quiz & FR3.1, FR3.2, FR3.3, FR4.1, FR4.2 \\
-        UC3: Receive Resource Recommendation & FR5.1, FR5.2, FR5.4, FR4.4 \\
+        UC0: Enrol in Domain & FR2.1, FR2.2, FR7.1, FR7.2 \\
+        UC1: Browse Roadmap & FR1.1, FR1.3, FR7.3, FR8.1 \\
+        UC2: Attempt Quiz & FR3.1, FR3.2, FR3.3, FR4.1, FR4.2, FR4.3, FR4.4 \\
+        UC3: Adaptive Content Regeneration & FR4.4, FR5.1, FR5.5 \\
         UC4: Receive Spaced Repetition Reminder & FR6.1, FR6.2, FR6.3, FR6.4 \\
         UC5: Select Learning Path & FR7.1, FR7.2, FR7.3, FR7.4 \\
         UC6: Verify Ontology & FR1.2, FR1.3 \\
-        UC7: Manage Domain Whitelist & FR5.1 \\
-        UC8: View Progress Dashboard & FR2.3, FR6.3 \\
+        UC7: Manage Ontology Content & FR1.2, FR1.3, FR5.3, FR5.4 \\
+        UC8: View Progress Dashboard & FR2.3, FR2.4, FR6.3, FR8.2 \\
+        UC9: Use AI Instructor & FR9.1, FR9.2, FR9.3 \\
+        UC10: Claim Certificate & FR10.1, FR10.2, FR10.3, FR10.4 \\
+        UC11: View Achievements & FR11.1, FR11.2, FR11.3, FR11.4 \\
+        UC12: View Learning Insights & FR12.1, FR12.2, FR12.3, FR12.4 \\
+        UC13: Monitor Learner Progress & FR13.1 \\
+        UC14: Administer System & FR1.2, FR13.2 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -335,13 +390,13 @@ Figure~\ref{fig:ch03_statemachine} defines the mastery states (Green, Yellow, Re
 The requirements and models presented in this chapter were validated through the following approaches:
 
 \begin{enumerate}
-    \item \textbf{Requirements Review with Stakeholders:} The functional and non-functional requirements were reviewed with the five domain expert interviewees and a subset of survey respondents. Domain experts, learners, and team members reviewed requirements specifications, ensuring completeness and feasibility. Feedback led to refinements in the gatekeeper threshold and the addition of the multi-path branching requirements (FR7).
+    \item \textbf{Requirements Review with Stakeholders:} The functional and non-functional requirements were reviewed with the five domain expert interviewees and a subset of survey respondents. Feedback led to several refinements: the gatekeeper threshold was calibrated to five tiers (FR4.1); the enrollment learner profile fields were expanded to include preferred learning style and prior skills (FR2.2); and the multi-path branching model was refined from a mid-roadmap encounter to an enrollment-time selection with runtime switching (FR7). Requirements added post-initial-design---AI Instructor (FR9), certificates (FR10), gamification (FR11), analytics (FR12), instructor and admin portals (FR13)---emerged from implementation discovery and were added to ensure the document reflects the delivered system.
 
-    \item \textbf{Traceability Analysis:} Each functional requirement was mapped to at least one use case (Table~\ref{tab:ch03_traceability}), and each use case was linked back to stakeholder needs identified during elicitation. Functional requirements are traced to use cases, and use cases are traced back to problems (Chapter~1) and research foundations (Chapter~2), ensuring all requirements are justified. This bidirectional traceability ensures that no requirement is orphaned and that every use case is justified by an underlying stakeholder concern.
+    \item \textbf{Traceability Analysis:} Each functional requirement is mapped to at least one use case (Table~\ref{tab:ch03_traceability}), and each use case is linked back to stakeholder needs identified during elicitation. The thirteen functional requirement groups (FR1--FR13) cover the full system scope across fifteen use cases (UC0--UC14). New requirements added during development---enrollment profile capture (FR2.2), AI Instructor streaming (FR9), completion certificates (FR10), gamification with weekly goals (FR11), learning analytics (FR12), and instructor/admin portals (FR13)---are each traceable to a corresponding use case and to the stakeholder problems in Section~3.1.
 
     \item \textbf{Testability Assessment:} Each requirement was reviewed for testability: is there a measurable criterion for success? Non-testable requirements were refined. For example, \enquote{Quiz interface shall be intuitive} is too vague; it is refined to \enquote{Quiz interface shall support task completion by 95\% of users within 2 minutes on first attempt} (testable). Each functional requirement was evaluated for testability by defining measurable acceptance criteria.
 
-    \item \textbf{Feasibility and Risk Analysis:} Requirements were assessed for technical feasibility within scope and budget. High-risk requirements (e.g., real-time LLM generation under load) were flagged and mitigation strategies identified (caching, fallbacks, pre-generation). Key risks identified include LLM API latency for FR3.1 (quiz generation), mitigated by the 3-second threshold in NFR1, and the complexity of maintaining the ontology DAG for large domains, mitigated by the modular ontology management interface in FR1.
+    \item \textbf{Feasibility and Risk Analysis:} Requirements were assessed for technical feasibility within scope and budget. High-risk requirements were flagged and mitigation strategies identified. Key risks include: LLM API latency for FR3.1 and FR5.1--FR5.2 (quiz and explanation generation), mitigated by Redis caching and the 3-second threshold in NFR1.3; LLM provider unavailability, mitigated by the three-tier circuit-breaker fallback in NFR3.3; and the complexity of real-time SSE streaming (FR5.2, FR9.2), mitigated by Nginx SSE location blocks disabling proxy buffering and gzip compression on stream routes.
 \end{enumerate}
 
 Overall, the validation confirms that the specified requirements are complete, consistent, testable, and achievable within the project scope.
