@@ -1,0 +1,192 @@
+\documentclass[11pt,a4paper,twoside]{report}
+
+\input{preamble}
+
+\begin{document}
+
+% ============================================================
+% TITLE PAGE
+% ============================================================
+\begin{titlepage}
+\centering
+\includegraphics[width=6cm]{figures/images/image10.png}\\[1cm]
+{\sffamily\bfseries\Large ADDIS ABABA SCIENCE AND TECHNOLOGY UNIVERSITY}\\[0.5cm]
+{\sffamily\large College of Electrical and Mechanical Engineering}\\[0.3cm]
+{\sffamily\large Department of Software Engineering}\\[1cm]
+{\sffamily\bfseries\Huge AI-Driven Personalized Learning Roadmap Generator}\\[1cm]
+{\sffamily\large Ontology-Guided Adaptive Learning Roadmap Generator}\\[1cm]
+\begin{minipage}{0.6\textwidth}
+\centering
+\large
+\begin{tabular}{rl}
+Members: & ID: \\
+Yegeta Taye & ETS1665/14 \\
+Yigermal Abebe & ETS1680/14 \\
+Yihun Alemayehu & ETS1685/14
+\end{tabular}
+\end{minipage}\\[2cm]
+{\sffamily\large Advisor Name: Tesfaye Meshu}\\[0.3cm]
+{\sffamily\large Signature\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_}\\[2cm]
+\vfill
+\end{titlepage}
+
+% ============================================================
+% ACKNOWLEDGEMENT
+% ============================================================
+\chapter*{Acknowledgement}
+\addcontentsline{toc}{chapter}{Acknowledgement}
+
+We wish to express our sincere gratitude to the Faculty of Computing, Department of Software Engineering, Addis Ababa Science and Technology University (AASTU) for providing the institutional resources and academic environment necessary to conduct this research.
+
+We extend our deepest appreciation to our academic advisor, Tesfaye Meshu, for their invaluable guidance, constructive feedback, and mentorship throughout the conceptualization and development phases of this final year project. Their expertise in software engineering methodologies and educational technology has been instrumental in refining the scope and technical direction of \projectname.
+
+We are grateful to our peers and colleagues who engaged in technical reviews and provided insightful critiques during project development workshops. Additionally, we acknowledge the open-source community, particularly the developers of the frameworks and libraries leveraged in this project (React, Flutter, Python, PostgreSQL).
+
+Finally, we recognize the educational content providers whose free, high-quality resources --- FreeCodeCamp, GeeksForGeeks, MDN Web Docs, and others --- form the foundation of the resource aggregation strategy that makes \projectname\ viable in resource-constrained environments like Ethiopia.
+
+% ============================================================
+% ABSTRACT
+% ============================================================
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+The proliferation of online educational content has created unprecedented opportunities for self-directed learning, yet it has simultaneously introduced a critical problem: the fragmentation of high-quality resources and the absence of structured guidance. In the Ethiopian context, where access to premium mentorship and formal course subscriptions is economically prohibitive, students often find themselves trapped in \enquote{tutorial hell} --- scrolling through disconnected YouTube videos, blogs, and documentation without a coherent learning path or performance feedback mechanism. Existing solutions (e.g., roadmap.sh) provide static, one-size-fits-all curricula that fail to adapt to individual learning pace, gaps, or learning preferences.
+
+This project presents \projectname, a comprehensive web and mobile platform designed to synthesize free, high-quality technical resources into a dynamically adaptive, assessment-driven learning roadmap. The core innovation lies in a hybrid artificial intelligence architecture that mitigates hallucination risks inherent in pure Large Language Model (LLM) generation by employing a \enquote{Skeleton \& Flesh} strategy. Offline, a powerful LLM generates a verified, semantically coherent ontology (the learning path skeleton) covering tech domains (Frontend, Backend, Data Science, DevOps). At runtime, a lightweight tutor model generates context-specific explanations and quizzes (the flesh) tailored to each learner's performance and progression.
+
+\projectname\ introduces three novel contributions: (1) the \textit{Gatekeeper Pattern}, an assessment-driven mechanism requiring learners to achieve \textgreater80\% on a three-question quiz before advancing with adaptive resource swapping if performance drops below 50\%; (2) \textit{Mastery Decay Integration}, incorporating Ebbinghaus's Forgetting Curve to remind learners of concepts not reviewed for 14+ days, promoting retention through spaced repetition; and (3) \textit{Multi-Path Branching}, enabling learners to select personalized learning trajectories based on preferences (visual vs.\ logical, speed vs.\ depth).
+
+The platform integrates the Google Programmable Search Engine API to aggregate only verified resources from trusted domains (FreeCodeCamp, GeeksForGeeks, MDN, Coursera), ensuring content quality and accuracy. The technical stack comprises React and Flutter for responsive web and mobile frontends, Node.js for API orchestration, Python for ontology generation and AI logic, and PostgreSQL for persistent storage. Development follows Agile methodologies with continuous integration/continuous deployment (CI/CD) pipelines to ensure reliability and rapid iteration.
+
+This project addresses a critical gap in educational technology for developing economies, democratizing access to structured, mentorship-quality guidance while remaining zero-cost to end users. By combining rigorous ontology-based curriculum design with intelligent adaptive assessment, \projectname\ empowers Ethiopian students and learners across resource-constrained regions to navigate the complex landscape of technical skill acquisition with confidence and clarity.
+
+\noindent\textbf{Keywords:} adaptive learning, ontology-based curriculum design, artificial intelligence, assessment-driven progression, educational technology, spaced repetition, personalized learning paths, developing economy context.
+
+% ============================================================
+% TABLE OF CONTENTS
+% ============================================================
+\tableofcontents
+\newpage
+
+% ============================================================
+% LIST OF FIGURES
+% ============================================================
+\listoffigures
+\newpage
+
+% ============================================================
+% LIST OF TABLES
+% ============================================================
+\listoftables
+\newpage
+
+% ============================================================
+% LIST OF ABBREVIATIONS
+% ============================================================
+\chapter*{List of Abbreviations}
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+
+\begin{longtable}{p{3cm}p{5cm}p{6cm}}
+\toprule
+\textbf{Abbreviation} & \textbf{Full Form} & \textbf{Definition} \\
+\midrule
+\endhead
+AASTU & Addis Ababa Science and Technology University & Institution hosting the research \\
+AI & Artificial Intelligence & Systems designed to simulate intelligent behavior \\
+API & Application Programming Interface & Software intermediary for application communication \\
+LLM & Large Language Model & Deep neural network trained on vast text corpora \\
+RAG & Retrieval Augmented Generation & LLM generation with external knowledge retrieval \\
+PSE & Google Programmable Search Engine & Customizable search engine API \\
+MCQ & Multiple Choice Question & Assessment with predefined answer options \\
+DAG & Directed Acyclic Graph & Graph structure for learning dependencies \\
+JSON & JavaScript Object Notation & Lightweight data interchange format \\
+REST & Representational State Transfer & Architectural style for web service APIs \\
+MOOC & Massive Open Online Course & Large-scale online educational platforms \\
+UX & User Experience & Quality of interaction between user and system \\
+UI & User Interface & Visual elements of the application \\
+SRS & Software Requirements Specification & Formal document detailing requirements \\
+QA & Quality Assurance & Systematic testing and validation \\
+Git & Version Control System & Distributed version control \\
+PostgreSQL & Open-source Relational Database & Persistent data storage \\
+React & JavaScript Frontend Library & Component-based UI framework \\
+Flutter & Mobile Application Framework & Cross-platform mobile development framework \\
+Node.js & JavaScript Runtime Environment & Server-side JavaScript execution \\
+Python & Programming Language & High-level language for backend AI/ML \\
+CI/CD & Continuous Integration/Deployment & Automated pipeline for code testing and release \\
+JWT & JSON Web Token & Secure authentication token \\
+SSL/TLS & Secure Sockets Layer/Transport Layer Security & Cryptographic protocols for secure communication \\
+HTTPS & Hypertext Transfer Protocol Secure & Encrypted web communication protocol \\
+ERD & Entity-Relationship Diagram & Conceptual model of database structure \\
+DFD & Data Flow Diagram & Process-centric model showing data movement \\
+RBAC & Role-Based Access Control & Permission management system \\
+\bottomrule
+\end{longtable}
+\newpage
+
+% ============================================================
+% CHAPTERS
+% ============================================================
+\input{chapters/ch01_intro}
+\input{chapters/ch02_literature_review}
+\input{chapters/ch03_problem_analysis}
+\input{chapters/ch04_system_design}
+\input{chapters/ch05_implementation}
+\input{chapters/ch06_evaluation}
+\input{chapters/ch07_conclusions}
+
+% ============================================================
+% BIBLIOGRAPHY
+% ============================================================
+\bibliographystyle{plain}
+\bibliography{bibliography}
+
+% ============================================================
+% APPENDICES
+% ============================================================
+\appendix
+\chapter{Source Code and Supplementary Materials}
+\label{app:code}
+
+The complete source code for \projectname{} is available at the project repository. This appendix provides supplementary material referenced throughout the document.
+
+\section{Core Algorithm Pseudocode}
+\label{app:pseudocode}
+
+The following pseudocode describes the core gatekeeper classification algorithm that drives assessment-driven progression:
+
+\begin{lstlisting}[language=JavaScript, caption=Gatekeeper score classification]
+function classifyScore(scorePercent):
+  if scorePercent >= 80: return 'strong_pass'
+  if scorePercent >= 70: return 'marginal_pass'
+  if scorePercent >= 50: return 'fail_low'
+  if scorePercent >= 30: return 'fail_fundamental'
+  return 'fail_severe'
+\end{lstlisting}
+
+\section{Adaptive Difficulty Computation}
+\label{app:difficulty}
+
+The adaptive difficulty function calibrates quiz difficulty based on learner performance:
+
+\begin{lstlisting}[language=JavaScript, caption=Adaptive difficulty calibration]
+function computeAdaptiveDifficulty(bestScore, averageScore, nodeDifficulty):
+  performanceDelta = (bestScore - averageScore) / 100
+  adjustedDifficulty = nodeDifficulty + performanceDelta
+  return clamp(adjustedDifficulty, 1, 5)
+\end{lstlisting}
+
+\section{Mastery Decay Transition Logic}
+\label{app:decay}
+
+The decay algorithm determines when a mastered node transitions to review or relearn state:
+
+\begin{lstlisting}[language=JavaScript, caption=Mastery decay computation]
+function computeDecayState(lastReviewedAt, masteredAt, isMarginalPass):
+  daysSinceReview = now() - max(lastReviewedAt, masteredAt)
+  threshold = isMarginalPass ? 7 : 14
+  if daysSinceReview > 30: return 'relearn'
+  if daysSinceReview > threshold: return 'review_needed'
+  return 'mastered'
+\end{lstlisting}
+
+\end{document}

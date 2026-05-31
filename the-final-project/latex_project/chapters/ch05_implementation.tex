@@ -1,0 +1,489 @@
+\chapter{System Implementation}
+
+\section{Reviewing the Design Solution}
+
+The design solution was reviewed before implementation to confirm that it still aligns with the project objectives and remains practical given real-world constraints (performance, reliability, and maintainability). This review focused on verifying that each architectural decision supports the core learning workflow and that the system can evolve without costly redesign.
+
+\textbf{Alignment with project objectives}
+
+\begin{itemize}
+    \item \textbf{Personalized learning paths:} The ontology combined with the progress model supports adaptive learning paths, mastery state transitions, and multi-path branching. This aligns directly with the goal of personalized roadmaps.
+    \item \textbf{Adaptive assessment:} The separation of quiz generation (ai-service) from quiz delivery (learning-service) ensures assessments can adapt while maintaining consistent delivery and scoring rules.
+    \item \textbf{Resource discovery and adaptation:} The resource and adaptation subsystems align with the goal of providing targeted remediation and modality diversity.
+\end{itemize}
+
+\textbf{Architecture validity check}
+
+\begin{itemize}
+    \item \textbf{Service separation remains justified:} The gateway isolates authentication and RBAC; the learning-service owns domain rules; the ai-service manages external AI dependencies. This avoids cross-cutting security and reliability risks.
+    \item \textbf{Scalability assumptions hold:} AI workloads are isolated and can scale horizontally without affecting database-heavy learning flows.
+    \item \textbf{Data integrity is preserved:} Prisma schema and constraints enforce the DAG structure, progress tracking, and versioning rules required by the ontology model (see \texttt{backend/services/learning-service/prisma/schema.prisma}).
+\end{itemize}
+
+\textbf{Design trade-offs revisited}
+
+\begin{itemize}
+    \item \textbf{Microservices vs.\ monolith:} A monolith would reduce operational overhead but would couple AI latency and auth concerns to core learning logic. The current split avoids cascading failures and allows targeted scaling.
+    \item \textbf{Relational database choice:} PostgreSQL provides strong consistency and relational constraints needed for prerequisite validation and mastery tracking. This is essential for correctness and auditability.
+    \item \textbf{AI dependency management:} The design anticipates AI provider instability and includes circuit breakers and caching. This trade-off increases implementation complexity but improves availability.
+\end{itemize}
+
+\textbf{Implementation readiness}
+
+\begin{itemize}
+    \item \textbf{Deployment model continuity:} The Docker Compose and Nginx routing match the deployment diagram, ensuring local development mirrors production patterns.
+    \item \textbf{Tooling fit:} TypeScript, Express, and Prisma align with the need for fast iteration, schema safety, and consistent API definitions.
+\end{itemize}
+
+\textbf{Design refinements confirmed during implementation}
+
+\begin{itemize}
+    \item \textbf{Input validation tightened:} Validation and sanitization at the gateway were strengthened to enforce contracts and reduce security risks.
+    \item \textbf{Caching depth increased:} AI response caching was expanded to reduce latency and improve throughput under load.
+    \item \textbf{Error handling standardized:} Common error objects and response formats were enforced across services for consistent client behavior.
+\end{itemize}
+
+Overall, the design remains valid and aligned with the project objectives. The refinements above did not change the architecture but improved its operational robustness and implementation clarity.
+
+\section{Deciding on the Development Tools}
+
+The development toolchain was selected to balance rapid iteration, reliability, and long-term maintainability. The choices reflect the system's need for strong typing, modular services, a consistent API layer, and cross-platform client delivery.
+
+\subsection{Programming Languages}
+
+\begin{itemize}
+    \item \textbf{TypeScript:} Used across backend services and the web frontend to provide static typing, safer refactoring, and shared conventions across the codebase.
+    \item \textbf{Dart:} Chosen for the mobile client to leverage Flutter's cross-platform UI toolkit and strong developer productivity.
+    \item \textbf{SQL (via Prisma):} The relational model requires precise constraints and indexing; Prisma generates SQL migrations while keeping schema changes declarative.
+\end{itemize}
+
+\subsection{Frameworks and Core Libraries}
+
+\begin{itemize}
+    \item \textbf{Backend (Node.js + Express):} Express provides lightweight routing and middleware, enabling clear separation of controllers, services, and validation layers.
+    \item \textbf{ORM (Prisma):} Prisma ensures schema consistency, migration tracking, and type-safe queries across services.
+    \item \textbf{Validation (Joi):} Input schemas enforce contract integrity and protect against malformed requests.
+    \item \textbf{Logging (Pino):} Structured logging supports monitoring and audit trails.
+\end{itemize}
+
+\subsection{AI and External Integration Tools}
+
+\begin{itemize}
+    \item \textbf{LLM Providers:} Phi-4-Multimodal (via Kaggle) is used as the primary provider; Qwen2.5-3B (via Ollama) and Gemini 2.5 Flash (API, last resort) serve as fallback tiers.
+    \item \textbf{Circuit breaker and caching utilities:} Ensure resilience against AI provider latency and outages.
+    \item \textbf{Search API:} Google Programmable Search Engine (PSE) enables resource discovery from pre-approved domains.
+\end{itemize}
+
+\subsection{Frontend and Mobile Tooling}
+
+\begin{itemize}
+    \item \textbf{Frontend:} React with Vite provides fast builds and a modern component model. React Router manages page navigation.
+    \item \textbf{Mobile:} Flutter provides a consistent UI across Android and iOS, with centralized state and theme control.
+\end{itemize}
+
+\subsection{Testing and Quality Tooling}
+
+\begin{itemize}
+    \item \textbf{Jest:} Unit and integration tests for backend services.
+    \item \textbf{Playwright:} End-to-end testing for full user journeys.
+    \item \textbf{ESLint/Prettier:} Enforce consistent style and reduce code review friction.
+\end{itemize}
+
+\subsection{Infrastructure and Runtime Tooling}
+
+\begin{itemize}
+    \item \textbf{Docker + Docker Compose:} Create consistent local environments and mirror production topology.
+    \item \textbf{PostgreSQL:} Primary datastore for transactional integrity and query performance.
+    \item \textbf{Redis:} Cache layer for AI responses and rate limiting.
+    \item \textbf{Nginx:} Reverse proxy routing and request normalization.
+\end{itemize}
+
+\subsection{Development Environment Setup}
+
+\textbf{Local environment requirements}
+
+\begin{itemize}
+    \item Node.js 18 LTS or later with npm
+    \item Docker and Docker Compose v2
+    \item Flutter SDK 3.x (for mobile development)
+    \item PostgreSQL 15 (optional if using Docker)
+    \item Git for version control
+\end{itemize}
+
+\textbf{Installation and configuration}
+
+The development environment is configured to mirror the production topology using Docker Compose. The following steps outline the setup process:
+
+\begin{enumerate}
+    \item \textbf{Clone the repository:}
+\begin{lstlisting}[language=bash, caption=none]
+git clone https://github.com/yegeta/ai-learning-roadmap.git
+cd ai-learning-roadmap
+\end{lstlisting}
+    \item \textbf{Environment variables:} Copy \texttt{.env.example} to \texttt{.env} in each service directory and configure the following:
+\begin{lstlisting}[language=bash, caption=none]
+# AI Service
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-2.5-flash
+PHI4_BASE_URL=  # Optional: URL to Phi-4 on Kaggle
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=qwen2.5:3b
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/learning_roadmap
+
+# Authentication
+JWT_SECRET=your-jwt-secret
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+\end{lstlisting}
+    \item \textbf{Start the backend stack:}
+\begin{lstlisting}[language=bash, caption=none]
+docker-compose up -d
+\end{lstlisting}
+        This starts PostgreSQL, Redis, Nginx, and all backend services.
+    \item \textbf{Run database migrations:}
+\begin{lstlisting}[language=bash, caption=none]
+cd backend/services/learning-service
+npx prisma migrate dev
+npx prisma db seed
+\end{lstlisting}
+    \item \textbf{Start frontend development server:}
+\begin{lstlisting}[language=bash, caption=none]
+cd frontend
+npm install
+npm run dev
+\end{lstlisting}
+    \item \textbf{Start mobile development (Flutter):}
+\begin{lstlisting}[language=bash, caption=none]
+cd flutter_mobile
+flutter pub get
+flutter run
+\end{lstlisting}
+\end{enumerate}
+
+\textbf{Secrets management}
+
+\begin{itemize}
+    \item Environment variables are defined in \texttt{.env} files and injected via Docker Compose.
+    \item OAuth keys and AI provider tokens are never stored in source code and are supplied at runtime.
+    \item The \texttt{.env} files are excluded from version control via \texttt{.gitignore}.
+\end{itemize}
+
+\textbf{Version control and CI}
+
+\begin{itemize}
+    \item Git is used for source control with feature branching (main, develop, feature/*, hotfix/*).
+    \item GitHub Actions automates build, lint, and test workflows (see \texttt{.github/workflows/ci.yml}).
+    \item Pull requests require passing CI checks and code review before merging.
+\end{itemize}
+
+\subsection{Rationale Summary}
+
+The chosen stack provides strong typing, consistent APIs, scalable infrastructure, and cross-platform delivery. It also supports the project's non-functional goals by enabling test automation, reproducible environments, and resilience to external dependencies.
+
+\section{Developing the Solution}
+
+This section details how the system was implemented, the coding practices that guided development, integration strategies used across services and clients, and the most important functionality with representative code excerpts.
+
+\subsection{Coding Practices and Development Workflow}
+
+\begin{itemize}
+    \item \textbf{Layered service architecture:} Each backend service uses routes $\rightarrow$ controller $\rightarrow$ service $\rightarrow$ data access, which keeps HTTP concerns separate from business logic.
+    \item \textbf{Type safety:} Shared TypeScript types reduce runtime errors and make contracts explicit in both frontend and backend.
+    \item \textbf{Validation at boundaries:} Requests are validated using schemas at the API boundary to avoid propagating invalid data.
+    \item \textbf{Consistent error handling:} Errors are normalized using \texttt{ApiError} to produce predictable response formats and HTTP status codes.
+    \item \textbf{Incremental delivery:} Features were implemented in phases (auth, ontology, enrollment, quizzes, decay, branching, admin). Each phase included tests and migrations.
+\end{itemize}
+
+\subsection{Integration Strategy During Development}
+
+\begin{itemize}
+    \item \textbf{Service-to-service integration:} The learning-service calls ai-service via HTTP, and both share Redis for caching and rate limiting.
+    \item \textbf{Client-to-service integration:} The web and mobile clients authenticate through the gateway and call the learning-service with Bearer tokens.
+    \item \textbf{Contract testing:} Responses from ai-service are schema-validated before persistence, and OAuth flows are tested for reliability.
+\end{itemize}
+
+\subsection{Major Functionality Code Excerpts}
+
+\textbf{Authentication and OAuth flow (api-gateway)}
+
+The gateway handles registration, login, refresh tokens, and OAuth redirection.
+
+Source: \texttt{backend/services/api-gateway/src/modules/auth/auth.controller.ts}
+
+\begin{lstlisting}[language=JavaScript]
+export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email, password } = validate(loginSchema, req.body);
+    const { user, tokens } = await authService.login(email, password);
+    res.json({ user, ...tokens });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export function googleRedirect(_req: Request, res: Response): void {
+  if (!config.oauth.google.clientId) {
+    throw ApiError.internal('Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
+  }
+  const params = new URLSearchParams({
+    client_id: config.oauth.google.clientId,
+    redirect_uri: config.oauth.google.callbackUrl,
+    response_type: 'code',
+    scope: 'openid email profile',
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+}
+\end{lstlisting}
+
+\textbf{Gatekeeper logic and mastery transitions (learning-service)}
+
+The gatekeeper enforces three-tier progression and logs adaptation events.
+
+Source: \texttt{backend/services/learning-service/src/modules/gatekeeper/gatekeeper.service.ts}
+
+\begin{lstlisting}[language=JavaScript]
+export function classifyScore(scorePercent: number): GatekeeperTier {
+  if (scorePercent >= 80) return 'strong_pass';
+  if (scorePercent >= 70) return 'marginal_pass';
+  if (scorePercent >= 50) return 'fail_low';
+  if (scorePercent >= 30) return 'fail_fundamental';
+  return 'fail_severe';
+}
+
+export async function applyGatekeeperOutcome(params: {
+  userId: string;
+  nodeId: string;
+  enrollmentId: string;
+  quizAttemptId: string;
+  scorePercent: number;
+}) {
+  const { userId, nodeId, enrollmentId, quizAttemptId, scorePercent } = params;
+  const tier = classifyScore(scorePercent);
+  const isPass = tier === 'strong_pass' || tier === 'marginal_pass';
+  await prisma.learnerNodeProgress.updateMany({
+    where: { userId, nodeId, enrollmentId },
+    data: { masteryState: isPass ? 'mastered' : 'in_progress' },
+  });
+  if (tier === 'fail_low' || tier === 'fail_fundamental' || tier === 'fail_severe') {
+    await prisma.adaptationEvent.create({
+      data: { userId, nodeId, quizAttemptId, adaptationType: tier === 'fail_low' ? 'resource_swap' : 'prerequisite_review' },
+    });
+  }
+}
+\end{lstlisting}
+
+\textbf{Quiz generation and fallback strategy (learning-service)}
+
+The system attempts AI generation first, then falls back to a stored quiz if needed.
+
+Source: \texttt{backend/services/learning-service/src/modules/quizzes/quizzes.service.ts}
+
+\begin{lstlisting}[language=JavaScript]
+const freshAiQuiz = await prisma.quiz.findFirst({
+  where: {
+    nodeId,
+    isMicroQuiz: false,
+    generatedBy: 'ai_tutor',
+    createdAt: { gte: new Date(Date.now() - AI_QUIZ_STALE_DAYS * 86_400_000) },
+  },
+  orderBy: { createdAt: 'desc' },
+  include: { questions: { orderBy: { orderIndex: 'asc' } } },
+});
+
+if (freshAiQuiz) return freshAiQuiz;
+
+const aiResponse = await requestAiQuiz({ nodeId, nodeTitle: node.title, learningOutcomes: outcomes, questionCount: 4 });
+if (aiResponse?.quiz?.questions?.length) {
+  return prisma.quiz.create({
+    data: { nodeId, isMicroQuiz: false, generatedBy: 'ai_tutor', questions: { create: ... } },
+    include: { questions: { orderBy: { orderIndex: 'asc' } } },
+  });
+}
+\end{lstlisting}
+
+\textbf{AI provider fallback with validation (ai-service)}
+
+The AI service validates JSON outputs and falls back across providers.
+
+Source: \texttt{backend/services/ai-service/src/modules/ai/ai.service.ts}
+
+\begin{lstlisting}[language=JavaScript]
+const raw = await phi4Generate(prompt);
+const result = parseAndValidate<T>(raw, schema);
+if (result) {
+  await recordSuccess('phi4');
+  return result;
+}
+await recordFailure('phi4');
+const ollamaRaw = await ollamaGenerate(prompt);
+const ollamaResult = parseAndValidate<T>(ollamaRaw, schema);
+if (ollamaResult) {
+  await recordSuccess('ollama');
+  return ollamaResult;
+}
+const geminiRaw = await geminiGenerate(prompt);
+return parseAndValidate<T>(geminiRaw, schema);
+\end{lstlisting}
+
+\textbf{Decay scanning and notifications (learning-service)}
+
+Mastery decay scans update state and notify learners.
+
+Source: \texttt{backend/services/learning-service/src/modules/decay/decay.service.ts}
+
+\begin{lstlisting}[language=JavaScript]
+if (days > threshold) {
+  await prisma.learnerNodeProgress.update({
+    where: { id: p.id },
+    data: { masteryState: 'review_needed' },
+  });
+
+  await createNotification({
+    userId: p.userId,
+    type: 'decay_reminder',
+    title: `Time to review: ${p.node.title}`,
+    data: { nodeId: p.nodeId, enrollmentId: p.enrollmentId },
+  });
+}
+\end{lstlisting}
+
+\textbf{Roadmap visualization (web)}
+
+The roadmap UI renders a DAG with auto-layout and color-coded mastery states.
+
+Source: \texttt{frontend/src/features/roadmap/components/RoadmapCanvas.tsx}
+
+\begin{lstlisting}[language=JavaScript]
+const depths = useMemo(() => computeDepths(roadmapNodes, roadmapEdges), [roadmapNodes, roadmapEdges]);
+const initialNodes = useMemo(() => {
+  const rfNodes = toFlowNodes(roadmapNodes, depths);
+  const rfEdges = toFlowEdges(roadmapEdges, nodeMap);
+  return autoLayout(rfNodes, rfEdges);
+}, [roadmapNodes, roadmapEdges, nodeMap, depths]);
+
+return (
+  <ReactFlow
+    nodes={nodes}
+    edges={edges}
+    onNodeClick={handleNodeClick}
+    nodeTypes={NODE_TYPES}
+    fitView
+  >
+    <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="#d6cfbf" />
+  </ReactFlow>
+);
+\end{lstlisting}
+
+\textbf{Token refresh and API integration (web)}
+
+The web client injects Bearer tokens and performs silent refresh on 401 responses.
+
+Source: \texttt{frontend/src/api/client.ts}
+
+\begin{lstlisting}[language=JavaScript]
+apiClient.interceptors.request.use((config) => {
+  const token = getAccessToken?.();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (error.response?.status !== 401) return Promise.reject(error);
+    const { data } = await axios.post(`${apiClient.defaults.baseURL}/auth/refresh`, { refreshToken });
+    original.headers.Authorization = `Bearer ${data.accessToken}`;
+    return apiClient(original);
+  },
+);
+\end{lstlisting}
+
+\textbf{Login form validation (web)}
+
+The login UI validates input using Zod and shows actionable error messages.
+
+Source: \texttt{frontend/src/features/auth/components/LoginForm.tsx}
+
+\begin{lstlisting}[language=JavaScript]
+const schema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  resolver: zodResolver(schema),
+});
+\end{lstlisting}
+
+\textbf{Mobile API client with refresh (Flutter)}
+
+The mobile app mirrors the web token refresh pattern using Dio interceptors.
+
+Source: \texttt{flutter\_mobile/lib/core/api/api\_client.dart}
+
+\begin{lstlisting}[language=JavaScript, caption=none]
+_dio.interceptors.add(
+  InterceptorsWrapper(
+    onRequest: (options, handler) {
+      final accessToken = _accessTokenGetter?.call();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $accessToken';
+      }
+      handler.next(options);
+    },
+    onError: (error, handler) async {
+      if (error.response?.statusCode != 401) return handler.next(error);
+      final refreshedAccessToken = await _refreshAccessToken();
+      if (refreshedAccessToken == null) return handler.next(error);
+      final response = await _dio.request<dynamic>(requestOptions.path, options: Options(
+        headers: {...requestOptions.headers, 'Authorization': 'Bearer $refreshedAccessToken'},
+      ));
+      handler.resolve(response);
+    },
+  ),
+);
+\end{lstlisting}
+
+\textbf{Mobile roadmap view (Flutter)}
+
+The mobile client renders the learning graph using GraphView and provides a node detail sheet.
+
+Source: \texttt{flutter\_mobile/lib/features/roadmap/roadmap\_screen.dart}
+
+\begin{lstlisting}[language=JavaScript, caption=none]
+child: GraphView(
+  graph: _graph,
+  algorithm: _algorithm,
+  paint: Paint()
+    ..color = const Color(0xFFB9B1A4)
+    ..strokeWidth = 1.5,
+  builder: (Node node) {
+    final mapped = node.key?.value as RoadmapNode;
+    return RoadmapNodeWidget(
+      node: mapped,
+      isActive: _activeNodeId == mapped.id,
+      onTap: mapped.unlocked ? () => _openNodeSheet(mapped) : null,
+    );
+  },
+),
+\end{lstlisting}
+
+\subsection{Integration Challenges and Resolutions}
+
+Several integration challenges emerged during development and were resolved through iterative refinement:
+
+\begin{itemize}
+    \item \textbf{AI response inconsistency:} LLM outputs varied in format. The solution was strict JSON parsing and schema validation, plus fallback providers across the three-tier chain (Phi-4 $\rightarrow$ Qwen2.5 $\rightarrow$ Gemini).
+    \item \textbf{Performance bottlenecks:} AI requests were slow under load, especially the local Qwen2.5-3B model on CPU (30--90 seconds per request). Caching and staleness windows were introduced to reduce repeated calls. The circuit breaker prevents repeated failed requests to slow providers.
+    \item \textbf{Authorization edge cases:} Some admin routes needed additional role checks; these were added at gateway and service layers.
+    \item \textbf{Cross-platform consistency:} Web (React) and mobile (Flutter) required separate implementations of the roadmap DAG visualization. Shared API contracts ensured consistent data representation despite different rendering engines.
+\end{itemize}
+
+\subsection{Summary}
+
+The implementation preserves the core architectural design while adding pragmatic safeguards such as caching, validation, and circuit breakers. The three-tier AI fallback strategy (Phi-4-Multimodal $\rightarrow$ Qwen2.5-3B $\rightarrow$ Gemini 2.5 Flash) ensures resilience, near-zero API cost, and graceful degradation in resource-constrained environments. The system is modular, testable, and aligned with the functional and non-functional requirements described in Chapter~4.
+
+\endinput

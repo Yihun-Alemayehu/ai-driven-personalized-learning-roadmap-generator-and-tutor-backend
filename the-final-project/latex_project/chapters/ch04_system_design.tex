@@ -1,0 +1,932 @@
+\chapter{System Design}
+
+\section{Overview}
+
+This chapter presents the complete system design for \projectname. The design translates the project objectives into a concrete, buildable architecture that supports personalized learning paths, adaptive assessments, and resource discovery while remaining secure, scalable, and maintainable. The design explicitly separates concerns between authentication, learning-domain logic, and AI-assisted services to ensure each capability can evolve and scale independently. The chapter also documents the data model, deployment topology, user interface strategy, system integration approach, security architecture, and verification steps that confirm the design satisfies all functional and non-functional requirements.
+
+\section{Specifying the Design Goals}
+
+The design goals align with the project scope, user needs, and operational constraints. Each goal guides architectural choices and is validated by concrete mechanisms in the implementation.
+
+\begin{enumerate}
+    \item \textbf{Correctness and completeness}
+        \begin{itemize}
+            \item Implement the full learning lifecycle: domain selection, enrollment, roadmap generation, progression tracking, gatekeeper quizzes, branching, decay handling, and notifications.
+            \item Preserve data integrity through strong relational constraints, indexed queries, and explicit state transitions for mastery.
+        \end{itemize}
+    \item \textbf{Performance and responsiveness}
+        \begin{itemize}
+            \item Keep learner interactions fast (e.g., roadmap view and progress retrieval) using optimized indexes and read patterns.
+            \item Cache AI outputs and search results in Redis to avoid repeated expensive operations and reduce API latency.
+        \end{itemize}
+    \item \textbf{Scalability and extensibility}
+        \begin{itemize}
+            \item Use a minimal microservice split to enable independent scaling of AI-heavy workloads and to isolate the security-critical gateway.
+            \item Allow future services (e.g., analytics or recommendation engines) to integrate without redesigning core modules.
+        \end{itemize}
+    \item \textbf{Security and privacy}
+        \begin{itemize}
+            \item Enforce authentication and role-based authorization at the gateway and service layers.
+            \item Store sensitive data securely (hashed refresh tokens, controlled PII exposure) and ensure transport-level encryption in production.
+        \end{itemize}
+    \item \textbf{Availability and resilience}
+        \begin{itemize}
+            \item Provide health checks and graceful failure paths; apply circuit breakers for AI services to prevent cascading failures.
+            \item Maintain continuity in the learning flow even when AI providers are unavailable by using cached or static fallbacks.
+        \end{itemize}
+    \item \textbf{Usability and accessibility}
+        \begin{itemize}
+            \item Deliver a clean user experience across web and mobile clients with consistent UI patterns, progressive disclosure, and helpful feedback.
+            \item Support learners and instructors with task-specific views and clear next-step guidance.
+        \end{itemize}
+\end{enumerate}
+
+\section{System Design}
+
+\subsection{Proposed Software Architecture}
+
+The system adopts a compact microservice architecture composed of three backend services, a reverse proxy, and shared infrastructure services (PostgreSQL and Redis). This architecture balances operational simplicity with the isolation required for security and AI workloads.
+
+\textbf{Backend services}
+
+\begin{itemize}
+    \item \textbf{api-gateway:} Handles authentication, OAuth, JWT issuance, RBAC enforcement, and user management.
+    \item \textbf{learning-service:} Implements the core learning domain, including ontology management, enrollment, progress, quizzes, decay, branching, instructor and admin APIs.
+    \item \textbf{ai-service:} Integrates external AI providers (Gemini) and optional local models (Ollama/Phi-4, Qwen2.5), applies caching and circuit-breakers, and serves AI-specific endpoints.
+\end{itemize}
+
+\textbf{Shared infrastructure}
+
+\begin{itemize}
+    \item \textbf{PostgreSQL:} Single relational database containing the full learning model.
+    \item \textbf{Redis:} Caching for AI responses, rate limiting, and transient state.
+    \item \textbf{Nginx:} Reverse proxy and routing across backend services.
+\end{itemize}
+
+The architecture is implemented in the runtime topology in \texttt{backend/docker-compose.yml} and routing rules in \texttt{backend/nginx/nginx.conf}. Service middleware and entrypoints are implemented in \texttt{backend/services/api-gateway/src/app.ts}, \texttt{backend/services/learning-service/src/app.ts}, and \texttt{backend/services/ai-service/src/app.ts}.
+
+Figure~\ref{fig:ch04_architecture} illustrates the proposed system architecture, showing the three backend services, the Nginx reverse proxy, and the shared PostgreSQL and Redis infrastructure.
+
+\begin{center}
+    \includegraphics[width=\textwidth]{figures/images/image10.png}
+    \captionof{figure}{System Architecture Diagram}
+    \label{fig:ch04_architecture}
+\end{center}
+
+\subsection{Subsystem Decomposition}
+
+The system is decomposed into logical subsystems to reduce complexity and isolate responsibilities.
+
+\begin{enumerate}
+    \item \textbf{Authentication and Gateway Subsystem}
+        \begin{itemize}
+            \item \textbf{Responsibilities:} OAuth login, JWT issuance and verification, refresh token lifecycle, RBAC, user profile management.
+            \item \textbf{Boundary:} All auth and user operations flow through the gateway; non-auth domain operations are proxied to the learning-service.
+            \item \textbf{Implementation:} Modules under \texttt{backend/services/api-gateway/src/modules/auth} and \texttt{backend/services/api-gateway/src/modules/users}.
+        \end{itemize}
+    \item \textbf{Learning Domain Subsystem}
+        \begin{itemize}
+            \item \textbf{Responsibilities:} Ontology versioning and DAG management, enrollment, progress, quizzes, branching logic, mastery decay, notifications, and admin/instructor analytics.
+            \item \textbf{Boundary:} Owns all database writes for the learning model and exposes domain-specific APIs.
+            \item \textbf{Implementation:} Modules under \texttt{backend/services/learning-service/src/modules}.
+        \end{itemize}
+    \item \textbf{AI Integration Subsystem}
+        \begin{itemize}
+            \item \textbf{Responsibilities:} Quiz generation, explanation generation, resource discovery, fallback model usage (Phi-4-Multimodal primary via Kaggle, Qwen2.5-3B secondary via Ollama, Gemini 2.5 Flash tertiary API last resort), caching, circuit breakers.
+            \item \textbf{Boundary:} Exposes AI endpoints to learning-service; does not directly mutate core domain state.
+            \item \textbf{Implementation:} \texttt{backend/services/ai-service/src/modules/ai}.
+        \end{itemize}
+    \item \textbf{Client Applications}
+        \begin{itemize}
+            \item \textbf{Web client:} React + Vite application providing learner, instructor, and admin interfaces. Source code in \texttt{frontend/src}.
+            \item \textbf{Mobile client:} Flutter application focusing on learner flow and essential admin features. Source code in \texttt{flutter\_mobile/lib}.
+        \end{itemize}
+    \item \textbf{Shared Infrastructure}
+        \begin{itemize}
+            \item PostgreSQL for persistence and transactional integrity.
+            \item Redis for caching and rate limiting.
+        \end{itemize}
+\end{enumerate}
+
+\subsection{Database Design}
+
+The data model is implemented in PostgreSQL and defined by Prisma in \texttt{backend/services/learning-service/prisma/schema.prisma}. This subsection lists all entities, attributes, constraints, and relationships to show how data is stored, accessed, and managed over time.
+
+\textbf{Enumerations}
+
+\begin{itemize}
+    \item \textbf{UserRole:} \texttt{learner}, \texttt{domain\_expert}, \texttt{admin}
+    \item \textbf{MasteryState:} \texttt{not\_started}, \texttt{in\_progress}, \texttt{mastered}, \texttt{review\_needed}, \texttt{relearn}
+    \item \textbf{QuizOutcome:} \texttt{strong\_pass}, \texttt{marginal\_pass}, \texttt{fail\_low}, \texttt{fail\_fundamental}, \texttt{fail\_severe}
+    \item \textbf{QuestionType:} \texttt{multiple\_choice}, \texttt{short\_answer}, \texttt{code\_completion}, \texttt{true\_false}, \texttt{matching}
+    \item \textbf{ResourceModality:} \texttt{documentation}, \texttt{tutorial}, \texttt{video}, \texttt{interactive}, \texttt{reference}
+    \item \textbf{OntologyStatus:} \texttt{draft}, \texttt{in\_review}, \texttt{verified}, \texttt{published}, \texttt{archived}
+    \item \textbf{AdaptationType:} \texttt{resource\_swap}, \texttt{prerequisite\_review}, \texttt{instructor\_escalation}, \texttt{decay\_micro\_quiz}
+    \item \textbf{BranchPath:} \texttt{frontend}, \texttt{backend}, \texttt{data\_science}
+\end{itemize}
+
+\textbf{Entity tables}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{users} table}
+\label{tab:ch04_users}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+email & VARCHAR(255) & UNIQUE, NOT NULL \\
+password\_hash & VARCHAR(255) & NULLABLE \\
+full\_name & VARCHAR(255) & NOT NULL \\
+role & user\_role & DEFAULT learner \\
+avatar\_url & TEXT & NULLABLE \\
+oauth\_provider & VARCHAR(50) & NULLABLE \\
+oauth\_provider\_id & VARCHAR(255) & NULLABLE \\
+preferred\_language & VARCHAR(10) & DEFAULT en \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+updated\_at & TIMESTAMPTZ & AUTO UPDATED \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{domains} table}
+\label{tab:ch04_domains}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+name & VARCHAR(100) & UNIQUE, NOT NULL \\
+slug & VARCHAR(100) & UNIQUE, NOT NULL \\
+description & TEXT & NULLABLE \\
+icon\_url & TEXT & NULLABLE \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{ontology\_versions} table}
+\label{tab:ch04_ontology_versions}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+domain\_id & UUID & FK $\rightarrow$ domains.id, NOT NULL \\
+version\_number & INT & NOT NULL \\
+status & ontology\_status & DEFAULT draft \\
+created\_by\_id & UUID & FK $\rightarrow$ users.id, NOT NULL \\
+verified\_by\_id & UUID & FK $\rightarrow$ users.id, NULLABLE \\
+verified\_at & TIMESTAMPTZ & NULLABLE \\
+published\_at & TIMESTAMPTZ & NULLABLE \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+ &  & UNIQUE (domain\_id, version\_number) \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{learning\_nodes} table}
+\label{tab:ch04_learning_nodes}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+ontology\_version\_id & UUID & FK $\rightarrow$ ontology\_versions.id, NOT NULL \\
+title & VARCHAR(255) & NOT NULL \\
+slug & VARCHAR(255) & NOT NULL \\
+description & TEXT & NULLABLE \\
+learning\_outcomes & JSON & NOT NULL \\
+estimated\_hours & DECIMAL(4,1) & NULLABLE \\
+difficulty\_level & INT & NULLABLE \\
+is\_branching\_point & BOOLEAN & DEFAULT false \\
+is\_convergence\_point & BOOLEAN & DEFAULT false \\
+branch\_path & branch\_path & NULLABLE \\
+position\_x & FLOAT & NULLABLE \\
+position\_y & FLOAT & NULLABLE \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+ &  & UNIQUE (ontology\_version\_id, slug) \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{node\_prerequisites} table}
+\label{tab:ch04_node_prerequisites}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+prerequisite\_node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+ &  & UNIQUE (node\_id, prerequisite\_node\_id) \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{enrollments} table}
+\label{tab:ch04_enrollments}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+user\_id & UUID & FK $\rightarrow$ users.id, NOT NULL \\
+domain\_id & UUID & FK $\rightarrow$ domains.id, NOT NULL \\
+ontology\_version\_id & UUID & FK $\rightarrow$ ontology\_versions.id, NOT NULL \\
+selected\_branch\_path & branch\_path & NULLABLE \\
+enrolled\_at & TIMESTAMPTZ & DEFAULT now() \\
+weekly\_hours & INT & NULLABLE \\
+familiarity\_level & VARCHAR(20) & NULLABLE \\
+learning\_goal & VARCHAR(30) & NULLABLE \\
+about\_self & TEXT & NULLABLE \\
+ &  & UNIQUE (user\_id, domain\_id) \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{learner\_node\_progress} table}
+\label{tab:ch04_learner_node_progress}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+user\_id & UUID & FK $\rightarrow$ users.id, NOT NULL \\
+node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+enrollment\_id & UUID & FK $\rightarrow$ enrollments.id, NOT NULL \\
+mastery\_state & mastery\_state & DEFAULT not\_started \\
+best\_quiz\_score & DECIMAL(5,2) & NULLABLE \\
+attempts\_count & INT & DEFAULT 0 \\
+is\_marginal\_pass & BOOLEAN & DEFAULT false \\
+mastered\_at & TIMESTAMPTZ & NULLABLE \\
+last\_reviewed\_at & TIMESTAMPTZ & NULLABLE \\
+decay\_notified\_at & TIMESTAMPTZ & NULLABLE \\
+unlocked & BOOLEAN & DEFAULT false \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+updated\_at & TIMESTAMPTZ & AUTO UPDATED \\
+ &  & UNIQUE (user\_id, node\_id) \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{quizzes} table}
+\label{tab:ch04_quizzes}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+is\_micro\_quiz & BOOLEAN & DEFAULT false \\
+generated\_by & VARCHAR(50) & NOT NULL \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{quiz\_questions} table}
+\label{tab:ch04_quiz_questions}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+quiz\_id & UUID & FK $\rightarrow$ quizzes.id, NOT NULL (CASCADE DELETE) \\
+question\_type & question\_type & NOT NULL \\
+question\_text & TEXT & NOT NULL \\
+options & JSON & NULLABLE \\
+correct\_answer & TEXT & NOT NULL \\
+explanation & TEXT & NULLABLE \\
+order\_index & INT & NOT NULL \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{quiz\_attempts} table}
+\label{tab:ch04_quiz_attempts}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+user\_id & UUID & FK $\rightarrow$ users.id, NOT NULL \\
+quiz\_id & UUID & FK $\rightarrow$ quizzes.id, NOT NULL \\
+node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+score\_percent & DECIMAL(5,2) & NOT NULL \\
+outcome & quiz\_outcome & NOT NULL \\
+answers & JSON & NOT NULL \\
+started\_at & TIMESTAMPTZ & NOT NULL \\
+completed\_at & TIMESTAMPTZ & NOT NULL \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{resources} table}
+\label{tab:ch04_resources}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+title & VARCHAR(500) & NOT NULL \\
+url & TEXT & NOT NULL \\
+source\_domain & VARCHAR(255) & NOT NULL \\
+modality & resource\_modality & NOT NULL \\
+description & TEXT & NULLABLE \\
+is\_primary & BOOLEAN & DEFAULT false \\
+last\_validated\_at & TIMESTAMPTZ & NULLABLE \\
+is\_valid & BOOLEAN & DEFAULT true \\
+avg\_rating & DECIMAL(3,2) & DEFAULT 0.00 \\
+rating\_count & INT & DEFAULT 0 \\
+fetched\_via & VARCHAR(50) & NOT NULL \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{resource\_ratings} table}
+\label{tab:ch04_resource_ratings}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+resource\_id & UUID & FK $\rightarrow$ resources.id, NOT NULL \\
+user\_id & UUID & FK $\rightarrow$ users.id, NOT NULL \\
+rating & INT & NOT NULL \\
+comment & TEXT & NULLABLE \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+ &  & UNIQUE (resource\_id, user\_id) \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{domain\_whitelist} table}
+\label{tab:ch04_domain_whitelist}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+domain\_id & UUID & FK $\rightarrow$ domains.id, NOT NULL \\
+source\_domain & VARCHAR(255) & NOT NULL \\
+source\_name & VARCHAR(255) & NOT NULL \\
+default\_modality & resource\_modality & NOT NULL \\
+added\_by\_id & UUID & FK $\rightarrow$ users.id, NULLABLE \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+ &  & UNIQUE (domain\_id, source\_domain) \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{adaptation\_events} table}
+\label{tab:ch04_adaptation_events}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+user\_id & UUID & FK $\rightarrow$ users.id, NOT NULL \\
+node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+quiz\_attempt\_id & UUID & FK $\rightarrow$ quiz\_attempts.id, NULLABLE \\
+adaptation\_type & adaptation\_type & NOT NULL \\
+details & JSON & NULLABLE \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{challenge\_projects} table}
+\label{tab:ch04_challenge_projects}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+node\_id & UUID & FK $\rightarrow$ learning\_nodes.id, NOT NULL \\
+title & VARCHAR(500) & NOT NULL \\
+description & TEXT & NOT NULL \\
+difficulty\_level & INT & NULLABLE \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{notifications} table}
+\label{tab:ch04_notifications}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+user\_id & UUID & FK $\rightarrow$ users.id, NOT NULL \\
+type & VARCHAR(50) & NOT NULL \\
+title & VARCHAR(255) & NOT NULL \\
+body & TEXT & NULLABLE \\
+data & JSON & NULLABLE \\
+read & BOOLEAN & DEFAULT false \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{3cm}p{2.5cm}p{5cm}}
+\caption{\textbf{refresh\_tokens} table}
+\label{tab:ch04_refresh_tokens}\\
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Constraints} \\
+\midrule
+\endhead
+id & UUID & PK, default gen\_random\_uuid() \\
+user\_id & UUID & FK $\rightarrow$ users.id, NOT NULL (CASCADE DELETE) \\
+token\_hash & VARCHAR(255) & NOT NULL \\
+expires\_at & TIMESTAMPTZ & NOT NULL \\
+created\_at & TIMESTAMPTZ & DEFAULT now() \\
+\bottomrule
+\end{longtable}
+
+\textbf{Relationships summary}
+
+\begin{itemize}
+    \item \texttt{users} 1..* \texttt{enrollments}, \texttt{learner\_node\_progress}, \texttt{quiz\_attempts}, \texttt{resource\_ratings}, \texttt{notifications}, \texttt{adaptation\_events}, \texttt{refresh\_tokens}
+    \item \texttt{domains} 1..* \texttt{ontology\_versions}, \texttt{enrollments}, \texttt{domain\_whitelist}
+    \item \texttt{ontology\_versions} 1..* \texttt{learning\_nodes}
+    \item \texttt{learning\_nodes} 1..* \texttt{quizzes}, \texttt{resources}, \texttt{challenge\_projects}, \texttt{learner\_node\_progress}, \texttt{adaptation\_events}
+    \item \texttt{learning\_nodes} *..* \texttt{learning\_nodes} via \texttt{node\_prerequisites}
+\end{itemize}
+
+\begin{center}
+    \includegraphics[width=\textwidth]{figures/images/image11.png}
+    \captionof{figure}{Entity-Relationship Diagram (Full Attributes)}
+    \label{fig:ch04_erd}
+\end{center}
+
+\subsection{Deployment Diagram}
+
+The deployment configuration is defined in \texttt{backend/docker-compose.yml}. The reverse proxy routing rules are defined in \texttt{backend/nginx/nginx.conf}. The physical arrangement below clarifies network boundaries, service responsibilities, and shared infrastructure, which helps identify scaling or performance bottlenecks.
+
+\textbf{Deployment topology (physical view)}
+
+\begin{itemize}
+    \item Clients (web and mobile) communicate over HTTPS to the reverse proxy.
+    \item Nginx routes requests by URL prefix to the correct backend service.
+    \item \textbf{api-gateway} and \textbf{learning-service} connect to the same PostgreSQL database and Redis instance.
+    \item \textbf{ai-service} uses Redis for cache and throttling but does not write to the database.
+    \item Each service runs in its own container for isolation and independent scaling.
+\end{itemize}
+
+\textbf{Scalability and performance considerations}
+
+\begin{itemize}
+    \item The reverse proxy is a potential choke point; in production, use a managed load balancer or ingress controller.
+    \item \textbf{ai-service} is the most latency-sensitive component; it should scale horizontally and use caching to reduce AI-provider load.
+    \item PostgreSQL is the primary shared dependency; its performance directly affects read-heavy endpoints like roadmap and progress.
+    \item Redis reduces database pressure by caching AI responses and rate-limiter state.
+\end{itemize}
+
+\begin{center}
+    \includegraphics[width=\textwidth]{figures/images/image12.png}
+    \captionof{figure}{Deployment Diagram}
+    \label{fig:ch04_deployment}
+\end{center}
+
+\subsection{User Interface Design}
+
+The UI layer follows a user-centered design approach focused on clarity, progressive disclosure, and continuous feedback. Learners are guided from onboarding to actionable next steps, while instructors and administrators are provided with analytical views and management workflows. The design prioritizes accessibility, predictable navigation, and minimal cognitive load.
+
+\textbf{Design principles (user-centered)}
+
+\begin{itemize}
+    \item \textbf{Learnability:} Clear, consistent layouts across web and mobile reduce onboarding time.
+    \item \textbf{Guidance:} Contextual panels and progress indicators highlight next actions.
+    \item \textbf{Feedback:} Immediate visual feedback for quiz outcomes, mastery states, and system notifications.
+    \item \textbf{Accessibility:} High-contrast typography, keyboard focus states, and scalable layout on different devices.
+\end{itemize}
+
+\textbf{Web client:} Implemented in React with Vite; feature modules are organized under \texttt{frontend/src/features}. Core pages include Dashboard, Domain Catalog, Roadmap, Learn, Quiz, Notifications, Instructor, and Admin.
+
+\textbf{Mobile client:} Implemented in Flutter; features include enrollments, roadmap view, quiz attempts, and notifications. Source code in \texttt{flutter\_mobile/lib}.
+
+\textbf{Key interaction patterns:}
+
+\begin{itemize}
+    \item \textbf{Roadmap view:} Canvas + side drawer to keep the learning graph visible while exploring node details.
+    \item \textbf{Learn view:} Content-first layout with inline quizzes and resource tabs to minimize context switching.
+    \item \textbf{Quiz flow:} Progress bar with immediate post-quiz feedback and remediation options.
+    \item \textbf{Instructor/Admin dashboards:} Table + summary cards for quick status review, with drill-down panels.
+\end{itemize}
+
+\begin{center}
+    \includegraphics[width=0.9\textwidth]{figures/images/image13.png}
+    \captionof{figure}{UI Mockups and Wireframe Navigation}
+    \label{fig:ch04_ui}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=\textwidth]{figures/images/image14.png}
+    \captionof{figure}{UI Navigation Diagram}
+    \label{fig:ch04_navigation}
+\end{center}
+
+\subsubsection{Figma UI Screen Designs}
+
+The following screen designs were created in Figma to guide the frontend implementation.
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/login page.png"}
+    \captionof{figure}{Login Page}
+    \label{fig:ch04_login}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/sign-up page.png"}
+    \captionof{figure}{Sign Up Page}
+    \label{fig:ch04_signup}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/dashboard page.png"}
+    \captionof{figure}{Dashboard Page}
+    \label{fig:ch04_dashboard}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/overview page.png"}
+    \captionof{figure}{Overview Page}
+    \label{fig:ch04_overview}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/roadmap page.png"}
+    \captionof{figure}{Roadmap Page}
+    \label{fig:ch04_roadmap}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/explanation page.png"}
+    \captionof{figure}{Explanation Page}
+    \label{fig:ch04_explanation}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/quiz page.png"}
+    \captionof{figure}{Quiz Page}
+    \label{fig:ch04_quiz}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/catalog page.png"}
+    \captionof{figure}{Catalog Page}
+    \label{fig:ch04_catalog}
+\end{center}
+
+\begin{center}
+    \includegraphics[width=0.8\textwidth]{"figures/images/enroll page.png"}
+    \captionof{figure}{Enroll Page}
+    \label{fig:ch04_enroll}
+\end{center}
+
+\subsection{System Integration}
+
+System integration defines how independent components cooperate to deliver a seamless learning experience. It covers API interoperability, data exchange, and the use of third-party services such as OAuth providers and AI platforms. The integration strategy prioritizes clear boundaries, strict contracts, and resilient communication.
+
+\textbf{Integration architecture and interoperability}
+
+\begin{itemize}
+    \item \textbf{Service boundaries:} Each backend service exposes a stable REST API. The api-gateway owns authentication and user identity; the learning-service owns domain data and learning flows; the ai-service owns AI and resource generation. The reverse proxy routes traffic so clients do not need to manage service discovery.
+    \item \textbf{Compatibility:} All APIs are versioned under \texttt{/api/v1}, enabling backward compatibility. Swagger/OpenAPI documents are exposed for each service, and clients rely on these contracts to generate or validate API calls.
+    \item \textbf{Data exchange:} JSON is the primary exchange format. All services enforce request/response schemas and validate payloads to prevent mismatches or malformed data.
+\end{itemize}
+
+\textbf{Integration flows (detailed)}
+
+\begin{enumerate}
+    \item \textbf{Authentication and session management}
+        \begin{itemize}
+            \item The client authenticates via OAuth (Google, GitHub) or email/password through the api-gateway.
+            \item On success, the gateway issues a JWT access token and a hashed refresh token, storing refresh tokens in the database.
+            \item The client includes \texttt{Authorization: Bearer <token>} for all protected requests to the learning-service.
+        \end{itemize}
+    \item \textbf{Learning data flow}
+        \begin{itemize}
+            \item The client requests a roadmap; the learning-service retrieves ontology versions, nodes, and progress data from PostgreSQL.
+            \item Progress updates (quiz results, mastery transitions) are persisted and may trigger adaptation events and notifications.
+        \end{itemize}
+    \item \textbf{AI-assisted generation flow}
+        \begin{itemize}
+            \item When a learner requests a quiz or explanation, the learning-service calls the ai-service.
+            \item The ai-service checks Redis for cached outputs; on cache miss, it queries an AI provider (Phi-4-Multimodal via Kaggle) with fallback to Qwen2.5-3B (via Ollama) and finally Gemini 2.5 Flash (API last resort).
+            \item Results are cached and returned to the learning-service, which persists quiz metadata and serves the response to the client.
+        \end{itemize}
+    \item \textbf{Notification and background workflows}
+        \begin{itemize}
+            \item Scheduled tasks in the learning-service analyze decay and progress to generate reminders or micro-quizzes.
+            \item Notifications are stored and delivered to the client in the notifications panel.
+        \end{itemize}
+\end{enumerate}
+
+\textbf{Third-party services integration}
+
+\begin{itemize}
+    \item \textbf{OAuth providers:} Google and GitHub are used for external authentication. Callback routes are hosted in the api-gateway, ensuring consistent user identity handling.
+    \item \textbf{AI providers:} Phi-4-Multimodal (primary, via Kaggle), Qwen2.5-3B (secondary, via Ollama), and Gemini 2.5 Flash (tertiary, API last resort) are abstracted behind ai-service; this isolates AI dependencies from core business logic.
+    \item \textbf{Search provider:} Resource discovery uses Google Programmable Search Engine (PSE) API, encapsulated in the learning-service to keep retrieval logic consistent.
+\end{itemize}
+
+\textbf{Integration reliability and error handling}
+
+\begin{itemize}
+    \item Timeouts and circuit breakers are applied to AI calls to prevent upstream failures from impacting the core learning experience.
+    \item The circuit breaker pattern tracks consecutive failures per provider (threshold: 5 failures within 5 minutes), automatically falling back to the next tier.
+    \item Retries and backoff policies are applied to transient errors in AI and search providers.
+    \item Each service exposes \texttt{/health} endpoints for monitoring and automated recovery.
+\end{itemize}
+
+Figure~\ref{fig:ch04_sequence} illustrates the authentication and AI-assisted generation flows across the system components.
+
+\newpage
+\begin{center}
+    \includegraphics[width=0.85\textwidth]{figures/images/image7.png}
+    \captionof{figure}{Sequence Diagram (Auth + AI Flow)}
+    \label{fig:ch04_sequence}
+\end{center}
+
+\subsection{Security Design}
+
+Security is integrated throughout the system to protect user data, prevent abuse, and ensure trustworthy operation. The security design focuses on authentication, authorization, data protection, secure communication, and operational safeguards.
+
+\textbf{Authentication}
+
+\begin{itemize}
+    \item The system uses JWT access tokens for stateless authentication, issued by the api-gateway.
+    \item Refresh tokens are stored hashed in the database to mitigate token leakage risks.
+    \item OAuth integration uses secure callback URLs and state validation to protect against CSRF attacks.
+\end{itemize}
+
+\textbf{Authorization (RBAC)}
+
+\begin{itemize}
+    \item Role-based access control ensures learners, instructors, and admins only access permitted routes.
+    \item Gateway middleware enforces role checks for sensitive endpoints, and services validate roles for defense in depth.
+    \item Three roles are defined: \texttt{learner}, \texttt{domain\_expert}, and \texttt{admin}, each with distinct permission sets.
+\end{itemize}
+
+\textbf{Encryption and secure transport}
+
+\begin{itemize}
+    \item TLS is required in production to protect credentials and tokens in transit.
+    \item Sensitive data (password hashes, refresh tokens) is stored using strong one-way hashing algorithms (bcrypt).
+    \item Database encryption at rest is planned for production deployment.
+\end{itemize}
+
+\textbf{Input validation and sanitization}
+
+\begin{itemize}
+    \item All incoming requests are validated against schemas (Joi), rejecting malformed or unexpected payloads.
+    \item Sanitization middleware removes potentially unsafe characters from user inputs to mitigate injection attacks.
+\end{itemize}
+
+\textbf{Rate limiting and abuse prevention}
+
+\begin{itemize}
+    \item Redis-backed rate limiting is applied globally and specifically to authentication endpoints.
+    \item Brute-force attacks are mitigated through request throttling and account lockout policies.
+\end{itemize}
+
+\textbf{AI and third-party risk controls}
+
+\begin{itemize}
+    \item AI service calls are wrapped with circuit breakers and timeouts to prevent cascading failures.
+    \item Cached AI responses reduce repeated exposure to external systems and limit provider dependency.
+    \item Three-tier provider fallback ensures availability even when primary AI services are unreachable.
+\end{itemize}
+
+\textbf{Auditability and monitoring}
+
+\begin{itemize}
+    \item Structured logging captures authentication attempts, errors, and critical domain actions.
+    \item Health endpoints enable monitoring and alerting for availability and security incidents.
+\end{itemize}
+
+\textbf{Secure configuration and secrets management}
+
+\begin{itemize}
+    \item Development uses environment variables; production should use a dedicated secrets manager.
+    \item Sensitive values are excluded from version control and injected during deployment.
+\end{itemize}
+
+\textbf{Hardening and testing}
+
+\begin{itemize}
+    \item Dependency scanning, static analysis, and penetration testing are required before deployment.
+    \item A hardening checklist is documented in \texttt{docs/backend/12-hardening.md}.
+\end{itemize}
+
+\section{Verifying the Requirements in the Design}
+
+This section verifies the design against the full set of functional and non-functional requirements. The verification strategy combines traceability, architectural inspection, automated testing, and operational validation. Each requirement is mapped to design artifacts and a concrete verification method, with clear evidence and a defined discrepancy-resolution process.
+
+\subsection{Requirements Traceability Approach}
+
+\begin{itemize}
+    \item \textbf{Mapping:} Every requirement is linked to a subsystem and one or more design artifacts (data model, API routes, service modules, UI screens, or infrastructure).
+    \item \textbf{Verification:} Each requirement has a validation method (unit, integration, end-to-end, load, or security tests).
+    \item \textbf{Evidence:} Evidence is collected from tests, CI runs, and runtime checks (health endpoints, logs, and monitoring).
+\end{itemize}
+
+\subsection{Functional Requirements Verification Matrix}
+
+\begin{longtable}{p{3cm}p{3.5cm}p{3cm}p{4.5cm}}
+\caption{Functional requirements verification matrix}
+\label{tab:ch04_fr_verification}\\
+\toprule
+\textbf{Requirement} & \textbf{Design Coverage} & \textbf{Verification Method} & \textbf{Evidence/Artifact} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Requirement} & \textbf{Design Coverage} & \textbf{Verification Method} & \textbf{Evidence/Artifact} \\
+\midrule
+\endhead
+FR1.1 Ontology generation (Teacher Model) & Ontology module + JSON structure in learning-service & Offline generation test + JSON schema validation & Ontology JSON schema tests \\
+FR1.2 Expert verification workflow & Admin/instructor APIs + ontology status fields & Integration tests for review/approve flow & Admin/ontology routes + role checks \\
+FR1.3 Ontology versioning + rollback & OntologyVersion model + status transitions & Integration tests for version creation and retrieval & Prisma schema + ontology tests \\
+FR2.1 User registration + social login & api-gateway auth + OAuth callbacks & Auth flow tests + OAuth callback tests & Auth module + login E2E \\
+FR2.2 Progress tracking & LearnerNodeProgress model + progress routes & Integration tests for attempts and timestamps & Progress routes + DB constraints \\
+FR2.3 Learner statistics & Aggregation queries in learning-service & API tests for stats endpoints & Instructor analytics endpoints \\
+FR3.1 Quiz generation (Tutor Model) & ai-service quiz generation + learning-service persistence & Contract tests + schema validation & AI routes + quiz persistence tests \\
+FR3.2 Multiple question types & QuestionType enum + quiz\_questions table & Unit tests for validation & Prisma enums + quiz validation \\
+FR3.3 Quiz evaluation + feedback & QuizAttempt + scoring logic & Unit tests for scoring + E2E quiz flow & Quiz service tests + Playwright \\
+FR3.4 Micro-quizzes on decay & Decay scheduler + ai-service & Integration tests for decay transitions & Decay module + notification tests \\
+FR4.1 Three-tier progression logic & Gatekeeper service + mastery states & Unit tests for thresholds + transitions & Gatekeeper tests \\
+FR4.2 Prerequisite validation & NodePrerequisite + roadmap unlock logic & Integration tests for lock/unlock & NodePrerequisite constraints \\
+FR4.3 Challenge project recommendation & ChallengeProject + post-pass flow & Integration tests after strong pass & Challenge project service tests \\
+FR4.4 Resource adaptation on fail & AdaptationEvent + resource swap & Integration tests for fail outcomes & Adaptation event logs \\
+FR5.1 PSE resource fetch (whitelist) & Resource service + domain whitelist & API tests with mocked PSE & Resource service tests \\
+FR5.2 Link validation & Link validator + resource checks & Integration tests for HTTP status validation & Link validation service \\
+FR5.3 Learner feedback on resources & ResourceRating model + endpoints & CRUD API tests for ratings & Resource rating routes \\
+FR5.4 Modality-based alternatives & Resource modality + adaptation logic & Integration tests for swap logic & Resource adaptation tests \\
+FR6.1 Decay state computation & Decay scheduler + timestamps & Unit tests for thresholds & Decay service tests \\
+FR6.2 Auto micro-quiz on decay & Decay + ai-service & Integration test for decay-to-quiz & Decay scheduler tests \\
+FR6.3 Visualize decay in roadmap & Roadmap UI + node state & UI tests for color states & Frontend roadmap tests \\
+FR6.4 Notifications for review & Notifications module & Integration tests for notification creation & Notifications routes \\
+FR7.1 Branching identification & BranchPath field + ontology rules & Unit tests for branching nodes & Ontology validation tests \\
+FR7.2 Branch choice + recommendations & Branching API + UI modal & E2E test for branching flow & Branching UI tests \\
+FR7.3 Dynamic roadmap adjustment & Roadmap filtering by path & E2E test for branch selection & Roadmap endpoint tests \\
+FR7.4 Path reconvergence & Ontology rules + DAG validation & Unit tests for reconvergence & Ontology DAG validation \\
+FR8.1 Interactive DAG UI & Roadmap canvas components & UI interaction tests & Roadmap component tests \\
+FR8.2 Quiz, dashboard, settings & UI pages + routing & E2E tests across pages & Playwright suites \\
+FR8.3 Mobile UX + offline cache & Flutter app + cached roadmap & Mobile tests + offline simulation & Flutter tests \\
+FR8.4 Responsive UI & CSS breakpoints + layout tests & Visual regression tests & Frontend layout tests \\
+\bottomrule
+\end{longtable}
+
+\subsection{Non-Functional Requirements Verification Matrix}
+
+\begin{longtable}{p{3cm}p{3.5cm}p{3cm}p{4.5cm}}
+\caption{Non-functional requirements verification matrix}
+\label{tab:ch04_nfr_verification}\\
+\toprule
+\textbf{Requirement} & \textbf{Design Coverage} & \textbf{Verification Method} & \textbf{Evidence/Artifact} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Requirement} & \textbf{Design Coverage} & \textbf{Verification Method} & \textbf{Evidence/Artifact} \\
+\midrule
+\endhead
+NFR1.1 Roadmap load <=2s & Indexed queries + caching & Performance test + p95 latency & Load test report \\
+NFR1.2 Quiz API p95 <=500ms & Rate-limited endpoints + caching & Load test + API latency tracking & API performance report \\
+NFR1.3 LLM quiz <=3s & AI cache + fallback & Timing tests + cache hit ratio & AI service metrics \\
+NFR2.1 1,000 concurrent users & Horizontal scaling + stateless API & Load test with concurrency & Load test report \\
+NFR2.2 DB/Redis scaling & Read replicas + caching design & Architectural validation & Deployment plan \\
+NFR2.3 Multi-tenancy ready & Namespacing strategy + config boundaries & Design review & Architecture review notes \\
+NFR3.1 99.5\% uptime & Health checks + monitoring & Availability monitoring & Uptime dashboard \\
+NFR3.2 Backup + recovery (4h) & DB backup plan & Recovery drill & Backup logs \\
+NFR3.3 Graceful AI fallback & Circuit breakers + cached quizzes & Failure simulation & AI outage test \\
+NFR4.1 JWT + httpOnly cookies & Gateway auth design & Security review + E2E auth test & Auth tests \\
+NFR4.2 Encryption in transit/at rest & TLS + DB encryption plan & Security audit & Security checklist \\
+NFR4.3 RBAC roles & Role-based middleware & Role access tests & RBAC test suite \\
+NFR4.4 Input sanitization & Validation + sanitizer middleware & Security tests & Validation tests \\
+NFR4.5 Data confidentiality & Consent + data handling rules & Policy review & Privacy checklist \\
+NFR5.1 Onboarding <5 min & Simplified UX flow & Usability test & UX test notes \\
+NFR5.2 Quiz UI clarity & UI feedback patterns & Usability testing & UX survey \\
+NFR5.3 Roadmap interpretability & Legend + tooltips & Usability testing & UX feedback \\
+NFR5.4 Error messages clarity & Consistent error UI & UX review & Error-state review \\
+NFR6.1 Coding standards + docs & Linting + docs & CI lint + doc review & CI logs \\
+NFR6.2 Add new domains easily & Ontology versioning + seeding & Design review & Architecture notes \\
+NFR6.3 API versioning & /api/v1 routes & API contract review & API docs \\
+NFR7.1 Amharic/English/Oromo & Localization plan + i18n & UI localization test & i18n checklist \\
+NFR7.2 Ethiopian context & Content guidelines & Content review & Editorial checklist \\
+NFR7.3 Low-bandwidth support & Cache + optimized payloads & Network throttling tests & Performance report \\
+\bottomrule
+\end{longtable}
+
+\subsection{Verification Methods and Evidence}
+
+The following verification methods are employed to validate the design:
+
+\begin{itemize}
+    \item \textbf{Unit tests:} Validate business rules (DAG validation, gatekeeper thresholds, decay logic).
+    \item \textbf{Integration tests:} Verify DB constraints, service-to-service calls, and cache usage.
+    \item \textbf{End-to-end tests:} Simulate complete learner and instructor workflows in \texttt{playwright/tests}.
+    \item \textbf{Load and performance tests:} Measure p95 latency and concurrency thresholds.
+    \item \textbf{Security tests:} Static analysis, dependency scanning, and RBAC penetration tests.
+    \item \textbf{Operational checks:} Health endpoints, backup verification, and AI outage simulations.
+\end{itemize}
+
+\subsection{Discrepancy Identification and Resolution}
+
+Any discrepancies between the design and the requirements are handled through a structured four-step process:
+
+\begin{enumerate}
+    \item \textbf{Detection:} Failing tests, CI alerts, or monitoring signals identify mismatches.
+    \item \textbf{Classification:} Issues are tagged as design gaps, implementation defects, or external dependency failures.
+    \item \textbf{Resolution:}
+        \begin{itemize}
+            \item Design gaps $\rightarrow$ update architecture or requirement specification.
+            \item Implementation defects $\rightarrow$ patch code and add regression tests.
+            \item Dependency failures $\rightarrow$ add fallbacks, retries, or alternative providers.
+        \end{itemize}
+    \item \textbf{Validation:} Re-run tests and record evidence in CI and change logs.
+\end{enumerate}
+
+\subsection{Evidence Sources}
+
+The following sources provide verifiable evidence for the design's completeness and correctness:
+
+\begin{itemize}
+    \item \textbf{Prisma schema and migrations:} \texttt{backend/services/learning-service/prisma/schema.prisma} and \texttt{docs/backend/02-schema.md}.
+    \item \textbf{Service test suites:} \texttt{tests/} folders within backend services.
+    \item \textbf{End-to-end workflow tests:} \texttt{playwright/tests}.
+    \item \textbf{CI workflows:} \texttt{.github/workflows/ci.yml}.
+\end{itemize}
+
+\endinput

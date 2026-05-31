@@ -1,0 +1,315 @@
+\chapter{Literature Review}
+
+This chapter surveys the academic literature and related work that collectively inform the design of \projectname. The review is organised into three parts: Section~2.1 examines related works across twelve research streams spanning intelligent tutoring systems, knowledge representation, adaptive learning, spaced repetition, personalisation, gamification, and AI-driven educational tools; Section~2.2 identifies the key milestones in each stream and analyses the critical gaps that justify the proposed system; and Section~2.3 synthesises three overarching lessons learned from the literature that directly drive the design decisions in subsequent chapters.
+
+% ============================================================
+\section{Study of Related Works}
+\label{sec:related-works}
+% ============================================================
+
+% ----------------------------------------------------------
+\subsection{Evolution of Intelligent Tutoring Systems}
+\label{sec:its-evolution}
+% ----------------------------------------------------------
+
+The foundation of personalised learning traces back to Bloom's seminal work on the \enquote{two-sigma problem}~\cite{bloom1984}, which demonstrated that one-on-one tutoring produces two standard deviations of improvement over traditional classroom instruction. This groundbreaking finding motivated decades of research into Intelligent Tutoring Systems (ITS) that attempt to replicate tutor-like adaptivity at scale. The psychological principle underlying this finding is well-established: individual feedback, adaptive pacing, and immediate error correction---hallmarks of human tutoring---significantly accelerate learning outcomes~\cite{kulik1991}.
+
+VanLehn's comprehensive meta-analysis~\cite{vanlehn2011} identified three persistent ITS challenges: knowledge representation, student modelling, and pedagogical strategy selection. Traditional rule-based ITS systems (e.g., LISP Tutor and Cognitive Tutors) achieved measurable learning gains of up to one sigma in controlled studies but faced severe scalability barriers due to manual knowledge engineering requirements. Each domain required expert intervention to codify learning rules in propositional or constraint-based formalisms, making rapid curriculum expansion impractical. In the context of software engineering education, this meant that developing a complete ITS for even a single programming language required thousands of hours of expert time---a constraint particularly acute in resource-limited contexts like Ethiopia, where educational expertise and funding are scarce.
+
+Woolf's extensive synthesis~\cite{woolf2009} articulated that effective tutoring requires three essential pillars: (1) accurate, comprehensive domain knowledge representation that captures prerequisites, learning outcomes, and misconceptions; (2) sophisticated understanding of individual student misconceptions and learning styles; and (3) timely, contextually appropriate adaptive feedback that neither over-scaffolds nor under-supports learners. However, most contemporary platforms---including free platforms like Khan Academy and paid platforms like Coursera---implement only passive sequencing. They present content in a predetermined, linear order without active performance-driven progression gates or adaptive resource swapping based on specific failure modes. Learners can technically \enquote{complete} a course without demonstrating mastery, leading to knowledge gaps that compound in subsequent courses.
+
+\projectname{} addresses this critical gap by embedding assessment-driven progression through the Gatekeeper Pattern, ensuring that advancement to new conceptual nodes is contingent on demonstrated mastery (defined as \(\ge 80\%\) performance on targeted assessment), not merely time spent or content completion. This operationalises Bloom's principle of mastery-based progression and directly responds to the two-sigma finding by enforcing individual accountability and performance-based advancement, thereby approximating the adaptive feedback loop of one-on-one tutoring at scale.
+
+\subsection{Knowledge Space Theory and Ontology-Based Curriculum Design}
+\label{sec:kst-ontology}
+
+Knowledge Space Theory (KST), introduced by Doignon \& Falmagne~\cite{doignon1985}, provides a mathematical framework for representing the structure of a knowledge domain as a partially ordered set. It models the idea that mastering certain concepts is a prerequisite for mastering others---exactly like a directed acyclic graph (DAG). A \enquote{knowledge state} is the set of items a learner currently knows, and the space of all reachable knowledge states is constrained by prerequisite (surmise) relations. Falmagne et al.~\cite{falmagne1990} extended the theory with practical methods for building and searching knowledge spaces, and Vuong et al.~\cite{vuong2011} demonstrated algorithmic extraction of prerequisite chains from existing curricula---the same graph structure used by the ontology builder in \projectname.
+
+The domain ontology in \projectname{} is a direct implementation of KST: every \texttt{LearningNode} carries a \texttt{prerequisites} array, and a node unlocks only when all prerequisites are mastered. The DAG structure (branching paths, convergence points, root nodes) defines the valid progressions through the knowledge space. A learner cannot skip from root to advanced nodes without traversing the prerequisite chain---this is the KST surmise relation in practice.
+
+Ontology engineering provides a further layer of rigour. Gruber~\cite{gruber1993} defined an ontology as \enquote{a specification of a conceptualisation} and later formalised design principles for knowledge-sharing systems~\cite{gruber1995}. In educational technology, ontologies enable automated reasoning about curriculum structure, prerequisite inference, and content generation. Holohan et al.~\cite{holohan2005} demonstrated using a subject-domain ontology as the basis for automated generation of e-learning exercises, directly analogous to using \texttt{learningOutcomes} from \texttt{LearningNode} for AI quiz generation. Mizoguchi \& Bourdeau~\cite{mizoguchi2000} argued that explicit ontological representation of domain knowledge is essential for avoiding hallucination and maintaining coherence in AI-driven educational systems---a central rationale for the Skeleton \& Flesh strategy in \projectname.
+
+\subsection{Knowledge Representation: From Ontologies to Retrieval-Augmented Generation}
+\label{sec:knowledge-repr}
+
+The shift from brittle, hand-coded knowledge bases to flexible, ontology-driven approaches marks a critical evolutionary milestone in AI-assisted education. Ontologies---formal specifications of conceptual schemas that enumerate concepts, relationships, and rules within a domain---provide machine-readable representations of domain knowledge that enable both semantic reasoning and knowledge sharing. In the educational technology domain specifically, ontologies have been applied to competency modelling frameworks (IMS RDCEO for learning design, O*NET frameworks for job competencies) and curriculum mapping (mapping learning outcomes to instructional activities).
+
+However, the rapid emergence of Large Language Models (LLMs) in 2022--2024 introduced a profound technical challenge and opportunity. While LLMs can generate fluent, contextually appropriate natural language explanations and appear to \enquote{understand} domain concepts, they suffer from a critical failure mode: hallucination. Hallucination is the phenomenon where an LLM produces confident but factually incorrect, logically incoherent, or fabricated outputs~\cite{marcus2020, weidinger2021}. In technical education, this is catastrophic. A student receiving incorrect information about a JavaScript asynchronous pattern, cryptographic algorithm, or database indexing strategy may internalise false knowledge, leading to buggy code or flawed system design. The stakes are particularly high in self-directed learning, where learners lack an instructor to correct misunderstandings.
+
+Retrieval-Augmented Generation (RAG) has emerged as a proven mitigation strategy~\cite{lewis2020}. RAG decouples knowledge generation into two epistemically distinct phases: (1) retrieve relevant, pre-verified information from a curated knowledge base, and (2) generate contextual explanations and elaborations grounded in that retrieved content. By constraining generation to retrieved facts, RAG significantly reduces hallucination while maintaining the flexibility and naturalness of generative models. For example, a RAG system asked to explain JavaScript closures would first retrieve verified documentation (e.g., from MDN Web Docs or official ECMAScript specifications), then synthesize an explanation grounded in those facts, rather than fabricating examples.
+
+\projectname{} operationalises a strategic variant of RAG through the Skeleton \& Flesh hybrid architecture:
+
+\begin{itemize}
+    \item \textbf{The Skeleton (offline, Teacher Model):} A powerful LLM (e.g., Gemini 2.5 Flash, GPT-4, Claude) is used once, in a controlled offline setting, to generate a comprehensive, logically coherent ontology---a DAG of learning nodes, prerequisite relationships, learning outcomes, and sub-skills. This skeleton is then rigorously verified by domain experts (software engineers, educators) who review each node for accuracy, granularity, and logical sequencing. Once verified, this skeleton is static and deterministic; it cannot be altered by runtime generation and serves as an immutable scaffold.
+    \item \textbf{The Flesh (runtime, Tutor Model):} A lightweight LLM or rule-based engine generates contextual explanations, quizzes, and resource recommendations at runtime, but within the bounds defined by the skeleton. It cannot invent new learning nodes, create arbitrary prerequisites, or deviate from the verified structure. It elaborates on pre-verified nodes using different linguistic styles, provides examples within the node's scope, and generates quiz questions targeting specific learning outcomes defined in that node.
+\end{itemize}
+
+This hybrid approach combines the rigor and verifiability of ontologies with the flexibility, naturalness, and scalability of LLMs. It solves the hallucination problem in curriculum design (the skeleton is verified, thus factually sound) while maintaining scalability beyond manual curation (the flesh is generative, so it does not require scripting thousands of individual quiz questions or explanations). The verified skeleton can be extended by domain experts or crowdsourced reviewers in a controlled process, avoiding the expertise bottleneck that limited traditional ITS development.
+
+\subsection{Bayesian Knowledge Tracing and Mastery State Machines}
+\label{sec:bkt}
+
+Bayesian Knowledge Tracing (BKT), introduced by Corbett \& Anderson~\cite{corbett1994}, is a probabilistic model for estimating a learner's latent knowledge state. It models learning as a two-state hidden Markov model: a learner is either in the \enquote{unlearned} or \enquote{learned} state for each skill, and quiz performance provides observable evidence to update the belief about which state they are in. BKT introduced the idea of tracking knowledge state per skill across multiple interactions, which is now the foundation of nearly all adaptive learning systems. Piech et al.~\cite{piech2015} extended BKT with recurrent neural networks (Deep Knowledge Tracing), demonstrating that deep sequence models can outperform classic BKT by capturing richer temporal patterns.
+
+The \texttt{masteryState} machine in \projectname{}~\texttt{(not\_started \(\rightarrow\) in\_progress \(\rightarrow\) review\_needed \(\rightarrow\) mastered \(\rightarrow\) relearn)} is a deterministic implementation of the same concept BKT models probabilistically. The Gatekeeper's five-tier scoring transitions the state based on accumulated evidence (attempts, scores), and the decay service introduces the temporal dimension that BKT typically omits. The fields \texttt{bestQuizScore} and \texttt{attemptsCount} on \texttt{LearnerNodeProgress} are the direct analogues of BKT's performance observations.
+
+\subsection{Adaptive Assessment and Item Response Theory}
+\label{sec:adaptive-assessment}
+
+Item Response Theory (IRT), formalised by Lord~\cite{lord1980}, is a psychometric framework that models the probability of a correct response as a function of both learner ability and item difficulty. Computerised Adaptive Testing (CAT)~\cite{wainer2000} uses IRT to dynamically select questions that maximise information about the learner's ability level---harder questions for high-ability learners, easier ones for struggling learners. Weak area targeting is a complementary approach: analysing which specific items were answered incorrectly to identify knowledge gaps and retarget instructional content. Lilley \& Barker~\cite{lilley2002} demonstrated practical CAT deployment in an e-learning context, including formative weak-area feedback.
+
+\projectname{} implements an IRT-inspired difficulty calibration through \texttt{computeAdaptiveDifficulty}, which adjusts quiz difficulty (\(\pm 1\) from the node's static ontology value) based on the learner's best score and overall average. The \texttt{detectWeakAreas} function analyses \texttt{QuizAttempt.answers} against \texttt{QuizQuestion.correctAnswer} to extract the specific questions a learner answered incorrectly. These question texts are then injected into subsequent quiz and explanation prompts as \texttt{weakAreas}, ensuring that re-attempts target the learner's actual knowledge gaps rather than reusing generic content.
+
+\subsection{Adaptive Learning, Mastery-Based Progression, and Assessment-Driven Adaptation}
+\label{sec:adaptive-learning}
+
+Adaptive learning systems respond to learner performance by dynamically adjusting content sequencing, difficulty levels, or pacing. Most commercial adaptive platforms (e.g., DreamBox Learning, Knewton, Smart Sparrow) rely on IRT or Bayesian networks to model learner ability and item difficulty, then algorithmically select the next item to maximise information gain about the learner's skill level~\cite{vanderlinden2010}. However, IRT-based adaptation has a critical limitation in the context of curriculum sequencing: it optimises for item selection but not for resource or explanation type adaptation. Under an IRT system, if a learner fails a JavaScript fundamentals quiz (e.g., scores 45\%), the adaptive engine might increase item difficulty slightly or offer a hint, but it typically serves the same conceptual explanation again, perhaps with a visual diagram added but the modality of instruction remains unchanged.
+
+Mastery-Based Learning (MBL), pioneered by Bloom~\cite{bloom1968}, asserts that all learners can achieve high competence given sufficient time and appropriate corrective instruction. Bloom's canonical paper argued that 95\% of students can achieve mastery if instruction is individualised and corrective feedback is provided. The core principle is that progress should be criterion-gated (a minimum performance threshold) rather than time-gated (a fixed-duration course unit). Anderson \& Block~\cite{anderson1975} provided early empirical validation of mastery learning in practice, demonstrating significant achievement gains over conventional instruction. Guskey's modern review~\cite{guskey2007} confirmed the continued relevance of mastery learning, with evidence that formative assessment and corrective instruction are the critical active ingredients---both of which are present in \projectname.
+
+\projectname{} introduces a novel layer of adaptation: \textbf{Assessment-Driven Resource Adaptation}. Failure modes trigger not just re-teaching but strategic resource modality swapping. This is grounded in cognitive load theory~\cite{sweller1988} and multimedia learning theory~\cite{clark2016, mayer2009}, which demonstrate that the effectiveness of instructional modality depends on learner prior knowledge and cognitive load. Specifically, the system implements four remediation tiers:
+
+\begin{itemize}
+    \item \textbf{Score 70--79\% (partial mastery):} The system unlocks the node, marking progress, but flags it for spaced repetition review. The learner is encouraged to advance but will receive reminder quizzes at strategically timed intervals.
+    \item \textbf{Score 50--69\% (emerging understanding but gaps):} The system does not unlock the next node. Instead, it replaces the resource link used during the first attempt---if that was a documentation-style link (e.g., MDN Web Docs, a detailed reference page) with a tutorial-style link (e.g., FreeCodeCamp video tutorial, a step-by-step interactive walkthrough). The hypothesis is that the learner's comprehension gap stems from learning modality mismatch: documentation assumes higher prior knowledge and requires self-directed navigation, while tutorial modality provides guided, scaffolded progression. The quiz is then re-attempted with these adapted resources.
+    \item \textbf{Score 40--49\% (low comprehension):} The system triggers prerequisite review. Before retry, the learner is directed to foundational nodes they may have passed quickly. This addresses a common failure mode in self-directed learning: learners advance through prerequisite topics without deep mastery, then struggle when prerequisites are needed. The system enforces that mastery is not superficial.
+    \item \textbf{Score < 40\% (fundamental gaps):} The system flags the node as \enquote{Requires Instructor Review} (in a classroom setting) or recommends a complete restart of the topical cluster with different resources. This acknowledges the limits of adaptive automation: some gaps may reflect learning disabilities, language barriers, or lack of foundational prerequisites that require human pedagogical judgment.
+\end{itemize}
+
+This granular, failure-mode-aware adaptation extends Woolf's principle of \enquote{knowing what to teach} to a more sophisticated principle: \enquote{knowing how to teach it}---matching not just content but delivery modality, pacing, and support intensity to learner needs. It operationalises research by Clark \& Mayer~\cite{clark2016} showing that multimedia modality should be selected based on learner expertise: novices benefit from tutorial structures, while experts benefit from reference structures.
+
+\subsection{Spaced Repetition and Knowledge Decay}
+\label{sec:spaced-repetition}
+
+Hermann Ebbinghaus's empirical finding~\cite{ebbinghaus1885} that forgetting follows a predictable exponential decay curve (\(R = e^{-t/S}\)) has become foundational to memory and retention science. His original experiments demonstrated that forgetting is not random; it follows a mathematical curve where retention drops sharply in the first days after learning, then levels off. Critically, he also demonstrated that strategically timed review can extend retention indefinitely---the basis for the spaced repetition principle.
+
+Modern implementations and meta-analyses have rigorously validated that spacing intervals optimised to individual retention curves dramatically improve long-term retention compared to massed practice. Cepeda et al.~\cite{cepEDA2006} conducted a meta-analysis of 317 experiments and found that retention improved by up to 40--50\% when spacing intervals were optimised. Dunlosky et al.~\cite{dunlosky2013} further confirmed that distributed practice is one of the most effective learning techniques across a wide range of conditions. Karpicke \& Roediger~\cite{karpicke2008} demonstrated the critical importance of retrieval practice, and Kornell \& Bjork~\cite{kornell2008} showed that spacing improves conceptual learning, not merely rote memorisation. Tools like Anki, Quizlet, and SuperMemo have demonstrated the real-world effectiveness of spaced repetition at scale, helping millions of learners retain vocabulary, facts, and concepts.
+
+However, spaced repetition has been largely isolated as a study tool disconnected from curriculum roadmaps. In typical self-directed learning, learners \enquote{complete} a course (marking nodes as done), achieve a certificate, and then never revisit the material. Over weeks and months, skills decay according to Ebbinghaus's curve, but there is no system-level reminder or re-engagement mechanism. A learner who completes \enquote{JavaScript Fundamentals} in January may find that by April, they have forgotten core concepts and must re-learn from scratch---a form of learning inefficiency that is widespread but rarely addressed.
+
+The Leitner box system~\cite{leitner1972} introduced the first practical spaced repetition implementation. The multi-state mastery transitions in \projectname{} are a direct descendant of this model. \projectname{} introduces \textbf{Mastery Decay}---a visual, algorithm-driven reminder system grounded in Ebbinghaus's curve and modern spacing research:
+
+\begin{itemize}
+    \item \textbf{Initial Mastery (Green status):} Upon passing the Gatekeeper quiz (\(\ge 80\%\)), a node is marked \enquote{Mastered} and visualised as green. A timestamp is recorded.
+    \item \textbf{Review Trigger (Yellow status):} If a node remains unvisited for more than 14 days, it automatically transitions to \enquote{Review Needed} (visualised as yellow). This interval is calibrated based on Cepeda et al.'s finding that optimal spacing is approximately 10--20\% of the desired retention duration. For a semester-long course (16 weeks), a 14-day review interval keeps material fresh.
+    \item \textbf{Relearning Required (Red status):} If a node remains unvisited for more than 30 days, it transitions to \enquote{Relearn} (red), signalling that significant skill decay has occurred and deeper re-engagement is needed.
+    \item \textbf{Micro-Quiz Trigger:} When a node transitions from green to yellow or red, the learner receives a notification and is presented with a micro-quiz (2--3 questions) targeting that node's core concepts. Success on the micro-quiz resets the timer; failure triggers resource adaptation.
+\end{itemize}
+
+The roadmap UI visualises this decay prominently, making learner knowledge gaps visible and actionable. Rather than forgetting being an invisible, gradual phenomenon, it is represented as a dynamic system state. This transforms spaced repetition from a learner's voluntary, self-discipline-dependent tool (e.g., Anki, where many users forget to review decks) into a system-guided, pull-based feature where reminders are automatic and integrated into the learner's progression pathway.
+
+Research by Karpicke \& Roediger~\cite{karpicke2008} and Kornell \& Bjork~\cite{kornell2008} further supports this approach: they found that introducing variability and spacing into learning contexts increases both retention and transfer of knowledge compared to blocked, massed practice. \projectname's decay system introduces both spacing (review after 14 days) and variability (micro-quizzes present questions in different formats, contexts, and difficulty levels compared to the initial Gatekeeper quiz).
+
+\subsection{Personalisation, Adaptive Hypermedia, and Multi-Path Learning}
+\label{sec:personalisation}
+
+Adaptive hypermedia research, synthesised by Brusilovsky~\cite{brusilovsky1996, brusilovsky2001}, identifies at least three dimensions along which learning can be personalised: (1) content adaptation---which topics or learning materials are presented; (2) sequencing adaptation---in what order topics are presented; and (3) modality adaptation---how content is taught (video, text, interactive, etc.). The learner context pipeline (\texttt{buildLearnerContext}) in \projectname{} is the learner model component of an adaptive hypermedia system. It assembles six profile dimensions (familiarity level, learning goal, weekly hours, self-description, preferred learning style, and prior skills) plus live performance data, and injects this into every AI content generation call. This parallels the learner model dimensions identified by Brusilovsky \& Millán~\cite{brusilovsky2007}. Bransford et al.~\cite{bransford2000} argued that effective learning requires attending to learners' prior knowledge, motivation, and metacognition---the same dimensions captured by \texttt{familiarityLevel}, \texttt{learningGoal}, and \texttt{aboutSelf}.
+
+Most traditional, static roadmaps (e.g., roadmap.sh, typical bootcamp curricula) address the first dimension minimally and largely ignore the second and third. They present a fixed, linear sequence: \enquote{Learn HTML \(\rightarrow\) CSS \(\rightarrow\) JavaScript \(\rightarrow\) React \(\rightarrow\) Node.js \(\rightarrow\) Databases.} This one-size-fits-all approach ignores that learners differ substantially in learning preferences, prior knowledge, career goals, and cognitive styles~\cite{pashler2008}. Some learners are visual, front-end focused and need CSS mastery before engaging with JavaScript logic; others are backend-oriented and need databases and server-side logic before styling concerns. A fixed sequence may frustrate the former and confuse the latter.
+
+\projectname's Multi-Path Branching feature operationalises Brusilovsky's second dimension (sequencing adaptation) by offering learner choice at key decision points. The system is designed around a branching tree structure rather than a linear chain:
+
+\begin{itemize}
+    \item After completing foundational nodes, the system presents a branching question: \enquote{Which area interests you most: Visual Design \& Frontend, Backend Logic \& Data, or Data Science \& AI?}
+    \item Based on the learner's choice, the system recommends a sequence of paths: Path A (Frontend-focused: CSS \(\rightarrow\) Advanced CSS \(\rightarrow\) JavaScript DOM Manipulation \(\rightarrow\) Frontend Frameworks \(\rightarrow\) UI/UX), Path B (Backend-focused: Server-Side JavaScript \(\rightarrow\) Databases \(\rightarrow\) API Design \(\rightarrow\) Microservices \(\rightarrow\) DevOps), and Path C (Data Science: Python \(\rightarrow\) Data Structures \(\rightarrow\) Data Analysis Libraries \(\rightarrow\) Machine Learning \(\rightarrow\) Deep Learning).
+    \item Both paths converge at advanced topics (e.g., \enquote{Full-Stack Integration}, \enquote{System Design and Architecture}), ensuring foundational coherence while respecting learner agency.
+\end{itemize}
+
+Multi-path learning also reflects the reality of software engineering careers: not all software engineers are full-stack. Some specialise in frontend, others in backend, still others in data science and machine learning. Offering paths that align with learner interests increases the likelihood of career relevance and sustained engagement.
+
+This approach aligns with self-determination theory~\cite{ryan2000, deci1985}, which identifies autonomy, competence, and relatedness as three fundamental psychological needs that drive intrinsic motivation. Dweck's research on fixed versus growth mindset~\cite{dweck2006} further supports the value of offering learner choice: when learners feel agency and perceive learning challenges as aligned with their interests and capabilities, they are more likely to persist through difficulty, adopt a growth mindset, and achieve deeper learning.
+
+Regarding learning styles, the VARK model~\cite{fleming1992} classifies learners by preferred modality (Visual, Aural, Read/Write, Kinaesthetic). Felder \& Silverman's Index of Learning Styles~\cite{felder1988} adds dimensions for active/reflective and sequential/global preferences. While the strict matching hypothesis has been challenged~\cite{pashler2008}, presenting content in multiple formats and allowing learner preference selection consistently improves engagement. \projectname{} captures \texttt{preferredLearningStyle} at enrollment and injects style-specific instructions into AI prompts: visual learners receive prompts requesting diagrams and flowcharts; hands-on learners receive prompts emphasising code snippets and practical exercises; reading-preference learners receive more detailed textual exposition; video-preference learners are flagged for resource prioritisation.
+
+\subsection{Resource Aggregation and Content Curation}
+\label{sec:resource-aggregation}
+
+A persistent challenge in self-directed learning is discovery: where to find high-quality, trustworthy resources? Learners often face a fragmentation problem---the same concept might be explained in a blog post, a YouTube video, official documentation, and a dozen Stack Overflow answers, requiring learners to aggregate and synthesise information across sources. Alternatively, learners face a quality variability problem: user-generated content ranges from excellent to dangerously incorrect, with no consistent signal of reliability.
+
+Existing resource aggregation approaches fall into three categories:
+
+\begin{enumerate}
+    \item \textbf{Manual Expert Curation (Khan Academy, edX, Coursera):} Experts carefully select, often co-creating, high-quality content. Advantage: consistent quality and pedagogical sequencing. Disadvantage: resource-intensive, limited coverage for emerging domains, and difficult to scale beyond funded institutions.
+    \item \textbf{User-Generated Curation (Reddit, GitHub awesome-lists, Hacker News):} Community members recommend resources they have found valuable. Advantage: rapid response to emerging domains and grassroots discovery. Disadvantage: inconsistent quality, outdated links, and often reflects the biases of vocal community members rather than universal learner needs.
+    \item \textbf{Algorithmic Recommendation (YouTube recommendations, LinkedIn Learning):} Algorithms rank resources based on engagement metrics (views, clicks, time spent). Advantage: scales to massive content catalogs. Disadvantage: engagement metrics do not correlate with learning efficacy; popular content is often entertainment-oriented, not pedagogically sound.
+\end{enumerate}
+
+\projectname{} implements a hybrid curation model designed to scale beyond manual curation while maintaining quality assurance:
+
+\begin{itemize}
+    \item \textbf{Domain Whitelisting:} During the offline ontology creation phase, domain experts specify a curated list of trusted content providers for each learning domain. For \enquote{JavaScript Fundamentals}, trusted sources might include MDN Web Docs, FreeCodeCamp, JavaScript.info, and official ECMAScript documentation. For \enquote{React}, sources might include React's official documentation, Dan Abramov's blogs, and frontend-focused educational sites.
+    \item \textbf{Google Programmable Search Engine (PSE) API Integration:} At runtime, when the Tutor Model needs to fetch learning resources for a specific node, it uses the Google PSE API to programmatically fetch links only from the pre-approved, domain-specific whitelist. This ensures that recommended resources are never from unvetted sources, dramatically reducing quality variability.
+    \item \textbf{Automated Link Validation:} All recommended links undergo automated validation: HTTP status checks (ensuring links are not broken), content freshness checks (flagging outdated tutorials), and optional NLP-based content validation (summarising page content to ensure it matches the learning node's objectives).
+    \item \textbf{Learner Feedback Loop:} Learners can rate resources (\enquote{Was this explanation clear? Helpful? Outdated?}). Ratings are aggregated and inform future curation decisions, allowing the system to adapt recommendations based on real learner experience.
+\end{itemize}
+
+This approach avoids the pitfalls of scraping unvetted sources while maintaining scalability beyond manual curation. The PSE API acts as an intelligent, domain-aware \enquote{quality gate}, translating domain expertise into algorithmic filtering and discovery. As new trusted resources emerge, the whitelist can be updated by domain experts, and the system immediately benefits without manual resource re-creation.
+
+\subsection{Gamification in Educational Technology}
+\label{sec:gamification}
+
+Gamification---the application of game design elements (points, badges, leaderboards, progress bars, streaks, challenges) to non-game contexts---has been shown to increase engagement, completion rates, and intrinsic motivation in educational settings, particularly when reward structures are aligned with learning objectives rather than trivial actions. Deterding et al.~\cite{deterding2011} provided the formal definition and taxonomy of game design elements that directly maps to the features implemented in \projectname. Hamari et al.~\cite{hamari2014} systematically reviewed 24 empirical studies and found positive effects on engagement and motivation, with the strongest effects in educational and health contexts. Denny~\cite{denny2013} studied badge systems in a programming education context and found significant increases in student activity and performance.
+
+\projectname{} implements four canonical game mechanics: experience points (XP) awarded for quiz passes scaled by score tier and attempt efficiency; level progression based on cumulative XP; streak tracking for consecutive days of activity; and badges for milestone achievements (first mastery, 5-day streak, quiz ace, speed learner, completionist). A weekly goal system adds time-bounded challenges. All XP events are logged for history display. These mechanics are designed to reward learning behaviours (mastery, consistency, improvement) rather than mere participation, following the theoretical model proposed by Landers~\cite{landers2014} that explains how gamification affects learning through behavioural engagement and attitudinal change.
+
+\subsection{Large Language Models as Educational Tools}
+\label{sec:llm-education}
+
+LLMs have emerged as transformative educational tools. Kasneci et al.~\cite{kasneci2023} provided a comprehensive review of LLM capabilities in education, covering personalised tutoring, assessment generation, and feedback---all three functions of the \projectname{} AI service. Macina et al.~\cite{macina2023} evaluated LLM-based dialogue tutoring systems and found that contextual awareness (knowing who the learner is and what they have done) is the key differentiator for effective AI tutoring. Kochmar et al.~\cite{kochmar2022} provided direct empirical evidence that AI-generated personalised feedback (as opposed to generic feedback) produces measurable learning gains---validating the core claim of the personalised explanation and quiz approach.
+
+The Teacher-Student model in knowledge distillation~\cite{hinton2015}---using a large, capable model to generate content consumed by a smaller model or directly by learners---provides architectural inspiration for the Skeleton \& Flesh strategy. \projectname{} uses Gemini (with Phi-4/Ollama local fallback and circuit breaker pattern for resilience) to generate explanations, quizzes, and instructor answers. All three calls receive a full \texttt{LearnerContext} object, making the generated content specific to each learner's profile and progress state.
+
+\subsection{Learning Analytics and Progress Dashboards}
+\label{sec:learning-analytics}
+
+Learning Analytics (LA) encompasses the measurement, collection, analysis, and reporting of data about learners and their contexts, with the purpose of understanding and optimising learning and the environments in which it occurs~\cite{siemens2011}. Ferguson~\cite{ferguson2012} provided a systematic overview of LA goals and techniques, including prediction of completion and personalisation of learning. Verbert et al.~\cite{verbert2012} studied the effectiveness of LA dashboards and found that surfacing analytics to learners improves self-regulation and awareness.
+
+\projectname{} implements LA through the \texttt{LearnerVelocity} model, which records \texttt{estimatedHours}, \texttt{actualHours}, \texttt{startedAt}, \texttt{completedAt}, and \texttt{velocityRatio} for each mastered node. The \texttt{getTimelineEstimate} function uses these records to compute a velocity-adjusted completion forecast---a classic LA prediction task. The Insights Page (\texttt{InsightsPage.tsx}) and the velocity card (\texttt{VelocityCard.tsx}) surface this data as a descriptive dashboard. The \texttt{getAverageVelocity} function feeds a multiplier back into timeline estimates, closing the data-action loop that defines prescriptive LA.
+
+\subsection{Academic Foundations: Synthesis of Educational Psychology}
+\label{sec:academic-foundations}
+
+Beyond the specific technical streams surveyed above, the design of \projectname{} is grounded in a set of broader educational psychology theories that collectively inform the pedagogical approach.
+
+\textbf{Bloom's Taxonomy of Educational Objectives}~\cite{bloom1956} classifies cognitive skills into six hierarchical levels: Remember, Understand, Apply, Analyse, Evaluate, and Create. This taxonomy guides the design of learning outcomes and quiz questions in \projectname. Foundation-level nodes target Remember and Understand levels; intermediate nodes target Apply and Analyse; advanced nodes target Evaluate and Create. The quiz generation prompt explicitly specifies the target Bloom's level to ensure alignment between learning outcomes and assessment items.
+
+\textbf{Cognitive Load Theory (CLT)}~\cite{sweller1988} distinguishes between intrinsic, extraneous, and germane cognitive load. The Skeleton \& Flesh architecture reduces extraneous load by presenting a structured, verified curriculum rather than forcing learners to navigate fragmented resources. The Gatekeeper's assessment-driven adaptation prevents cognitive overload by ensuring learners master prerequisite knowledge before advancing, thereby managing intrinsic load. The adaptive resource modality swapping (documentation vs.\ tutorial) is directly informed by CLT's finding that instructional format significantly affects cognitive load depending on learner expertise.
+
+\textbf{Self-Determination Theory (SDT)}~\cite{ryan2000, deci1985} identifies autonomy, competence, and relatedness as three fundamental psychological needs. \projectname{} addresses autonomy through Multi-Path Branching, allowing learners to choose specialisation paths aligned with their interests; competence through the Gatekeeper's mastery-based progression, which provides clear evidence of skill development; and relatedness through the AI instructor's personalised, conversational feedback and the community-oriented features of the platform.
+
+\textbf{Vygotsky's Zone of Proximal Development (ZPD)}~\cite{vygotsky1978} describes the difference between what a learner can do independently and what they can achieve with guidance. The adaptive difficulty calibration and resource modality adaptation in \projectname{} operationalise ZPD by dynamically adjusting the level of scaffolding: learners in the \enquote{fail low} tier receive more structured support (tutorials, prerequisite review), while learners demonstrating mastery receive less scaffolding (documentation references, challenge projects).
+
+\textbf{Constructivism}~\cite{piaget1970, vygotsky1978} posits that learners actively construct knowledge through experience and reflection rather than passively receiving information. The project-based learning recommendations triggered by the Gatekeeper after successful mastery align with constructivist principles: learners are encouraged to apply newly acquired knowledge in authentic, challenging projects. The branching path structure respects the constructivist view that learning trajectories are individually constructed rather than universally prescribed.
+
+\textbf{Multimedia Learning Theory}~\cite{mayer2009} establishes that people learn more deeply from words and pictures than from words alone, and that instructional design should follow principles such as the multimedia principle, the contiguity principle, and the modality principle. The adaptive resource swapping logic in \projectname{} implements these principles by matching resource modality to learner performance: struggling learners receive multimedia-rich resources (tutorials with video, diagrams, interactive examples), while proficient learners receive text-dense resources (documentation, references).
+
+\textbf{Connectivism}~\cite{siemens2005} recognises that learning in the digital age occurs within networks of information sources and that the ability to find and apply knowledge is as important as possessing it. The domain whitelisting and PSE API-based resource discovery model in \projectname{} embodies connectivist principles by connecting learners to a curated network of high-quality, up-to-date resources across the web, rather than confining them to a closed content repository.
+
+These twelve academic foundations collectively inform the design principles that guide the system architecture, the pedagogical algorithms, and the user experience of \projectname. Table~\ref{tab:academic-foundations-summary} in Section~2.2 provides a condensed reference mapping each feature to its academic lineage.
+
+% ============================================================
+\section{Identifying Milestones of the Related Literatures and Finding the Gaps}
+\label{sec:milestones-gaps}
+% ============================================================
+
+\subsection{Key Milestones}
+
+The literature surveyed above reveals twelve distinct research streams that collectively inform the design of \projectname. Table~\ref{tab:academic-foundations-summary} provides a condensed reference mapping each system feature to its academic lineage, the key milestone paper, and its publication venue.
+
+\small
+\begin{longtable}{@{}p{3cm}p{3cm}p{3.5cm}p{3cm}@{}}
+\caption{Summary reference: academic foundations of \projectname}
+\label{tab:academic-foundations-summary}\\
+\toprule
+\textbf{Feature} & \textbf{Academic Field} & \textbf{Key Paper} & \textbf{Publication} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Feature} & \textbf{Academic Field} & \textbf{Key Paper} & \textbf{Publication} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+DAG prerequisite graph & Knowledge Space Theory & Doignon \& Falmagne~\cite{doignon1985} & \emph{IJMMS} 1985 \\
+Node unlock logic & Knowledge Space Theory & Vuong et al.~\cite{vuong2011} & \emph{EDM} 2011 \\
+5-tier gatekeeper scoring & Mastery-Based Learning & Bloom~\cite{bloom1968} & \emph{Evaluation Comment} 1968 \\
+Adaptation on failure & Mastery-Based Learning & Guskey~\cite{guskey2007} & \emph{J. Advanced Academics} 2007 \\
+Decay intervals & Spaced Repetition & Ebbinghaus~\cite{ebbinghaus1885} & \emph{Memory} 1885 \\
+Distributed practice & Spaced Repetition & Cepeda et al.~\cite{cepEDA2006} & \emph{Psychological Bulletin} 2006 \\
+4-component ITS architecture & Intelligent Tutoring Systems & Anderson et al.~\cite{anderson1995} & \emph{J. Learning Sciences} 1995 \\
+ITS vs.\ human tutor efficacy & Intelligent Tutoring Systems & VanLehn~\cite{vanlehn2011} & \emph{Educ. Psychologist} 2011 \\
+Mastery state machine & Bayesian Knowledge Tracing & Corbett \& Anderson~\cite{corbett1994} & \emph{UMUAI} 1994 \\
+Deep knowledge tracking & Bayesian Knowledge Tracing & Piech et al.~\cite{piech2015} & \emph{NeurIPS} 2015 \\
+Learner context pipeline & Adaptive Hypermedia & Brusilovsky~\cite{brusilovsky1996} & \emph{UMUAI} 1996 \\
+Profile-driven adaptation & Adaptive Hypermedia & Brusilovsky \& Millán~\cite{brusilovsky2007} & \emph{The Adaptive Web} 2007 \\
+\emph{preferredLearningStyle} field & Learning Styles (VARK) & Fleming \& Mills~\cite{fleming1992} & \emph{To Improve the Academy} 1992 \\
+Active/hands-on vs.\ reading & Learning Styles & Felder \& Silverman~\cite{felder1988} & \emph{Engineering Education} 1988 \\
+\emph{computeAdaptiveDifficulty()} & Adaptive Assessment / IRT & Lord~\cite{lord1980} & \emph{IRT Problems} 1980 \\
+\emph{detectWeakAreas()} & Adaptive Assessment / CAT & Wainer et al.~\cite{wainer2000} & \emph{CAT: A Primer} 2000 \\
+XP, levels, progress bars & Gamification & Deterding et al.~\cite{deterding2011} & \emph{MindTrek} 2011 \\
+Badges in education & Gamification & Denny~\cite{denny2013} & \emph{CHI} 2013 \\
+Gamification effectiveness & Gamification & Hamari et al.~\cite{hamari2014} & \emph{HICSS} 2014 \\
+AI-generated explanations/quizzes & LLM as Teacher & Kasneci et al.~\cite{kasneci2023} & \emph{Learning \& Ind. Diff.} 2023 \\
+Personalised AI feedback & LLM as Teacher & Kochmar et al.~\cite{kochmar2022} & \emph{EDM} 2022 \\
+Teacher-student model & Knowledge Distillation & Hinton et al.~\cite{hinton2015} & \emph{arXiv} 2015 \\
+\emph{LearnerVelocity} model & Learning Analytics & Siemens \& Long~\cite{siemens2011} & \emph{EDUCAUSE Review} 2011 \\
+Progress dashboards & Learning Analytics & Verbert et al.~\cite{verbert2012} & \emph{American Behav.\ Sci.} 2012 \\
+\emph{LearningNode} ontology schema & Ontology Engineering & Gruber~\cite{gruber1993} & \emph{Knowledge Acquisition} 1993 \\
+Ontology to quiz generation & Ontology-based Curriculum & Holohan et al.~\cite{holohan2005} & \emph{ICALT} 2005 \\
+Anti-hallucination grounding & Ontology-based Curriculum & Mizoguchi \& Bourdeau~\cite{mizoguchi2000} & \emph{IJAIED} 2000 \\
+Bloom's levels in quiz design & Educational Psychology & Bloom~\cite{bloom1956} & \emph{Taxonomy} 1956 \\
+Modality-swapping logic & Cognitive Load Theory & Sweller~\cite{sweller1988} & \emph{Cognitive Science} 1988 \\
+Multi-path branching & Self-Determination Theory & Ryan \& Deci~\cite{ryan2000} & \emph{Am. Psychologist} 2000 \\
+Adaptive difficulty calibration & ZPD / Constructivism & Vygotsky~\cite{vygotsky1978} & \emph{Mind in Society} 1978 \\
+Resource modality matching & Multimedia Learning & Mayer~\cite{mayer2009} & \emph{Cambridge Press} 2009 \\
+\end{longtable}
+
+\subsection{Critical Gaps in Existing Solutions}
+
+Despite the wealth of research in each stream, no existing system integrates all of these principles into a coherent, open-source platform suitable for resource-constrained environments. A comprehensive synthesis of related work reveals six critical gaps:
+
+\begin{enumerate}
+    \item \textbf{No integrated ontology-LLM pipeline:} Existing ITS rely on handcrafted knowledge representations that do not scale; pure LLM systems hallucinate. No system combines verified ontology generation with runtime LLM tutoring in a single coherent architecture.
+    \item \textbf{No mastery-based resource adaptation:} While MBL principles are well established in the literature, no open-source platform implements score-tiered resource modality swapping driven by a Gatekeeper pattern that adapts both the content and the delivery modality based on specific failure modes.
+    \item \textbf{No decay-aware roadmap:} Spaced repetition tools (e.g., Anki) operate outside any curriculum structure and require learner self-discipline. No system integrates forgetting-curve dynamics directly into a visual mastery roadmap with automatic decay-triggered reminders.
+    \item \textbf{No learner-controlled branching in ITS:} Multi-path branching exists in adaptive hypermedia research but has not been operationalised as a learner-facing feature in an ITS that allows choice of specialisation path while maintaining prerequisite integrity.
+    \item \textbf{No verified resource pipeline:} Existing platforms either hand-curate (expensive and limited coverage) or accept all content (noisy and unreliable). No system combines domain whitelisting with programmatic API-based automated discovery and quality validation.
+    \item \textbf{No accessible ITS for developing economies:} Proven ITS (Cognitive Tutors, ALEKS) are proprietary and prohibitively expensive. No open-source alternative addresses the specific constraints of learners in regions like Ethiopia, where mentorship infrastructure is limited, internet connectivity is variable, and premium educational tools are inaccessible.
+\end{enumerate}
+
+Table~\ref{tab:landscape} positions \projectname{} relative to the most relevant existing solutions across these gaps.
+
+\begin{table}[ht]
+\centering
+\caption{Position of \projectname{} within the landscape}
+\label{tab:landscape}
+\small
+\begin{tabular}{@{}p{2.2cm}p{3cm}p{3.5cm}p{3.5cm}@{}}
+\toprule
+\textbf{Solution} & \textbf{Strengths} & \textbf{Gaps} & \textbf{\projectname{} Innovation} \\
+\midrule
+Khan Academy & High-quality, free content; evidence-based pedagogy; mastery progression for some topics & Passive sequencing; no multi-path; no decay awareness; limited domain coverage & Gatekeeper Pattern; Mastery Decay; Multi-Path Branching; resource adaptation on failure \\
+roadmap.sh & Tech-focused, community-curated, visual; free; reflects real developer workflows & Purely static sequencing; no adaptive response; no quizzes or assessment gates & Ontology-guided sequencing; Gatekeeper enforcing mastery; adaptive resource curation; branching paths \\
+Coursera/Udemy & Diverse content; large scale; structured courses with deadlines & High hallucination in recommendations; no verifiable knowledge graph; high dropout (>70\%); no decay-aware retention; expensive; not adapted to resource-constrained contexts & Skeleton \& Flesh hybrid (verified ontology + LLM); Gatekeeper reducing dropout; Mastery Decay; free/low-cost positioning for Ethiopian learners \\
+Anki & Proven spaced repetition; flexible; effective at scale & Standalone, not integrated into curriculum; no semantic sequencing; no visual roadmap; requires learner self-discipline; no adaptive modality & Decay-aware roadmap UI; spaced repetition integrated into progression; Gatekeeper quizzes enforced (not optional); visualises forgetting dynamically \\
+Pure LLM Tutoring (ChatGPT, Claude) & Flexible natural dialogue; fast; scales instantly to any domain; no initial content creation overhead & Hallucination (confident but false information); no curriculum coherence (no prerequisites enforced); no persistence (each conversation is isolated); no learning path validation; user must discover what to learn & Skeleton \& Flesh hybrid: LLM generates only within verified ontology bounds; prevents hallucination while retaining flexibility; persistent learner state and roadmap visibility; expert-verified prerequisite structure \\
+Proprietary ITS (Cognitive Tutors, ALEKS) & Proven learning gains (\(\approx\)1\(\sigma\)); sophisticated student modelling; pedagogically sound & High cost; limited domain coverage; closed-source; not available in resource-constrained regions & Open-source; hybrid architecture reduces development cost; adaptable to Ethiopian context \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Lessons Learned from Literatures}
+\label{sec:lessons-learned}
+% ============================================================
+
+From this comprehensive literature synthesis, three overarching lessons emerge, each directly informing the design decisions presented in subsequent chapters.
+
+\subsection*{Lesson 1: Ontology-Guided LLM Generation Solves Hallucination While Maintaining Scalability}
+
+The literature on Knowledge Space Theory~\cite{doignon1985}, ontology engineering~\cite{gruber1993}, and RAG~\cite{lewis2020} converge on a common insight: generative AI is most reliable when its output space is bounded by a verified knowledge structure. Traditional ITS faced a scaling problem---the knowledge engineering bottleneck. LLMs solved the scaling problem but introduced hallucination. \projectname's Skeleton \& Flesh strategy operationalises a variant of RAG specifically for curriculum design: the skeleton (verified ontology) constrains what the flesh (runtime LLM) can generate, preventing hallucination while maintaining the scalability and flexibility of LLM-based tutoring. This bridges decades of ITS research with modern AI capabilities.
+
+\subsection*{Lesson 2: Assessment-Driven Progression with Resource Adaptation Addresses the \enquote{Knowing How to Teach} Gap}
+
+Bloom's mastery principle~\cite{bloom1968} established that progress should be contingent on demonstrated competence. However, Bloom did not specify how to teach when a learner fails. The convergence of BKT~\cite{corbett1994}, IRT~\cite{lord1980}, and MBL~\cite{bloom1968, guskey2007} teaches that effective learning requires not only accurate assessment but also pedagogically appropriate responses to failure. \projectname{} implements this lesson through the Gatekeeper Pattern: five-tier scoring that triggers distinct adaptation events (resource modality swap, prerequisite review, instructor escalation) at each failure depth. The IRT-inspired difficulty calibration and weak-area detection ensure that assessments remain informative at every proficiency level. This transforms assessment from a summative evaluation tool (pass/fail) into a diagnostic, adaptive instrument that informs instructional design in real time.
+
+\subsection*{Lesson 3: Decay-Aware Adaptation Transforms Spaced Repetition from Learner-Managed to System-Guided}
+
+Over a century of memory research~\cite{ebbinghaus1885, cepEDA2006, karpicke2008} demonstrates that forgetting is predictable and that strategic review at calibrated intervals can intercept the forgetting curve and dramatically extend retention. Yet existing tools place the burden of scheduling and discipline on the learner. \projectname{} transforms this relationship by embedding decay dynamics directly into the roadmap visualisation: nodes transition through green \(\rightarrow\) yellow \(\rightarrow\) red states based on elapsed time, with automatic micro-quiz generation and notification triggering at each transition. Learning analytics~\cite{siemens2011, verbert2012} further close the loop by surfacing velocity-adjusted completion forecasts and decay patterns to the learner. This addresses a real failure mode of self-directed learning: skill decay and knowledge gaps that accumulate invisibly until they cause failures in advanced topics.
+
+\subsection*{Synthesis: The Design Principles of \projectname}
+
+These three lessons, informed by the twelve academic foundations mapped in Table~\ref{tab:academic-foundations-summary}, translate into the following design principles that guide Chapters~3 through~7:
+
+\begin{itemize}
+    \item \textbf{Separation of content generation from content verification:} The Teacher Model generates; domain experts verify; the Tutor Model operates within verified bounds. This prevents hallucination while maintaining scalability.
+    \item \textbf{Assessment as a pedagogical instrument, not merely a measurement tool:} Every quiz attempt updates the mastery state and triggers pedagogically appropriate adaptation. Assessment drives instruction rather than merely evaluating it.
+    \item \textbf{Time as a first-class dimension of mastery:} Mastery is not a static attribute but a decaying function of time. The system actively manages this decay on behalf of the learner through automatic reminders and micro-quizzes.
+    \item \textbf{Learner agency within principled constraints:} Multi-path branching offers meaningful choice while preserving prerequisite integrity through KST-based node unlock logic. Learners direct their learning trajectory within a pedagogically sound structure.
+    \item \textbf{Open, verifiable, and sustainable:} All resources are drawn from freely available, whitelisted domains. The platform is designed for zero-cost access in resource-constrained environments, making high-quality technical education accessible to Ethiopian learners.
+\end{itemize}
+
+\projectname's novelty lies not in inventing fundamentally new components but in thoughtfully integrating proven principles---ontology-guided RAG, assessment-driven progression grounded in mastery learning, spaced repetition informed by Ebbinghaus and modern cognitive science, multi-path learning respecting learner agency, and scalable resource curation via domain whitelisting---into a cohesive, context-aware system optimised for Ethiopian learners and resource-constrained environments. Specifically, \projectname{} addresses the distinct challenge of \enquote{tutorial hell} and resource fragmentation endemic to self-directed learning in regions with limited mentorship infrastructure. By combining structured, verified curricula with adaptive, intelligent tutoring, the system approximates the benefits of one-on-one mentorship (Bloom's two-sigma finding) at scale and low cost.
+
+These design principles directly motivate the requirements specification in Chapter~3, the system architecture in Chapter~4, the implementation details in Chapter~5, and the experimental evaluation in Chapter~6 that follow.

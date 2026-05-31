@@ -1,0 +1,140 @@
+% ============================================================
+% FONT SYSTEM --- Stallings/Pearson CS Textbook Style
+% ============================================================
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
+\usepackage[scaled=0.92]{helvet}
+\usepackage[final,
+  tracking=true,
+  kerning=true,
+  spacing=true]{microtype}
+
+% ============================================================
+% PAGE GEOMETRY --- A4, academic binding margins
+% ============================================================
+\usepackage[
+  a4paper,
+  top=2.5cm,
+  bottom=2.5cm,
+  inner=3cm,
+  outer=2.5cm,
+  includeheadfoot
+]{geometry}
+
+% ============================================================
+% HEADINGS --- bold sans-serif with rule under chapters
+% ============================================================
+\usepackage{titlesec}
+
+\titleformat{\chapter}[display]
+  {\normalfont\sffamily\huge\bfseries}
+  {\chaptertitlename\ \thechapter}
+  {20pt}
+  {\Huge\sffamily\bfseries}
+  [\vspace{2pt}\titlerule]
+
+\titleformat{\section}
+  {\normalfont\sffamily\large\bfseries}
+  {\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\normalfont\sffamily\normalsize\bfseries}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalfont\sffamily\small\bfseries}
+  {\thesubsubsection}{1em}{}
+
+% ============================================================
+% CAPTIONS --- bold sans label, italic text, position enforced
+% ============================================================
+\usepackage[
+  font=small,
+  labelfont={sf,bf},
+  textfont=it,
+  labelsep=period,
+  justification=justified
+]{caption}
+
+\captionsetup[figure]{position=below}
+\captionsetup[table]{position=above}
+
+% ============================================================
+% LINE SPACING & PARAGRAPH
+% ============================================================
+\usepackage{setspace}
+\setstretch{1.3}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{1.5em}
+
+% ============================================================
+% HEADERS & FOOTERS
+% ============================================================
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\small\sffamily\leftmark}
+\fancyhead[RO]{\small\sffamily\rightmark}
+\fancyfoot[C]{\small\sffamily\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\setlength{\headheight}{14.5pt}
+
+% ============================================================
+% PACKAGES
+% ============================================================
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
+
+\usepackage{todonotes}
+\usepackage{csquotes}
+\usepackage{enumitem}
+\usepackage{textcomp}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+
+
+% ============================================================
+% LISTINGS STYLE
+% ============================================================
+\lstdefinelanguage{JavaScript}{
+  keywords={break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, new, return, switch, this, throw, try, typeof, var, void, while, with, as, implements, interface, let, package, private, protected, public, static, yield, any, boolean, number, string, enum, export, extends, import, keyof, namespace, readonly, require, type, from, of, async, await, const, class, abstract, get, set, true, false, null, undefined},
+  sensitive=false,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+  morestring=[b]`
+}
+\lstset{
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!60!black},
+  stringstyle=\color{red},
+  showstringspaces=false,
+  tabsize=2
+}
+
+% ============================================================
+% CUSTOM COMMANDS
+% ============================================================
+\newcommand{\projectname}{AI-Driven Personalized Learning Roadmap Generator}

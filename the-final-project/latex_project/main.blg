@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2023/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: plain.bst
+Database file #1: bibliography.bib
+Warning--can't use both author and editor fields in vygotsky1978
+You've used 59 entries,
+            2118 wiz_defined-function locations,
+            825 strings with 12699 characters,
+and the built_in function-call counts, 19010 in all, are:
+= -- 1810
+> -- 980
+< -- 4
++ -- 396
+- -- 327
+* -- 1353
+:= -- 3255
+add.period$ -- 180
+call.type$ -- 59
+change.case$ -- 325
+chr.to.int$ -- 0
+cite$ -- 60
+duplicate$ -- 711
+empty$ -- 1495
+format.name$ -- 327
+if$ -- 3871
+int.to.chr$ -- 0
+int.to.str$ -- 59
+missing$ -- 70
+newline$ -- 298
+num.names$ -- 124
+pop$ -- 365
+preamble$ -- 1
+purify$ -- 279
+quote$ -- 0
+skip$ -- 437
+stack$ -- 0
+substring$ -- 1050
+swap$ -- 87
+text.length$ -- 4
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 206
+warning$ -- 1
+while$ -- 184
+width$ -- 61
+write$ -- 631
+(There was 1 warning)
