@@ -13,7 +13,10 @@ class DecayApi {
     final response = await _dio.get<Map<String, dynamic>>(
       '/enrollments/$enrollmentId/decay-status',
     );
-    return DecayStatus.fromJson(response.data ?? <String, dynamic>{});
+    return DecayStatus.fromJson(
+      response.data ?? <String, dynamic>{},
+      enrollmentId: enrollmentId,
+    );
   }
 
   /// Generate a micro-quiz for a decayed node

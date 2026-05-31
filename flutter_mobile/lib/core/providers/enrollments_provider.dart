@@ -43,15 +43,15 @@ class EnrollNotifier extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<Enrollment> enroll(EnrollPayload payload) async {
+  Future<EnrollResult> enroll(EnrollPayload payload) async {
     final api = ref.read(enrollmentsApiProvider);
     state = const AsyncLoading<void>();
 
     try {
-      final enrollment = await api.enroll(payload);
+      final result = await api.enroll(payload);
       ref.invalidate(enrollmentsProvider);
       state = const AsyncData<void>(null);
-      return enrollment;
+      return result;
     } catch (error, stackTrace) {
       state = AsyncError<void>(error, stackTrace);
       rethrow;

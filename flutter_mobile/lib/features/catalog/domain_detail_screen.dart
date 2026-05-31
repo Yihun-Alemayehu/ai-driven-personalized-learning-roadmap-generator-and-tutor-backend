@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/enrollment.dart';
 import '../../core/providers/domains_provider.dart';
 import '../../core/providers/enrollments_provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/loading_shimmer.dart';
+import 'domain_meta.dart';
 import 'enroll_bottom_sheet.dart';
 
 class DomainDetailScreen extends ConsumerWidget {
@@ -19,128 +22,233 @@ class DomainDetailScreen extends ConsumerWidget {
     final enrollments = ref.watch(enrollmentsProvider).valueOrNull ?? const [];
 
     return domainAsync.when(
-      loading: () => const LoadingShimmer(),
-      error: (_, __) => AtlasErrorWidget(
-        message: 'Unable to load domain details.',
-        onRetry: () => ref.invalidate(domainBySlugProvider(slug)),
+      loading: () => const SafeArea(
+        bottom: false,
+        child: LoadingShimmer(),
+      ),
+      error: (_, __) => SafeArea(
+        bottom: false,
+        child: AtlasErrorWidget(
+          message: 'Unable to load domain details.',
+          onRetry: () => ref.invalidate(domainBySlugProvider(slug)),
+        ),
       ),
       data: (domain) {
-        final matches = enrollments.where((item) => item.domainId == domain.id);
-        final enrollment = matches.isEmpty ? null : matches.first;
+        Enrollment? enrollment;
+        for (final e in enrollments) {
+          if (e.domainId == domain.id) {
+            enrollment = e;
+            break;
+          }
+        }
+        final activeEnrollment = enrollment;
+        final meta = domainMetaForSlug(domain.slug);
+        final isEnrolled = activeEnrollment != null;
 
-        return CustomScrollView(
-          slivers: <Widget>[
-            SliverAppBar.large(
-              pinned: true,
-              title: Text(domain.name),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  color: Theme.of(context).colorScheme.surface,
-                  alignment: Alignment.center,
-                  child: CircleAvatar(
-                    radius: 44,
-                    child: Text(
-                      domain.name.substring(0, 1).toUpperCase(),
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+        final nodesLabel = domain.nodeCount != null
+            ? '${domain.nodeCount}+'
+            : '40+';
+        final hoursLabel = domain.estimatedHours != null
+            ? '~${domain.estimatedHours} hrs'
+            : '~80 hrs';
+
+        return SafeArea(
+          bottom: false,
+          child: CustomScrollView(
+            slivers: <Widget>[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(domain.displayDescription,
-                        style: Theme.of(context).textTheme.bodyLarge),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: <Widget>[
-                        _MetaChip(label: '${domain.nodeCount ?? '-'} nodes'),
-                        _MetaChip(
-                          label: domain.ontologyVersion == null
-                              ? 'No published ontology'
-                              : 'Ontology v${domain.ontologyVersion}',
-                        ),
-                        _MetaChip(
-                          label: domain.estimatedHours == null
-                              ? 'Hours not estimated'
-                              : '${domain.estimatedHours}h estimate',
-                        ),
-                      ],
+                    TextButton.icon(
+                      onPressed: () => context.go('/catalog'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.textMuted,
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(Icons.arrow_back, size: 16),
+                      label: const Text('Back to Catalog'),
                     ),
-                    const SizedBox(height: 18),
-                    Text('Learning outcomes',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 8),
-                    if (domain.learningOutcomes.isEmpty)
-                      Text(
-                        'No outcomes published yet.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      )
-                    else
-                      ...domain.learningOutcomes.map(
-                        (item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
+                    const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        _DomainHeroIcon(meta: meta, iconUrl: domain.iconUrl),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              const Text('- '),
-                              Expanded(
-                                child: Text(
-                                  item,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
+                              Text(
+                                domain.name,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontSize: 32,
+                                      height: 1.15,
+                                      color: const Color(0xFF3D342A),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
+                              if (domain.description != null &&
+                                  domain.description!.trim().isNotEmpty) ...<Widget>[
+                                const SizedBox(height: 8),
+                                Text(
+                                  domain.description!.trim(),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(
+                                        fontSize: 16,
+                                        height: 1.4,
+                                        color: const Color(0xFF6E645A),
+                                      ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
-                      ),
+                      ],
+                    ),
                     const SizedBox(height: 24),
-                    if (enrollment == null)
-                      FilledButton.icon(
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Wrap(
+                        spacing: 24,
+                        runSpacing: 12,
+                        children: <Widget>[
+                          _StatItem(
+                            icon: Icons.menu_book_outlined,
+                            label: 'Learning nodes',
+                            value: nodesLabel,
+                          ),
+                          _StatItem(
+                            icon: Icons.schedule_outlined,
+                            label: 'Estimated time',
+                            value: hoursLabel,
+                          ),
+                          const _StatItem(
+                            icon: Icons.account_tree_outlined,
+                            label: 'Branch paths',
+                            value: '3',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Personalised Roadmap',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 17,
+                                  color: const Color(0xFF3D342A),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Your roadmap is generated by AI based on your free time, '
+                            'familiarity, and learning goals — then fleshed out by a '
+                            'Teacher Model that explains each concept in context.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontSize: 14,
+                                  height: 1.45,
+                                  color: const Color(0xFF6E645A),
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
                         onPressed: () async {
-                          final result = await showModalBottomSheet<String>(
+                          if (activeEnrollment != null) {
+                            context.go(
+                              '/enrollments/${activeEnrollment.id}/roadmap',
+                            );
+                            return;
+                          }
+
+                          final enrollmentId =
+                              await showModalBottomSheet<String>(
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
-                            builder: (_) => EnrollBottomSheet(domain: domain),
+                            builder: (_) =>
+                                EnrollBottomSheet(domain: domain),
                           );
 
-                          if (result != null && context.mounted) {
-                            context.go('/enrollments/$result/roadmap');
+                          if (enrollmentId != null && context.mounted) {
+                            context.go('/enrollments/$enrollmentId/roadmap');
                           }
                         },
-                        icon: const Icon(Icons.school_outlined),
-                        label: const Text('Enroll now'),
-                      )
-                    else
-                      FilledButton.icon(
-                        onPressed: () =>
-                            context.go('/enrollments/${enrollment.id}/roadmap'),
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: const Text('Continue learning'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: AppColors.background,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          isEnrolled
+                              ? 'Continue Learning →'
+                              : 'Enroll Now',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    if (enrollment != null) ...<Widget>[
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          await ref
-                              .read(enrollNotifierProvider.notifier)
-                              .unenroll(enrollment.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Unenrolled successfully.')),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Unenroll'),
+                    ),
+                    if (activeEnrollment != null) ...<Widget>[
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton(
+                          onPressed: () async {
+                            final id = activeEnrollment.id;
+                            await ref
+                                .read(enrollNotifierProvider.notifier)
+                                .unenroll(id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Unenrolled successfully.'),
+                                ),
+                              );
+                            }
+                          },
+                          child: Text(
+                            'Unenroll from this domain',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -148,26 +256,88 @@ class DomainDetailScreen extends ConsumerWidget {
               ),
             ),
           ],
+          ),
         );
       },
     );
   }
 }
 
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.label});
+class _DomainHeroIcon extends StatelessWidget {
+  const _DomainHeroIcon({required this.meta, this.iconUrl});
 
-  final String label;
+  final DomainMeta meta;
+  final String? iconUrl;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      width: 64,
+      height: 64,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        color: meta.background,
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+      alignment: Alignment.center,
+      child: iconUrl != null && iconUrl!.isNotEmpty
+          ? Image.network(
+              iconUrl!,
+              width: 36,
+              height: 36,
+              errorBuilder: (_, __, ___) => _glyph(),
+            )
+          : _glyph(),
+    );
+  }
+
+  Widget _glyph() {
+    return Text(
+      meta.icon,
+      style: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        color: meta.accent,
+        fontFamily: 'monospace',
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(icon, size: 16, color: AppColors.textMuted),
+        const SizedBox(width: 8),
+        Text(
+          '$label:',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF6E645A),
+                fontSize: 14,
+              ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF3D342A),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
     );
   }
 }

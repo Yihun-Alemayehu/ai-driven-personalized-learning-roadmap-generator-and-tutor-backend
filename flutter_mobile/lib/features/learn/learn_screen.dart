@@ -1,12 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/models/roadmap_node.dart';
+import '../../core/providers/explanation_provider.dart';
 import '../../core/providers/my_learning_provider.dart';
 import '../../core/providers/roadmap_provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../widgets/atlas_app_bar.dart';
 import '../../widgets/loading_shimmer.dart';
+import 'ai_instructor_drawer.dart';
 import 'explanation_panel.dart';
+import 'inline_quiz_view.dart';
+import 'learn_outline_drawer.dart';
 
 class LearnScreen extends ConsumerStatefulWidget {
   const LearnScreen({
@@ -22,24 +29,29 @@ class LearnScreen extends ConsumerStatefulWidget {
   ConsumerState<LearnScreen> createState() => _LearnScreenState();
 }
 
-class _LearnScreenState extends ConsumerState<LearnScreen>
-    with TickerProviderStateMixin {
-  late final TabController _tabController;
+class _LearnScreenState extends ConsumerState<LearnScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _hasRedirected = false;
+  bool _showQuiz = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    // Save current node for "Resume" functionality and refresh roadmap
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(myLearningProvider.notifier).setCurrentNode(
             enrollmentId: widget.enrollmentId,
             nodeId: widget.nodeId,
           );
-      // Refresh roadmap to get latest unlock status (in case quiz just unlocked this node)
       ref.invalidate(roadmapProvider(widget.enrollmentId));
     });
+  }
+
+  @override
+  void didUpdateWidget(LearnScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.nodeId != widget.nodeId) {
+      setState(() => _showQuiz = false);
+    }
   }
 
   void _redirectToRoadmap() {
@@ -49,10 +61,8 @@ class _LearnScreenState extends ConsumerState<LearnScreen>
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  double _drawerWidth(BuildContext context) {
+    return math.min(320, MediaQuery.sizeOf(context).width * 0.88);
   }
 
   @override
@@ -64,12 +74,19 @@ class _LearnScreenState extends ConsumerState<LearnScreen>
       ),
     ));
 
+    final explanationParams = ExplanationParams(
+      enrollmentId: widget.enrollmentId,
+      nodeId: widget.nodeId,
+    );
+    final explanationAsync =
+        ref.watch(explanationNotifierProvider(explanationParams));
+    final explanation = explanationAsync.valueOrNull;
+
     return nodeAsync.when(
       loading: () => const Scaffold(
         body: LoadingShimmer(),
       ),
       error: (_, __) {
-        // Redirect to roadmap on error after short delay
         Future.delayed(const Duration(seconds: 2), _redirectToRoadmap);
         return const Scaffold(
           body: Center(
@@ -78,7 +95,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen>
               children: [
                 CircularProgressIndicator(),
                 SizedBox(height: 16),
-                Text('Loading content...'),
+                Text('Loading lesson...'),
               ],
             ),
           ),
@@ -86,41 +103,70 @@ class _LearnScreenState extends ConsumerState<LearnScreen>
       },
       data: (node) {
         if (node == null) {
-          // Redirect to roadmap if node not found
           WidgetsBinding.instance.addPostFrameCallback((_) => _redirectToRoadmap());
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
+        final drawerWidth = _drawerWidth(context);
+
         return Scaffold(
-          appBar: AppBar(
-            title: Text(node.title),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.go('/enrollments/${widget.enrollmentId}/roadmap'),
-            ),
-            bottom: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(icon: Icon(Icons.article), text: 'Content'),
-                Tab(icon: Icon(Icons.psychology), text: 'AI Explanation'),
-              ],
+          key: _scaffoldKey,
+          drawerEnableOpenDragGesture: true,
+          endDrawerEnableOpenDragGesture: true,
+          drawer: Drawer(
+            width: drawerWidth,
+            child: LearnOutlineDrawer(
+              enrollmentId: widget.enrollmentId,
+              activeNodeId: widget.nodeId,
             ),
           ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              // Content tab
-              _ContentTab(
-                node: node,
-                enrollmentId: widget.enrollmentId,
+          endDrawer: Drawer(
+            width: drawerWidth,
+            child: AiInstructorDrawer(
+              key: ValueKey<String>(widget.nodeId),
+              node: node,
+              enrollmentId: widget.enrollmentId,
+              explanation: explanation,
+            ),
+          ),
+          appBar: AtlasAppBar(
+            title: node.title,
+            leading: IconButton(
+              icon: const Icon(Icons.menu),
+              tooltip: 'Course outline',
+              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            ),
+            actions: <Widget>[
+              IconButton(
+                icon: const Icon(Icons.smart_toy_outlined),
+                tooltip: 'AI Instructor',
+                onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
               ),
-              // AI Explanation tab
-              ExplanationPanel(
-                enrollmentId: widget.enrollmentId,
-                nodeId: widget.nodeId,
+            ],
+          ),
+          body: Column(
+            children: <Widget>[
+              Expanded(
+                child: _showQuiz
+                    ? InlineQuizView(
+                        nodeId: widget.nodeId,
+                        enrollmentId: widget.enrollmentId,
+                        onBack: () => setState(() => _showQuiz = false),
+                      )
+                    : _LearnBody(
+                        enrollmentId: widget.enrollmentId,
+                        nodeId: widget.nodeId,
+                      ),
               ),
+              if (!_showQuiz)
+                _LearnActionBar(
+                  enrollmentId: widget.enrollmentId,
+                  nodeId: node.id,
+                  canTakeQuiz: node.unlocked,
+                  onTakeQuiz: () => setState(() => _showQuiz = true),
+                ),
             ],
           ),
         );
@@ -129,146 +175,80 @@ class _LearnScreenState extends ConsumerState<LearnScreen>
   }
 }
 
-class _ContentTab extends ConsumerWidget {
-  const _ContentTab({
-    required this.node,
+class _LearnBody extends ConsumerWidget {
+  const _LearnBody({
     required this.enrollmentId,
+    required this.nodeId,
   });
 
-  final RoadmapNode node;
   final String enrollmentId;
+  final String nodeId;
 
   Future<void> _refresh(WidgetRef ref) async {
-    // Refresh roadmap to get latest unlock status
     ref.invalidate(roadmapProvider(enrollmentId));
-    // Small delay to allow provider to reload
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final canTakeQuiz = node.unlocked;
+    return RefreshIndicator(
+      onRefresh: () => _refresh(ref),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ExplanationPanel(
+          enrollmentId: enrollmentId,
+          nodeId: nodeId,
+          embedInParentScroll: true,
+        ),
+      ),
+    );
+  }
+}
 
-    return Column(
-      children: [
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: () => _refresh(ref),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-              // Description
-              if (node.description?.isNotEmpty ?? false) ...[
-                Text(
-                  node.description!,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 24),
-              ],
+class _LearnActionBar extends StatelessWidget {
+  const _LearnActionBar({
+    required this.enrollmentId,
+    required this.nodeId,
+    required this.canTakeQuiz,
+    required this.onTakeQuiz,
+  });
 
-              // Content placeholder (backend doesn't return full content yet)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Topic Overview',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        node.description?.isNotEmpty ?? false
-                            ? node.description!
-                            : 'This topic covers ${node.title}. Detailed content will be available soon.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
+  final String enrollmentId;
+  final String nodeId;
+  final bool canTakeQuiz;
+  final VoidCallback onTakeQuiz;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          top: BorderSide(color: AppColors.border.withValues(alpha: 0.9)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: FilledButton(
+                onPressed: canTakeQuiz ? onTakeQuiz : null,
+                child: const Text('Take quiz →'),
               ),
-
-              const SizedBox(height: 24),
-
-              // Estimated time
-              if (node.estimatedHours != null)
-                ListTile(
-                  leading: const Icon(Icons.schedule),
-                  title: const Text('Estimated Time'),
-                  subtitle: Text('${node.estimatedHours} hours'),
-                ),
-
-              // Difficulty
-              if (node.difficultyLevel != null)
-                ListTile(
-                  leading: const Icon(Icons.star),
-                  title: const Text('Difficulty Level'),
-                  subtitle: Row(
-                    children: List.generate(3, (index) {
-                      return Icon(
-                        index < node.difficultyLevel! ? Icons.star : Icons.star_border,
-                        size: 16,
-                      );
-                    }),
-                  ),
-                ),
-
-              const SizedBox(height: 16),
-
-              // Learning outcomes
-              if (node.learningOutcomes.isNotEmpty) ...[
-                Text(
-                  'Learning Outcomes',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                ...node.learningOutcomes.map((outcome) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.check_circle_outline, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(outcome)),
-                    ],
-                  ),
-                )),
-              ],
-            ],
-          ),
-        ),
-        ),
-
-        // Footer CTA - matching web frontend
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              top: BorderSide(color: Theme.of(context).dividerColor),
             ),
-          ),
-          child: SafeArea(
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: canTakeQuiz ? () => context.go('/enrollments/$enrollmentId/quiz/${node.id}') : null,
-                    child: const Text('Take quiz →'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton(
-                  onPressed: () => context.go('/enrollments/$enrollmentId/roadmap'),
-                  child: const Text('Back to roadmap'),
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () =>
+                    context.go('/enrollments/$enrollmentId/roadmap'),
+                child: const Text('Back to roadmap'),
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

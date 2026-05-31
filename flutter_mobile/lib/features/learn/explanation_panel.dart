@@ -7,11 +7,15 @@ class ExplanationPanel extends ConsumerWidget {
   const ExplanationPanel({
     required this.enrollmentId,
     required this.nodeId,
+    this.embedInParentScroll = false,
     super.key,
   });
 
   final String enrollmentId;
   final String nodeId;
+
+  /// When true, omits [SingleChildScrollView] for use inside a parent scroll view.
+  final bool embedInParentScroll;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,33 +24,42 @@ class ExplanationPanel extends ConsumerWidget {
       nodeId: nodeId,
     );
     final explanationAsync = ref.watch(explanationNotifierProvider(params));
+    final hasContent = explanationAsync.hasValue &&
+        (explanationAsync.value!.summary.isNotEmpty ||
+            explanationAsync.value!.keyPoints.isNotEmpty ||
+            explanationAsync.value!.commonMistakes.isNotEmpty);
+    final showGenerateButton = !hasContent;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // AI Generate button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: explanationAsync.isLoading
-                  ? null
-                  : () {
-                      ref.read(explanationNotifierProvider(params).notifier)
-                          .generate();
-                    },
-              icon: explanationAsync.isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome),
-              label: Text(explanationAsync.isLoading ? 'Generating...' : 'Generate AI Explanation'),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+          if (showGenerateButton) ...<Widget>[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: explanationAsync.isLoading
+                    ? null
+                    : () {
+                        ref
+                            .read(explanationNotifierProvider(params).notifier)
+                            .generate();
+                      },
+                icon: explanationAsync.isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome),
+                label: Text(
+                  explanationAsync.isLoading
+                      ? 'Generating...'
+                      : 'Generate AI Explanation',
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
 
           // Error display
           if (explanationAsync.hasError)
@@ -75,10 +88,7 @@ class ExplanationPanel extends ConsumerWidget {
               ),
             ),
 
-          // Explanation content
-          if (explanationAsync.hasValue && 
-              (explanationAsync.value!.summary.isNotEmpty ||
-               explanationAsync.value!.keyPoints.isNotEmpty))
+          if (hasContent)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -143,7 +153,9 @@ class ExplanationPanel extends ConsumerWidget {
                 ),
               ),
             )
-          else if (!explanationAsync.hasError && !explanationAsync.isLoading)
+          else if (!explanationAsync.hasError &&
+              !explanationAsync.isLoading &&
+              showGenerateButton)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -168,8 +180,19 @@ class ExplanationPanel extends ConsumerWidget {
                 ),
               ),
             ),
-        ],
-      ),
+      ],
+    );
+
+    if (embedInParentScroll) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: content,
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: content,
     );
   }
 }

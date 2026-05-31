@@ -37,6 +37,7 @@ class ProgressStats {
     required this.completionPercent,
     required this.unlockedNodes,
     required this.avgQuizScore,
+    required this.currentStreak,
   });
 
   final int masteredCount;
@@ -49,6 +50,7 @@ class ProgressStats {
   final int completionPercent;
   final int unlockedNodes;
   final double? avgQuizScore;
+  final int currentStreak;
 
   factory ProgressStats.fromApi(Map<String, dynamic> json) {
     final stats = (json['stats'] as Map<String, dynamic>?) ?? json;
@@ -74,6 +76,7 @@ class ProgressStats {
       completionPercent: (stats['completionPercent'] as num?)?.toInt() ?? 0,
       unlockedNodes: (stats['unlockedNodes'] as num?)?.toInt() ?? 0,
       avgQuizScore: (stats['avgQuizScore'] as num?)?.toDouble(),
+      currentStreak: (stats['currentStreak'] as num?)?.toInt() ?? 0,
     );
   }
 }

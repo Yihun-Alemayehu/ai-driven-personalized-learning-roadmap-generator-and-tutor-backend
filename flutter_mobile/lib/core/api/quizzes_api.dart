@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import '../models/quiz.dart';
 import '../models/attempt_result.dart';
 
+/// Quiz generation may call AI twice (explanation + questions); allow extra time.
+const Duration _quizReceiveTimeout = Duration(seconds: 180);
+
 class QuizzesApi {
   const QuizzesApi(this._dio);
 
@@ -12,6 +15,7 @@ class QuizzesApi {
   Future<Quiz> getQuizByNode(String nodeId) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/nodes/$nodeId/quiz',
+      options: Options(receiveTimeout: _quizReceiveTimeout),
     );
     final data = response.data ?? <String, dynamic>{};
     debugPrint('[QUIZZES_API] Response keys: ${data.keys}');
@@ -40,9 +44,7 @@ class QuizzesApi {
 
     final data = response.data ?? <String, dynamic>{};
     debugPrint('[QUIZZES_API] Submit response keys: ${data.keys}');
-    // Response is nested under 'attempt' key
-    final attemptData = data['attempt'] as Map<String, dynamic>? ?? data;
-    return AttemptResult.fromJson(attemptData);
+    return AttemptResult.fromJson(data);
   }
 }
 

@@ -6,6 +6,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/api_client.dart';
 import '../api/auth_api.dart';
 import '../models/user.dart';
+import 'users_provider.dart';
+
+export '../models/user.dart' show UserRole;
 
 class AuthState {
   const AuthState({
@@ -107,12 +110,26 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     try {
       final user = await _authApi.me();
+      
+      // Block admin users on app startup
+      if (user.role == UserRole.admin) {
+        await _clearTokens();
+        return AuthState.unauthenticated;
+      }
+      
       return AuthState(user: user, tokens: seed, isLoading: false);
     } catch (_) {
       try {
         final tokens = await _authApi.refresh(refreshToken);
         await _persistTokens(tokens);
         final user = await _authApi.me();
+        
+        // Block admin users after token refresh
+        if (user.role == UserRole.admin) {
+          await _clearTokens();
+          return AuthState.unauthenticated;
+        }
+        
         return AuthState(user: user, tokens: tokens, isLoading: false);
       } catch (_) {
         await _clearTokens();
@@ -127,9 +144,29 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     try {
       final result = await _authApi.login(email: email, password: password);
+      final user = result.$1;
+
+      // Block admin users - mobile app doesn't support admin accounts
+      if (user.role == UserRole.admin) {
+        // Try to logout but don't let it fail our error message
+        try {
+          await _authApi.logout(result.$2.refreshToken);
+        } catch (_) {
+          // Ignore logout errors for blocked admins
+        }
+        state = AsyncData(
+          previous.copyWith(
+            isLoading: false,
+            error: 'Admin dashboard is only accessible from the web.',
+            clearSession: true,
+          ),
+        );
+        return;
+      }
+
       await _persistTokens(result.$2);
       state = AsyncData(
-        AuthState(user: result.$1, tokens: result.$2, isLoading: false),
+        AuthState(user: user, tokens: result.$2, isLoading: false),
       );
     } catch (error) {
       state = AsyncData(
@@ -177,6 +214,33 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       state = AsyncData(
         previous.copyWith(isLoading: false, error: errorMessage),
       );
+    }
+  }
+
+  Future<User?> updateProfile({
+    String? fullName,
+    String? avatarUrl,
+    String? preferredLanguage,
+    bool clearAvatar = false,
+  }) async {
+    final current = state.valueOrNull;
+    if (current?.tokens == null) return null;
+
+    try {
+      final api = ref.read(usersApiProvider);
+      final user = await api.updateMe(
+        fullName: fullName,
+        avatarUrl: avatarUrl,
+        preferredLanguage: preferredLanguage,
+        clearAvatar: clearAvatar,
+      );
+      state = AsyncData(
+        current!.copyWith(user: user, isLoading: false, clearError: true),
+      );
+      ref.invalidate(usersProvider);
+      return user;
+    } catch (error) {
+      throw _extractApiMessage(error, fallback: 'Unable to save profile.');
     }
   }
 

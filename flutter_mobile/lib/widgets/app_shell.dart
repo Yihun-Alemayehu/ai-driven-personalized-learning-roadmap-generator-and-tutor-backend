@@ -47,8 +47,16 @@ class AppShell extends StatelessWidget {
       );
     }
 
+    // Build actions based on location
+    final actions = _buildActions(context, location);
+
     return Scaffold(
-      appBar: showShellAppBar ? AtlasAppBar(title: title) : null,
+      appBar: showShellAppBar
+          ? AtlasAppBar(
+              title: title,
+              actions: actions,
+            )
+          : null,
       body: child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedIndex,
@@ -78,19 +86,14 @@ class AppShell extends StatelessWidget {
         icon: Icons.grid_view_rounded,
       ),
       const _ShellDestination(
+        label: 'Insights',
+        path: '/insights',
+        icon: Icons.insights_outlined,
+      ),
+      const _ShellDestination(
         label: 'Achievements',
         path: '/achievements',
         icon: Icons.emoji_events_outlined,
-      ),
-      const _ShellDestination(
-        label: 'Alerts',
-        path: '/notifications',
-        icon: Icons.notifications_none,
-      ),
-      const _ShellDestination(
-        label: 'Profile',
-        path: '/profile',
-        icon: Icons.person_outline_rounded,
       ),
     ];
 
@@ -105,31 +108,8 @@ class AppShell extends StatelessWidget {
       ];
     }
 
-    if (role == UserRole.admin) {
-      // Admins see only admin-relevant tabs
-      return const <_ShellDestination>[
-        _ShellDestination(
-          label: 'Stats',
-          path: '/admin',
-          icon: Icons.bar_chart_outlined,
-        ),
-        _ShellDestination(
-          label: 'Users',
-          path: '/admin/users',
-          icon: Icons.people_outline,
-        ),
-        _ShellDestination(
-          label: 'Domains',
-          path: '/admin/domains',
-          icon: Icons.domain_outlined,
-        ),
-        _ShellDestination(
-          label: 'Profile',
-          path: '/profile',
-          icon: Icons.person_outline_rounded,
-        ),
-      ];
-    }
+    // Note: Admin accounts are blocked from mobile app
+    // Admin dashboard is only accessible from web
 
     return base;
   }
@@ -140,6 +120,23 @@ class AppShell extends StatelessWidget {
     );
 
     return index < 0 ? 0 : index;
+  }
+
+  List<Widget>? _buildActions(BuildContext context, String location) {
+    // Only show profile/notifications icons on dashboard
+    if (location == '/dashboard') {
+      return [
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined),
+          onPressed: () => context.go('/notifications'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.person_outline),
+          onPressed: () => context.go('/profile'),
+        ),
+      ];
+    }
+    return null;
   }
 
   String _titleForLocation(String location) {
@@ -158,15 +155,16 @@ class AppShell extends StatelessWidget {
     }
     if (location.startsWith('/instructor/flagged')) return 'Flagged Events';
     if (location.startsWith('/instructor')) return 'Instructor';
-    if (location.startsWith('/admin/users')) return 'User Management';
-    if (location.startsWith('/admin/domains')) return 'Domain Management';
-    if (location.startsWith('/admin/stats')) return 'System Stats';
-    if (location.startsWith('/admin')) return 'Admin';
+    // Note: Admin routes removed - admin dashboard is web-only
     if (location == '/catalog') return 'Catalog';
+    if (location == '/insights') return 'Insights';
+    if (location.contains('/insights')) return 'Insights';
+    if (location == '/achievements') return 'Achievements';
     if (location == '/notifications') return 'Notifications';
     if (location == '/profile') return 'Profile';
     if (location == '/settings') return 'Settings';
-    return 'Dashboard';
+    if (location == '/dashboard') return 'Dashboard';
+    return '';
   }
 
   bool _supportsCustomSliverAppBar(String location) {
@@ -174,6 +172,9 @@ class AppShell extends StatelessWidget {
       return true;
     }
     if (location.startsWith('/enrollments/') && location.contains('/roadmap')) {
+      return true;
+    }
+    if (location.startsWith('/enrollments/') && location.contains('/learn/')) {
       return true;
     }
     if (location == '/notifications') {

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/decay_provider.dart';
+import '../../core/theme/app_colors.dart';
 import 'decay_node_card.dart';
 import 'micro_quiz_sheet.dart';
 
-class DecayPanel extends ConsumerWidget {
+/// Per-enrollment decay alerts (mirrors web `DecayStatusPanel`).
+class DecayPanel extends ConsumerStatefulWidget {
   const DecayPanel({
     required this.enrollmentId,
     super.key,
@@ -14,62 +16,136 @@ class DecayPanel extends ConsumerWidget {
   final String enrollmentId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reviewNodes = ref.watch(decayReviewNodesProvider(enrollmentId));
-    final relearnNodes = ref.watch(decayRelearnNodesProvider(enrollmentId));
-    
-    // Combine and take top 3
-    final decayNodes = [...relearnNodes, ...reviewNodes].take(3).toList();
+  ConsumerState<DecayPanel> createState() => _DecayPanelState();
+}
 
-    if (decayNodes.isEmpty) {
-      return const SizedBox.shrink();
-    }
+class _DecayPanelState extends ConsumerState<DecayPanel> {
+  bool _expanded = false;
 
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.notifications_active, color: Colors.orange),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Topics need review',
-                    style: Theme.of(context).textTheme.titleLarge,
+  @override
+  Widget build(BuildContext context) {
+    final decayAsync = ref.watch(decayStatusProvider(widget.enrollmentId));
+
+    return decayAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (status) {
+        // Match web: show full decayStatus array from API
+        final alerts = status.nodes;
+        if (alerts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final shown = _expanded ? alerts : alerts.take(2).toList();
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFFD97706).withValues(alpha: 0.5),
+            ),
+            color: const Color(0xFFD97706).withValues(alpha: 0.05),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: const Color(0xFFD97706).withValues(alpha: 0.25),
+                    ),
                   ),
                 ),
-                TextButton(
-                  onPressed: () {
-                    // TODO: Navigate to full decay list
-                  },
-                  child: const Text('See all →'),
+                child: Row(
+                  children: <Widget>[
+                    const Text('⚠', style: TextStyle(fontSize: 15)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Knowledge Decay Alerts',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1614),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD97706),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${alerts.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    if (alerts.length > 2) ...<Widget>[
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => setState(() => _expanded = !_expanded),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textMuted,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          _expanded ? 'Show less' : 'Show all ${alerts.length}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...decayNodes.map((node) => DecayNodeCard(
-              node: node,
-              onReview: () => _showMicroQuiz(context, node.nodeId),
-            )),
-          ],
-        ),
-      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: <Widget>[
+                    for (var i = 0; i < shown.length; i++) ...<Widget>[
+                      if (i > 0) const SizedBox(height: 10),
+                      DecayNodeCard(
+                        node: shown[i],
+                        onReview: () => _showMicroQuiz(context, shown[i].nodeId),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   void _showMicroQuiz(BuildContext context, String nodeId) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      backgroundColor: Colors.transparent,
+      builder: (_) => MicroQuizSheet(
+        nodeId: nodeId,
+        enrollmentId: widget.enrollmentId,
       ),
-      builder: (_) => MicroQuizSheet(nodeId: nodeId),
-    );
+    ).then((_) {
+      ref.invalidate(decayStatusProvider(widget.enrollmentId));
+    });
   }
 }

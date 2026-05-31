@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_errors.dart';
 import '../../core/models/quiz.dart';
 import '../../core/providers/quiz_provider.dart';
 import '../../core/providers/roadmap_provider.dart';
@@ -138,6 +140,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       error: (err, stack) {
         debugPrint('[QUIZ_SCREEN] Error loading quiz: $err');
         debugPrint('[QUIZ_SCREEN] Stack: $stack');
+        final message = err is DioException
+            ? dioErrorMessage(
+                err,
+                fallback: 'No quiz available for this topic yet.',
+              )
+            : 'No quiz available for this topic yet.';
         return Scaffold(
           body: Center(
             child: Column(
@@ -145,9 +153,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               children: [
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 16),
-                Text('Failed to load quiz', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Could not load quiz',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
-                Text('$err', style: Theme.of(context).textTheme.bodySmall),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
                   onPressed: () => ref.invalidate(quizProvider(widget.nodeId)),

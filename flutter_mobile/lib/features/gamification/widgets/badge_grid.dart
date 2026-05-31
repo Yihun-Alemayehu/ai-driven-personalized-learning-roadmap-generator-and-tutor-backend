@@ -1,84 +1,128 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/gamification_models.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/format.dart';
 
-/// Grid of achievement badges (earned and unearned)
+/// Badge grid (matches web `BadgeGrid` — 2 cols mobile, 4 on wide).
 class BadgeGrid extends StatelessWidget {
-  final List<BadgeMeta> badges;
-
   const BadgeGrid({required this.badges, super.key});
+
+  final List<BadgeMeta> badges;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: badges.length,
-      itemBuilder: (context, index) {
-        final badge = badges[index];
-        return _BadgeTile(badge: badge);
+    if (badges.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Text(
+          'No badges earned yet — complete your first node to start!',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 560 ? 4 : 2;
+        const spacing = 12.0;
+        final itemWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: badges
+              .map(
+                (badge) => SizedBox(
+                  width: itemWidth,
+                  child: _BadgeTile(badge: badge),
+                ),
+              )
+              .toList(),
+        );
       },
     );
   }
 }
 
 class _BadgeTile extends StatelessWidget {
-  final BadgeMeta badge;
-
   const _BadgeTile({required this.badge});
+
+  final BadgeMeta badge;
 
   @override
   Widget build(BuildContext context) {
+    final earned = badge.isEarned;
+
     return Opacity(
-      opacity: badge.isEarned ? 1.0 : 0.4,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: badge.isEarned 
-                ? Colors.amber.withOpacity(0.2) 
-                : Colors.grey[200],
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _getBadgeIcon(badge.key),
-              size: 32,
-              color: badge.isEarned ? Colors.amber[700] : Colors.grey,
-            ),
+      opacity: earned ? 1 : 0.5,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: earned
+              ? AppColors.accent.withValues(alpha: 0.06)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: earned ? AppColors.accent : AppColors.border,
           ),
-          const SizedBox(height: 8),
-          Text(
-            badge.label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: badge.isEarned ? FontWeight.w600 : FontWeight.normal,
-              color: badge.isEarned ? Colors.black87 : Colors.grey[600],
+        ),
+        child: Column(
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: earned ? AppColors.accent : AppColors.hover,
+                shape: BoxShape.circle,
+              ),
+              child: earned
+                  ? Text(badge.icon, style: const TextStyle(fontSize: 20))
+                  : Icon(Icons.lock_outline, size: 16, color: AppColors.textMuted),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              badge.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: earned ? AppColors.textPrimary : AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              badge.description,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10,
+                height: 1.3,
+                fontFamily: 'monospace',
+                color: Color(0xFFB0A898),
+              ),
+            ),
+            if (earned && badge.earnedAt != null) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(
+                Format.mediumDate(badge.earnedAt!),
+                style: const TextStyle(
+                  fontSize: 9,
+                  letterSpacing: 0.5,
+                  fontFamily: 'monospace',
+                  color: AppColors.accent,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
-  }
-
-  IconData _getBadgeIcon(String key) {
-    if (key.contains('mastery')) return Icons.emoji_events;
-    if (key.contains('streak')) return Icons.local_fire_department;
-    if (key.contains('quiz')) return Icons.star;
-    if (key.contains('speed')) return Icons.bolt;
-    if (key.contains('completion')) return Icons.check_circle;
-    if (key.contains('consistent')) return Icons.calendar_today;
-    if (key.contains('comeback')) return Icons.trending_up;
-    return Icons.emoji_events;
   }
 }

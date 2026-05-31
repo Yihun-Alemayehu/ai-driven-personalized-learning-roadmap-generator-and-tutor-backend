@@ -26,6 +26,7 @@ class User {
     required this.role,
     this.avatarUrl,
     this.preferredLanguage,
+    this.createdAt,
   });
 
   final String id;
@@ -34,17 +35,22 @@ class User {
   final UserRole role;
   final String? avatarUrl;
   final String? preferredLanguage;
+  final DateTime? createdAt;
 
   factory User.fromJson(Map<String, dynamic> json) {
     debugPrint('[USER] Parsing User from JSON: $json');
     try {
+      final userPayload = json['user'] as Map<String, dynamic>? ?? json;
       final user = User(
-        id: json['id'] as String,
-        email: json['email'] as String,
-        fullName: (json['fullName'] as String?) ?? 'Unknown',
-        role: userRoleFromJson((json['role'] as String?) ?? 'learner'),
-        avatarUrl: json['avatarUrl'] as String?,
-        preferredLanguage: json['preferredLanguage'] as String?,
+        id: userPayload['id'] as String,
+        email: userPayload['email'] as String,
+        fullName: (userPayload['fullName'] as String?) ?? 'Unknown',
+        role: userRoleFromJson((userPayload['role'] as String?) ?? 'learner'),
+        avatarUrl: userPayload['avatarUrl'] as String?,
+        preferredLanguage: userPayload['preferredLanguage'] as String?,
+        createdAt: userPayload['createdAt'] == null
+            ? null
+            : DateTime.tryParse(userPayload['createdAt'] as String),
       );
       debugPrint('[USER] User parsed successfully: ${user.id}');
       return user;
@@ -63,6 +69,7 @@ class User {
       'role': role == UserRole.domainExpert ? 'domain_expert' : role.name,
       'avatarUrl': avatarUrl,
       'preferredLanguage': preferredLanguage,
+      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     };
   }
 }

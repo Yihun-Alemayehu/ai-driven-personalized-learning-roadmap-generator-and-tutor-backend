@@ -37,6 +37,32 @@ class MyLearningNotifier extends AsyncNotifier<MyLearningState> {
     return MyLearningState(enrollmentToNode: parsed);
   }
 
+  Future<void> removeEnrollment(String enrollmentId) async {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return;
+    }
+
+    final updated = Map<String, String>.from(current.enrollmentToNode)
+      ..remove(enrollmentId);
+    state = AsyncData(current.copyWith(enrollmentToNode: updated));
+
+    final prefs = await SharedPreferences.getInstance();
+    final payload = updated.entries.map(
+      (entry) => '${entry.key}|${entry.value}',
+    );
+    await prefs.setStringList(_key, payload.toList());
+  }
+
+  Future<void> clearAll() async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    state = AsyncData(current.copyWith(enrollmentToNode: <String, String>{}));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+  }
+
   Future<void> setCurrentNode({
     required String enrollmentId,
     required String nodeId,

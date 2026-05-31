@@ -9,6 +9,8 @@ class EnrollPayload {
     this.familiarityLevel,
     this.learningGoal,
     this.aboutSelf,
+    this.preferredLearningStyle,
+    this.priorSkills,
   });
 
   final String domainId;
@@ -16,6 +18,8 @@ class EnrollPayload {
   final FamiliarityLevel? familiarityLevel;
   final LearningGoal? learningGoal;
   final String? aboutSelf;
+  final PreferredLearningStyle? preferredLearningStyle;
+  final String? priorSkills;
 
   Map<String, dynamic> toJson() {
     return {
@@ -27,6 +31,11 @@ class EnrollPayload {
         'learningGoal': learningGoalToJson(learningGoal!),
       if (aboutSelf != null && aboutSelf!.trim().isNotEmpty)
         'aboutSelf': aboutSelf!.trim(),
+      if (preferredLearningStyle != null)
+        'preferredLearningStyle':
+            preferredLearningStyleToJson(preferredLearningStyle!),
+      if (priorSkills != null && priorSkills!.trim().isNotEmpty)
+        'priorSkills': priorSkills!.trim(),
     };
   }
 }
@@ -52,30 +61,13 @@ class EnrollmentsApi {
     return Enrollment.fromJson(payload ?? <String, dynamic>{});
   }
 
-  Future<Enrollment> enroll(EnrollPayload payload) async {
+  Future<EnrollResult> enroll(EnrollPayload payload) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/enrollments',
       data: payload.toJson(),
     );
 
-    final json = response.data ?? <String, dynamic>{};
-    if (json['enrollment'] is Map<String, dynamic>) {
-      final enrollment = Map<String, dynamic>.from(
-        json['enrollment'] as Map<String, dynamic>,
-      );
-
-      if (json['totalNodes'] != null) {
-        enrollment['totalNodes'] = json['totalNodes'];
-      }
-
-      if (json['unlockedNodes'] != null) {
-        enrollment['masteredNodes'] = json['unlockedNodes'];
-      }
-
-      return Enrollment.fromJson(enrollment);
-    }
-
-    return Enrollment.fromJson(json);
+    return EnrollResult.fromJson(response.data ?? <String, dynamic>{});
   }
 
   Future<void> unenroll(String enrollmentId) async {
