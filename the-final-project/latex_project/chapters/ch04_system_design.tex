@@ -63,7 +63,7 @@ The system adopts a compact microservice architecture composed of three backend 
     \item \textbf{Nginx:} Reverse proxy and routing across backend services; SSE stream routes are configured with \texttt{proxy\_buffering off} and gzip disabled to prevent token accumulation.
 \end{itemize}
 
-The architecture is implemented in the runtime topology in \texttt{backend/docker-compose.yml} and routing rules in \texttt{backend/nginx/nginx.conf}. Service middleware and entrypoints are implemented in \texttt{backend/services/api-gateway/src/app.ts}, \texttt{backend/services/learning-service/src/app.ts}, and \texttt{backend/services/ai-service/src/app.ts}.
+The architecture is implemented in the runtime topology in \texttt{backend/docker-compose.yml} and routing rules in \texttt{backend/nginx/nginx.conf}. The TypeScript service entrypoints are \texttt{backend/services/api-gateway/src/app.ts} and \texttt{backend/services/learning-service/src/app.ts}; the Python AI service entrypoint is \texttt{backend/services/ai-service/app/main.py}.
 
 Figure~\ref{fig:ch04_architecture} illustrates the proposed system architecture, showing the three backend services, the Nginx reverse proxy, and the shared PostgreSQL and Redis infrastructure.
 
@@ -94,7 +94,7 @@ The system is decomposed into logical subsystems to reduce complexity and isolat
         \begin{itemize}
             \item \textbf{Responsibilities:} Quiz generation, explanation generation (standard and SSE streaming), AI Instructor conversational chat (SSE streaming), SERP API supplementary resource discovery, three-tier provider fallback (Phi-4-Multimodal primary, Qwen2.5-3B via Ollama secondary, Gemini 2.5 Flash API tertiary), Redis caching, and per-provider circuit breakers.
             \item \textbf{Boundary:} Exposes AI endpoints to learning-service; does not directly mutate core domain state.
-            \item \textbf{Implementation:} \texttt{backend/services/ai-service/src/modules/ai}.
+            \item \textbf{Implementation:} \texttt{backend/services/ai-service/app/} (Python 3.11 / FastAPI).
         \end{itemize}
     \item \textbf{Client Applications}
         \begin{itemize}
