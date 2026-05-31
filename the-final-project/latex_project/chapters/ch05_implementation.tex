@@ -9,7 +9,7 @@ The design solution was reviewed before implementation to confirm that it still 
 \begin{itemize}
     \item \textbf{Personalized learning paths:} The ontology combined with the progress model supports adaptive learning paths, mastery state transitions, and multi-path branching. This aligns directly with the goal of personalized roadmaps.
     \item \textbf{Adaptive assessment:} The separation of quiz generation (ai-service) from quiz delivery (learning-service) ensures assessments can adapt while maintaining consistent delivery and scoring rules.
-    \item \textbf{Resource discovery and adaptation:} The resource and adaptation subsystems align with the goal of providing targeted remediation and modality diversity.
+    \item \textbf{AI-grounded content and adaptation:} The two-layer content architecture (offline expert curation + runtime ontology-grounded AI generation) aligns with the goal of providing high-quality, hallucination-free explanations. The adaptation subsystem (resource\_swap, prerequisite\_review, instructor\_escalation) provides targeted remediation based on failure depth.
 \end{itemize}
 
 \textbf{Architecture validity check}
@@ -41,6 +41,9 @@ The design solution was reviewed before implementation to confirm that it still 
     \item \textbf{Input validation tightened:} Validation and sanitization at the gateway were strengthened to enforce contracts and reduce security risks.
     \item \textbf{Caching depth increased:} AI response caching was expanded to reduce latency and improve throughput under load.
     \item \textbf{Error handling standardized:} Common error objects and response formats were enforced across services for consistent client behavior.
+    \item \textbf{SSE streaming added:} Real-time token-by-token streaming was introduced for AI explanations and the AI Instructor chatbot, with Nginx \texttt{proxy\_buffering off} and gzip disabled on stream routes.
+    \item \textbf{Certificate migration applied out-of-band:} The certificates table was applied via raw SQL rather than \texttt{prisma migrate dev} to avoid a \texttt{UserRole} enum drift that would have deleted production instructor accounts.
+    \item \textbf{Gamification wired as fire-and-forget:} XP awards and badge checks are dispatched asynchronously from the gatekeeper to avoid adding latency to the quiz submission critical path.
 \end{itemize}
 
 Overall, the design remains valid and aligned with the project objectives. The refinements above did not change the architecture but improved its operational robustness and implementation clarity.
@@ -69,16 +72,17 @@ The development toolchain was selected to balance rapid iteration, reliability, 
 \subsection{AI and External Integration Tools}
 
 \begin{itemize}
-    \item \textbf{LLM Providers:} Phi-4-Multimodal (via Kaggle) is used as the primary provider; Qwen2.5-3B (via Ollama) and Gemini 2.5 Flash (API, last resort) serve as fallback tiers.
-    \item \textbf{Circuit breaker and caching utilities:} Ensure resilience against AI provider latency and outages.
-    \item \textbf{Search API:} Google Programmable Search Engine (PSE) enables resource discovery from pre-approved domains.
+    \item \textbf{LLM Providers:} Three-tier fallback chain --- Phi-4-Multimodal (primary), Qwen2.5-3B via Ollama (secondary, local CPU), and Gemini 2.5 Flash API (tertiary, last resort). Circuit breakers per provider prevent cascading failures.
+    \item \textbf{Redis caching:} AI responses are cached with per-type TTLs (explanations 24h, quizzes 7d) to avoid repeat generation costs.
+    \item \textbf{Server-Sent Events (SSE):} Used for token-by-token streaming of AI explanations and AI Instructor chat responses.
+    \item \textbf{SERP API:} Used for supplementary resource discovery scoped to ontology node learning outcomes.
 \end{itemize}
 
 \subsection{Frontend and Mobile Tooling}
 
 \begin{itemize}
-    \item \textbf{Frontend:} React with Vite provides fast builds and a modern component model. React Router manages page navigation.
-    \item \textbf{Mobile:} Flutter provides a consistent UI across Android and iOS, with centralized state and theme control.
+    \item \textbf{Frontend:} React 18 with Vite provides fast HMR builds and a modern component model. React Router manages navigation. Key libraries: Zustand (client state), TanStack Query (server state and caching), Tailwind CSS (utility-first styling), React Flow (DAG roadmap visualisation), Recharts (analytics charts), Zod + React Hook Form (form validation), html-to-image + jsPDF (certificate download).
+    \item \textbf{Mobile:} Flutter provides a consistent UI across Android and iOS, with centralised state and theme control; GraphView renders the learning DAG on mobile.
 \end{itemize}
 
 \subsection{Testing and Quality Tooling}
@@ -195,14 +199,15 @@ This section details how the system was implemented, the coding practices that g
     \item \textbf{Type safety:} Shared TypeScript types reduce runtime errors and make contracts explicit in both frontend and backend.
     \item \textbf{Validation at boundaries:} Requests are validated using schemas at the API boundary to avoid propagating invalid data.
     \item \textbf{Consistent error handling:} Errors are normalized using \texttt{ApiError} to produce predictable response formats and HTTP status codes.
-    \item \textbf{Incremental delivery:} Features were implemented in phases (auth, ontology, enrollment, quizzes, decay, branching, admin). Each phase included tests and migrations.
+    \item \textbf{Incremental delivery:} Features were implemented in phases: (1) authentication and RBAC, (2) ontology and domain management, (3) enrollment with learner profile capture, (4) quiz generation and gatekeeper, (5) mastery decay and spaced repetition, (6) multi-path branching, (7) SSE streaming for AI explanations and AI Instructor, (8) gamification (XP, badges, streaks), (9) learning analytics and velocity tracking, (10) completion certificates, (11) instructor and admin portals. Each phase included migrations and tests before the next began.
 \end{itemize}
 
 \subsection{Integration Strategy During Development}
 
 \begin{itemize}
-    \item \textbf{Service-to-service integration:} The learning-service calls ai-service via HTTP, and both share Redis for caching and rate limiting.
-    \item \textbf{Client-to-service integration:} The web and mobile clients authenticate through the gateway and call the learning-service with Bearer tokens.
+    \item \textbf{Service-to-service integration:} The learning-service calls ai-service via HTTP for both standard JSON endpoints (quiz generation) and SSE proxying (explanations, AI Instructor). Both services share Redis for caching and rate limiting.
+    \item \textbf{SSE proxy pattern:} For streaming endpoints, the learning-service pipes the ai-service SSE response directly to the client without buffering, using Node.js \texttt{ReadableStream} forwarding. Nginx SSE location blocks ensure \texttt{proxy\_buffering off} and disable gzip on stream routes.
+    \item \textbf{Client-to-service integration:} The web and mobile clients authenticate through the gateway and call the learning-service with Bearer tokens. The frontend's \texttt{useAskInstructorStream} hook reads the SSE \texttt{ReadableStream} directly via the Fetch API.
     \item \textbf{Contract testing:} Responses from ai-service are schema-validated before persistence, and OAuth flows are tested for reliability.
 \end{itemize}
 
@@ -241,7 +246,7 @@ export function googleRedirect(_req: Request, res: Response): void {
 
 \textbf{Gatekeeper logic and mastery transitions (learning-service)}
 
-The gatekeeper enforces three-tier progression and logs adaptation events.
+The gatekeeper enforces five-tier progression, records mastery state with the marginal-pass flag for accelerated decay, fires the correct adaptation event per failure tier, and triggers gamification and velocity recording on pass — all fire-and-forget so they never block the quiz response.
 
 Source: \texttt{backend/services/learning-service/src/modules/gatekeeper/gatekeeper.service.ts}
 
@@ -254,24 +259,41 @@ export function classifyScore(scorePercent: number): GatekeeperTier {
   return 'fail_severe';
 }
 
-export async function applyGatekeeperOutcome(params: {
-  userId: string;
-  nodeId: string;
-  enrollmentId: string;
-  quizAttemptId: string;
-  scorePercent: number;
-}) {
+export async function applyGatekeeperOutcome(params) {
   const { userId, nodeId, enrollmentId, quizAttemptId, scorePercent } = params;
   const tier = classifyScore(scorePercent);
   const isPass = tier === 'strong_pass' || tier === 'marginal_pass';
+  const isMarginalPass = tier === 'marginal_pass';
+  const now = new Date();
+
+  // Persist mastery state; isMarginalPass drives the 7-day vs 14-day decay timer
   await prisma.learnerNodeProgress.updateMany({
     where: { userId, nodeId, enrollmentId },
-    data: { masteryState: isPass ? 'mastered' : 'in_progress' },
+    data: isPass
+      ? { masteryState: 'mastered', masteredAt: now, isMarginalPass, lastReviewedAt: now }
+      : { masteryState: 'in_progress', lastReviewedAt: now },
   });
-  if (tier === 'fail_low' || tier === 'fail_fundamental' || tier === 'fail_severe') {
+
+  // Each failure tier has its own adaptation type
+  let adaptationType;
+  if      (tier === 'fail_low')         adaptationType = 'resource_swap';
+  else if (tier === 'fail_fundamental') adaptationType = 'prerequisite_review';
+  else if (tier === 'fail_severe')      adaptationType = 'instructor_escalation';
+  if (adaptationType) {
     await prisma.adaptationEvent.create({
-      data: { userId, nodeId, quizAttemptId, adaptationType: tier === 'fail_low' ? 'resource_swap' : 'prerequisite_review' },
+      data: { userId, nodeId, quizAttemptId, adaptationType },
     });
+  }
+
+  if (isPass) {
+    // Fire-and-forget: never block the quiz response for analytics/gamification
+    const xpSource = tier === 'strong_pass'
+      ? 'node_mastered_strong' : 'node_mastered_marginal';
+    recordVelocity({ userId, enrollmentId, nodeId, completedAt: now }).catch(() => {});
+    awardXp({ userId, source: xpSource, refId: nodeId }).catch(() => {});
+    checkBadgesOnMastery({ userId, enrollmentId, nodeId, tier }).catch(() => {});
+  } else {
+    awardXp({ userId, source: 'quiz_attempt', refId: quizAttemptId }).catch(() => {});
   }
 }
 \end{lstlisting}
@@ -331,22 +353,183 @@ return parseAndValidate<T>(geminiRaw, schema);
 
 \textbf{Decay scanning and notifications (learning-service)}
 
-Mastery decay scans update state and notify learners.
+The decay scanner runs on a schedule and applies Ebbinghaus-inspired thresholds: strong-pass mastery decays after 14 days, marginal-pass after 7 days (weaker initial encoding), and both decay to \texttt{relearn} at 30 days. An in-app notification is sent on each transition.
 
 Source: \texttt{backend/services/learning-service/src/modules/decay/decay.service.ts}
 
 \begin{lstlisting}[language=JavaScript]
-if (days > threshold) {
+const STRONG_PASS_DAYS  = 14;
+const MARGINAL_PASS_DAYS = 7;
+const RELEARN_DAYS       = 30;
+
+for (const p of mastered) {
+  if (!p.lastReviewedAt) continue;
+  const days = (Date.now() - p.lastReviewedAt.getTime()) / 86_400_000;
+
+  // Marginal-pass mastery uses a shorter review interval
+  const threshold = p.isMarginalPass ? MARGINAL_PASS_DAYS : STRONG_PASS_DAYS;
+  if (days <= threshold) continue;
+
+  const newState = days > RELEARN_DAYS ? 'relearn' : 'review_needed';
   await prisma.learnerNodeProgress.update({
     where: { id: p.id },
-    data: { masteryState: 'review_needed' },
+    data:  { masteryState: newState },
   });
-
   await createNotification({
     userId: p.userId,
-    type: 'decay_reminder',
-    title: `Time to review: ${p.node.title}`,
-    data: { nodeId: p.nodeId, enrollmentId: p.enrollmentId },
+    type:   'decay_reminder',
+    title:  `Time to review: ${p.node.title}`,
+    data:   { nodeId: p.nodeId, enrollmentId: p.enrollmentId },
+  });
+}
+\end{lstlisting}
+
+\textbf{SSE streaming for AI explanations and AI Instructor (ai-service)}
+
+Both AI explanation and AI Instructor chat use identical SSE scaffolding: headers are set and flushed before generation starts, each token is emitted as an SSE event, a \texttt{[DONE]} sentinel signals completion, and an abort controller honours client disconnection.
+
+Source: \texttt{backend/services/ai-service/src/modules/ai/ai.controller.ts}
+
+\begin{lstlisting}[language=JavaScript]
+export async function streamExplanation(
+  req: Request, res: Response,
+): Promise<void> {
+  // X-Accel-Buffering: no tells Nginx not to accumulate tokens before forwarding
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const sendChunk = (text: string) => {
+    if (!res.writableEnded)
+      res.write(`data: ${JSON.stringify({ t: text })}\n\n`);
+  };
+
+  const controller = new AbortController();
+  req.on('close', () => controller.abort());    // honour client disconnect
+
+  await svc.streamExplanation(req.body, sendChunk, controller.signal);
+  if (!res.writableEnded) res.write('data: [DONE]\n\n');
+  res.end();
+}
+\end{lstlisting}
+
+On the frontend the React hook reads the stream token-by-token and appends each chunk to the message state, rendering the growing text in real time:
+
+Source: \texttt{frontend/src/api/instructor-chat.ts}
+
+\begin{lstlisting}[language=JavaScript]
+const res = await fetch(`/api/v1/nodes/${nodeId}/ask/stream`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json',
+             Authorization: `Bearer ${accessToken}` },
+  body: JSON.stringify(payload),
+  signal: controller.signal,
+});
+const reader = res.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  for (const line of decoder.decode(value).split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    const raw = line.slice(6).trim();
+    if (raw === '[DONE]') { callbacks.onDone(); return; }
+    const parsed = JSON.parse(raw);
+    if (parsed.t) callbacks.onChunk(parsed.t);
+  }
+}
+\end{lstlisting}
+
+\textbf{Certificate issuance (learning-service)}
+
+The certificate service is idempotent (returns the existing record on double-claim), validates 100\% roadmap completion, and uses a collision-retry loop to guarantee a unique Crockford base-32 public identifier.
+
+Source: \texttt{backend/services/learning-service/src/modules/certificates/certificates.service.ts}
+
+\begin{lstlisting}[language=JavaScript]
+function generatePublicId(): string {
+  // Crockford base-32 alphabet: no I, L, O, U to avoid confusion
+  const ALPHA = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  const bytes = crypto.randomBytes(8);
+  let raw = '';
+  for (let i = 0; i < 8; i++) raw += ALPHA[bytes[i] % ALPHA.length];
+  return `ATL-${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
+}
+
+export async function claimCertificate(enrollmentId: string, userId: string) {
+  // Idempotent: if already claimed, return the existing certificate
+  const existing = await prisma.certificate.findUnique({ where: { enrollmentId } });
+  if (existing) return serializeCertificate(existing);
+
+  const completion = await computeCompletion(enrollmentId);
+  if (completion.completionPercent < 100) {
+    throw ApiError.forbidden(
+      `Roadmap is ${completion.completionPercent}% complete — master every node first.`
+    );
+  }
+
+  // Retry on the rare public-id collision (max 5 attempts)
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return serializeCertificate(
+        await prisma.certificate.create({
+          data: {
+            publicId: generatePublicId(),
+            userId,
+            enrollmentId,
+            domainId:      enrollment.domainId,
+            recipientName: enrollment.user.fullName,
+            courseName:    enrollment.domain.name,
+            hoursInvested: completion.completedHours,
+            averageScore:  completion.averageScore,
+            completedAt:   completion.lastCompletedAt ?? new Date(),
+          },
+        }),
+      );
+    } catch (e) {
+      if (!isUniqueViolation(e) || attempt === 4) throw e;
+    }
+  }
+}
+\end{lstlisting}
+
+\textbf{Gamification: XP award and level progression (learning-service)}
+
+XP events are persisted to an append-only log for history, and a \texttt{userXp} aggregate row is upserted to keep the current total and level in sync.
+
+Source: \texttt{backend/services/learning-service/src/modules/gamification/gamification.service.ts}
+
+\begin{lstlisting}[language=JavaScript]
+// XP weights per source (defined in gamification.types.ts)
+// node_mastered_strong = 100, node_mastered_marginal = 60,
+// quiz_attempt = 10, spaced_review = 25, streak_milestone = 50
+
+export async function awardXp(params: {
+  userId: string;
+  source: XpSource;
+  refId?: string;
+}): Promise<void> {
+  const amount = XP_WEIGHTS[params.source];
+  if (amount <= 0) return;
+
+  // Append-only event log for history display
+  await prisma.xpEvent.create({
+    data: { userId: params.userId, source: params.source,
+            amount, refId: params.refId },
+  });
+
+  // Upsert the aggregate (total XP + derived level)
+  const existing = await prisma.userXp.findUnique({
+    where: { userId: params.userId },
+  });
+  const newTotal = (existing?.totalXp ?? 0) + amount;
+  await prisma.userXp.upsert({
+    where:  { userId: params.userId },
+    create: { userId: params.userId, totalXp: newTotal,
+               level: computeLevel(newTotal) },
+    update: { totalXp: newTotal, level: computeLevel(newTotal) },
   });
 }
 \end{lstlisting}
@@ -476,14 +659,16 @@ child: GraphView(
 Several integration challenges emerged during development and were resolved through iterative refinement:
 
 \begin{itemize}
-    \item \textbf{AI response inconsistency:} LLM outputs varied in format. The solution was strict JSON parsing and schema validation, plus fallback providers across the three-tier chain (Phi-4 $\rightarrow$ Qwen2.5 $\rightarrow$ Gemini).
-    \item \textbf{Performance bottlenecks:} AI requests were slow under load, especially the local Qwen2.5-3B model on CPU (30--90 seconds per request). Caching and staleness windows were introduced to reduce repeated calls. The circuit breaker prevents repeated failed requests to slow providers.
-    \item \textbf{Authorization edge cases:} Some admin routes needed additional role checks; these were added at gateway and service layers.
-    \item \textbf{Cross-platform consistency:} Web (React) and mobile (Flutter) required separate implementations of the roadmap DAG visualization. Shared API contracts ensured consistent data representation despite different rendering engines.
+    \item \textbf{AI response inconsistency:} LLM outputs varied in format. The solution was strict JSON parsing with multiple parse candidates (raw, code-block-stripped, extracted JSON slice), schema validation via Joi, and fallback providers across the three-tier chain (Phi-4 $\rightarrow$ Qwen2.5 $\rightarrow$ Gemini).
+    \item \textbf{SSE buffering:} Nginx and Node.js compression middleware both buffered SSE tokens before delivery, producing batched outputs instead of live streaming. The fix was adding \texttt{X-Accel-Buffering: no} response headers and a compression filter that skips routes containing \texttt{/stream}.
+    \item \textbf{Performance bottlenecks:} The local Qwen2.5-3B model on CPU can take 30--90 seconds per request. Redis caching with per-type TTLs and circuit-breaker thresholds prevent repeated slow calls and isolate the performance impact.
+    \item \textbf{Certificate migration conflict:} Running \texttt{prisma db push} to add the certificates table would have triggered a \texttt{UserRole} enum drift, deleting three real instructor accounts. The table was added via a targeted raw SQL migration (\texttt{add\_certificates.sql}) instead.
+    \item \textbf{Authorization edge cases:} Some admin and instructor routes needed additional role checks; these were added at both gateway middleware and service layers for defence in depth.
+    \item \textbf{Cross-platform consistency:} Web (React Flow) and mobile (GraphView) required separate DAG rendering implementations. Shared TypeScript API contract types ensured consistent node and edge data regardless of rendering engine.
 \end{itemize}
 
 \subsection{Summary}
 
-The implementation preserves the core architectural design while adding pragmatic safeguards such as caching, validation, and circuit breakers. The three-tier AI fallback strategy (Phi-4-Multimodal $\rightarrow$ Qwen2.5-3B $\rightarrow$ Gemini 2.5 Flash) ensures resilience, near-zero API cost, and graceful degradation in resource-constrained environments. The system is modular, testable, and aligned with the functional and non-functional requirements described in Chapter~4.
+The implementation preserves the core architectural design while adding pragmatic safeguards such as caching, validation, and circuit breakers. The three-tier AI fallback strategy (Phi-4-Multimodal $\rightarrow$ Qwen2.5-3B $\rightarrow$ Gemini 2.5 Flash) ensures resilience, near-zero API cost, and graceful degradation in resource-constrained environments. Beyond the originally scoped features, the implementation delivered: real-time SSE-streamed AI explanations and an AI Instructor chatbot; a verifiable completion certificate system with client-side PDF/PNG download and a public verification page; a comprehensive gamification layer (XP, level progression, streaks, achievement badges, weekly goals); learning velocity analytics with a velocity-adjusted timeline forecast; and role-stratified instructor and administrator portals. All fire-and-forget side effects (gamification, velocity recording) are dispatched asynchronously from the gatekeeper to maintain fast quiz submission response times. The system is modular, testable, and fully aligned with the functional and non-functional requirements described in Chapter~4.
 
 \endinput
