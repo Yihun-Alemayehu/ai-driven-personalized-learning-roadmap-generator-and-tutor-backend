@@ -1,6 +1,6 @@
 ---
 name: Backend implementation plan
-description: 12-phase sequential backend plan for the AI-Driven Personalized Learning Roadmap Generator, saved in BACKEND_PLAN.md at project root
+description: 12-phase sequential backend plan for the AI-Driven Personalized Learning Roadmap Generator And Tutor, saved in BACKEND_PLAN.md at project root
 type: project
 ---
 

@@ -2,7 +2,7 @@
 
 ## 7.1 Conclusion of the Study
 
-This study set out to design, implement, and evaluate an AI-driven personalized learning roadmap generator and tutor that supports adaptive learning paths, assessment-driven progression, and intelligent resource discovery for self-directed learners in resource-constrained environments, particularly Ethiopia. Across the preceding chapters, the investigation established a clear problem definition, formulated comprehensive requirements, designed a scalable system architecture, implemented the core functionality, and evaluated the results through structured testing with real-world scenarios.
+This study set out to design, implement, and evaluate an AI-Driven Personalized Learning Roadmap Generator And Tutor and tutor that supports adaptive learning paths, assessment-driven progression, and intelligent resource discovery for self-directed learners in resource-constrained environments, particularly Ethiopia. Across the preceding chapters, the investigation established a clear problem definition, formulated comprehensive requirements, designed a scalable system architecture, implemented the core functionality, and evaluated the results through structured testing with real-world scenarios.
 
 **Summary of what was accomplished**
 
@@ -60,7 +60,7 @@ Based on the conclusions and evaluation findings, the following recommendations 
    - Investigate 4-bit quantized Qwen2.5-3B model inference on mobile devices via ONNX Runtime or TensorFlow Lite for completely local AI generation without any network dependency.
 
 3. **Enhance evaluation rigor**
-   - Conduct a controlled empirical study with 50-100 Ethiopian learners comparing learning outcomes (pre/post assessment scores) between AI-Driven Personalized Learning Roadmap Generator users and a control group using traditional self-directed resources (roadmap.sh, YouTube playlists). This would provide statistically significant evidence of learning efficacy.
+   - Conduct a controlled empirical study with 50-100 Ethiopian learners comparing learning outcomes (pre/post assessment scores) between AI-Driven Personalized Learning Roadmap Generator And Tutor users and a control group using traditional self-directed resources (roadmap.sh, YouTube playlists). This would provide statistically significant evidence of learning efficacy.
    - Measure long-term retention at 3-month and 6-month intervals post-completion to validate the Mastery Decay algorithm's effectiveness.
    - Deploy the System Usability Scale (SUS) survey to quantify usability and identify specific UI/UX improvement areas.
 

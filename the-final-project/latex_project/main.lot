@@ -1,43 +1,43 @@
 \addvspace {10\p@ }
 \contentsline {table}{\numberline {1.1}{\ignorespaces Technology stack and justifications}}{27}{table.caption.7}%
 \contentsline {table}{\numberline {1.2}{\ignorespaces Cost comparison: three-tier LLM architecture vs.\ original GPT-4 plan}}{28}{table.caption.8}%
-\contentsline {table}{\numberline {1.3}{\ignorespaces Detailed weekly breakdown (24 weeks)}}{29}{table.1.3}%
+\contentsline {table}{\numberline {1.3}{\ignorespaces Detailed weekly breakdown (24 weeks)}}{30}{table.1.3}%
 \contentsline {table}{\numberline {1.4}{\ignorespaces Detailed budget}}{30}{table.caption.9}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces Summary reference: academic foundations of AI-Driven Personalized Learning Roadmap Generator}}{47}{table.2.1}%
-\contentsline {table}{\numberline {2.2}{\ignorespaces Position of AI-Driven Personalized Learning Roadmap Generator{} within the landscape}}{53}{table.caption.10}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Summary reference: academic foundations of AI-Driven Personalized Learning Roadmap Generator And Tutor}}{49}{table.2.1}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces Position of AI-Driven Personalized Learning Roadmap Generator And Tutor{} within the landscape}}{54}{table.caption.10}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Primary Use Cases}}{61}{table.caption.11}%
-\contentsline {table}{\numberline {3.2}{\ignorespaces Use Case to Functional Requirement Mapping}}{62}{table.caption.12}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces Primary Use Cases}}{62}{table.caption.11}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Use Case to Functional Requirement Mapping}}{63}{table.caption.12}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {4.1}{\ignorespaces \textbf {users} table}}{74}{table.4.1}%
-\contentsline {table}{\numberline {4.2}{\ignorespaces \textbf {domains} table}}{74}{table.4.2}%
-\contentsline {table}{\numberline {4.3}{\ignorespaces \textbf {ontology\_versions} table}}{75}{table.4.3}%
-\contentsline {table}{\numberline {4.4}{\ignorespaces \textbf {learning\_nodes} table}}{75}{table.4.4}%
-\contentsline {table}{\numberline {4.5}{\ignorespaces \textbf {node\_prerequisites} table}}{76}{table.4.5}%
-\contentsline {table}{\numberline {4.6}{\ignorespaces \textbf {enrollments} table}}{76}{table.4.6}%
-\contentsline {table}{\numberline {4.7}{\ignorespaces \textbf {learner\_node\_progress} table}}{76}{table.4.7}%
-\contentsline {table}{\numberline {4.8}{\ignorespaces \textbf {quizzes} table}}{77}{table.4.8}%
-\contentsline {table}{\numberline {4.9}{\ignorespaces \textbf {quiz\_questions} table}}{77}{table.4.9}%
-\contentsline {table}{\numberline {4.10}{\ignorespaces \textbf {quiz\_attempts} table}}{78}{table.4.10}%
-\contentsline {table}{\numberline {4.11}{\ignorespaces \textbf {resources} table}}{78}{table.4.11}%
-\contentsline {table}{\numberline {4.12}{\ignorespaces \textbf {resource\_ratings} table}}{78}{table.4.12}%
-\contentsline {table}{\numberline {4.13}{\ignorespaces \textbf {domain\_whitelist} table}}{79}{table.4.13}%
-\contentsline {table}{\numberline {4.14}{\ignorespaces \textbf {adaptation\_events} table}}{79}{table.4.14}%
-\contentsline {table}{\numberline {4.15}{\ignorespaces \textbf {challenge\_projects} table}}{79}{table.4.15}%
-\contentsline {table}{\numberline {4.16}{\ignorespaces \textbf {notifications} table}}{80}{table.4.16}%
-\contentsline {table}{\numberline {4.17}{\ignorespaces \textbf {refresh\_tokens} table}}{80}{table.4.17}%
-\contentsline {table}{\numberline {4.18}{\ignorespaces Functional requirements verification matrix}}{92}{table.4.18}%
-\contentsline {table}{\numberline {4.19}{\ignorespaces Non-functional requirements verification matrix}}{94}{table.4.19}%
+\contentsline {table}{\numberline {4.1}{\ignorespaces \textbf {users} table}}{75}{table.4.1}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces \textbf {domains} table}}{75}{table.4.2}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces \textbf {ontology\_versions} table}}{76}{table.4.3}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces \textbf {learning\_nodes} table}}{76}{table.4.4}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces \textbf {node\_prerequisites} table}}{77}{table.4.5}%
+\contentsline {table}{\numberline {4.6}{\ignorespaces \textbf {enrollments} table}}{77}{table.4.6}%
+\contentsline {table}{\numberline {4.7}{\ignorespaces \textbf {learner\_node\_progress} table}}{77}{table.4.7}%
+\contentsline {table}{\numberline {4.8}{\ignorespaces \textbf {quizzes} table}}{78}{table.4.8}%
+\contentsline {table}{\numberline {4.9}{\ignorespaces \textbf {quiz\_questions} table}}{78}{table.4.9}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces \textbf {quiz\_attempts} table}}{79}{table.4.10}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces \textbf {resources} table}}{79}{table.4.11}%
+\contentsline {table}{\numberline {4.12}{\ignorespaces \textbf {resource\_ratings} table}}{79}{table.4.12}%
+\contentsline {table}{\numberline {4.13}{\ignorespaces \textbf {domain\_whitelist} table}}{80}{table.4.13}%
+\contentsline {table}{\numberline {4.14}{\ignorespaces \textbf {adaptation\_events} table}}{80}{table.4.14}%
+\contentsline {table}{\numberline {4.15}{\ignorespaces \textbf {challenge\_projects} table}}{80}{table.4.15}%
+\contentsline {table}{\numberline {4.16}{\ignorespaces \textbf {notifications} table}}{81}{table.4.16}%
+\contentsline {table}{\numberline {4.17}{\ignorespaces \textbf {refresh\_tokens} table}}{81}{table.4.17}%
+\contentsline {table}{\numberline {4.18}{\ignorespaces Functional requirements verification matrix}}{93}{table.4.18}%
+\contentsline {table}{\numberline {4.19}{\ignorespaces Non-functional requirements verification matrix}}{95}{table.4.19}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {6.1}{\ignorespaces Functional test plans}}{111}{table.6.1}%
-\contentsline {table}{\numberline {6.2}{\ignorespaces Non-functional test plans}}{115}{table.6.2}%
-\contentsline {table}{\numberline {6.3}{\ignorespaces Test frameworks and coverage by layer}}{116}{table.6.3}%
-\contentsline {table}{\numberline {6.4}{\ignorespaces Test files and coverage areas}}{117}{table.6.4}%
-\contentsline {table}{\numberline {6.5}{\ignorespaces Test coverage summary}}{119}{table.6.5}%
-\contentsline {table}{\numberline {6.6}{\ignorespaces Functional test results}}{119}{table.6.6}%
-\contentsline {table}{\numberline {6.7}{\ignorespaces Non-functional test results}}{122}{table.6.7}%
-\contentsline {table}{\numberline {6.8}{\ignorespaces AI provider failover test results}}{124}{table.6.8}%
+\contentsline {table}{\numberline {6.1}{\ignorespaces Functional test plans}}{112}{table.6.1}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces Non-functional test plans}}{116}{table.6.2}%
+\contentsline {table}{\numberline {6.3}{\ignorespaces Test frameworks and coverage by layer}}{117}{table.6.3}%
+\contentsline {table}{\numberline {6.4}{\ignorespaces Test files and coverage areas}}{118}{table.6.4}%
+\contentsline {table}{\numberline {6.5}{\ignorespaces Test coverage summary}}{120}{table.6.5}%
+\contentsline {table}{\numberline {6.6}{\ignorespaces Functional test results}}{120}{table.6.6}%
+\contentsline {table}{\numberline {6.7}{\ignorespaces Non-functional test results}}{123}{table.6.7}%
+\contentsline {table}{\numberline {6.8}{\ignorespaces AI provider failover test results}}{125}{table.6.8}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }

@@ -1,6 +1,6 @@
 # Personalization Audit & Enhancement Plan
 
-> **Project:** AI-Driven Personalized Learning Roadmap Generator and Tutor
+> **Project:** AI-Driven Personalized Learning Roadmap Generator And Tutor and Tutor
 >
 > **Audit date:** 2026-05-22 · **Completed:** 2026-05-26
 >

@@ -8,7 +8,7 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'AI Service',
       version: '1.0.0',
-      description: 'AI-Driven Personalized Learning Roadmap Generator — AI Service',
+      description: 'AI-Driven Personalized Learning Roadmap Generator And Tutor — AI Service',
     },
     servers: [{ url: '/api/v1' }],
   },

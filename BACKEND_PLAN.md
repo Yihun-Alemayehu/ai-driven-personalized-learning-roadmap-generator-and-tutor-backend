@@ -1,6 +1,6 @@
 # Backend Implementation Plan
 
-This document is the authoritative, sequential implementation plan for the AI-Driven Personalized Learning Roadmap Generator backend. Each phase must be completed and verified before the next begins. Frontend (React, Flutter) is out of scope.
+This document is the authoritative, sequential implementation plan for the AI-Driven Personalized Learning Roadmap Generator And Tutor backend. Each phase must be completed and verified before the next begins. Frontend (React, Flutter) is out of scope.
 
 ---
 

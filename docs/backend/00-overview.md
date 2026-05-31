@@ -1,6 +1,6 @@
 # Backend Overview
 
-This document covers the high-level architecture, service boundaries, and phase sequence for the AI-Driven Personalized Learning Roadmap Generator backend.
+This document covers the high-level architecture, service boundaries, and phase sequence for the AI-Driven Personalized Learning Roadmap Generator And Tutor backend.
 
 ---
 
