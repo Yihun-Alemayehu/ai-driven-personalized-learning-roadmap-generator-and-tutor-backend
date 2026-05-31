@@ -32,7 +32,7 @@ The design solution was reviewed before implementation to confirm that it still 
 
 \begin{itemize}
     \item \textbf{Deployment model continuity:} The Docker Compose and Nginx routing match the deployment diagram, ensuring local development mirrors production patterns.
-    \item \textbf{Tooling fit:} TypeScript, Express, and Prisma align with the need for fast iteration, schema safety, and consistent API definitions.
+    \item \textbf{Tooling fit:} TypeScript, Express, and Prisma align with the need for fast iteration, schema safety, and consistent API definitions in the gateway and learning service. Python 3.11 with FastAPI and Pydantic was selected for the ai-service due to Python's first-class AI/ML ecosystem and FastAPI's native async generator support for SSE streaming.
 \end{itemize}
 
 \textbf{Design refinements confirmed during implementation}
@@ -55,7 +55,8 @@ The development toolchain was selected to balance rapid iteration, reliability, 
 \subsection{Programming Languages}
 
 \begin{itemize}
-    \item \textbf{TypeScript:} Used across backend services and the web frontend to provide static typing, safer refactoring, and shared conventions across the codebase.
+    \item \textbf{TypeScript:} Used across the api-gateway, learning-service, and web frontend to provide static typing, safer refactoring, and shared conventions.
+    \item \textbf{Python 3.11:} Used exclusively for the ai-service, which orchestrates LLM provider calls, SSE streaming, prompt engineering, Redis caching, and circuit-breaker logic. Python was chosen for its first-class AI/ML ecosystem (google-generativeai, httpx, Pydantic) and its ergonomic support for async generators, which map naturally onto Server-Sent Events token streams.
     \item \textbf{Dart:} Chosen for the mobile client to leverage Flutter's cross-platform UI toolkit and strong developer productivity.
     \item \textbf{SQL (via Prisma):} The relational model requires precise constraints and indexing; Prisma generates SQL migrations while keeping schema changes declarative.
 \end{itemize}
@@ -63,10 +64,16 @@ The development toolchain was selected to balance rapid iteration, reliability, 
 \subsection{Frameworks and Core Libraries}
 
 \begin{itemize}
-    \item \textbf{Backend (Node.js + Express):} Express provides lightweight routing and middleware, enabling clear separation of controllers, services, and validation layers.
-    \item \textbf{ORM (Prisma):} Prisma ensures schema consistency, migration tracking, and type-safe queries across services.
-    \item \textbf{Validation (Joi):} Input schemas enforce contract integrity and protect against malformed requests.
-    \item \textbf{Logging (Pino):} Structured logging supports monitoring and audit trails.
+    \item \textbf{Node.js + Express (api-gateway, learning-service):} Express provides lightweight routing and middleware, enabling clear separation of controllers, services, and validation layers.
+    \item \textbf{FastAPI (ai-service):} FastAPI is used as the async web framework for the Python AI service. Its native support for \texttt{StreamingResponse} and async generators makes SSE token streaming idiomatic; Pydantic model validation enforces request/response contracts at the framework level without additional schema libraries.
+    \item \textbf{Pydantic (ai-service):} Request bodies, AI provider responses, and internal service contracts are validated using Pydantic models, providing Python-native type-safe data parsing equivalent to Joi on the TypeScript side.
+    \item \textbf{Uvicorn (ai-service):} ASGI server that runs the FastAPI application; supports HTTP/1.1 with keep-alive connections required for SSE.
+    \item \textbf{google-generativeai (ai-service):} Official Google Python SDK for Gemini API, supporting both synchronous generation and streaming via \texttt{generate\_content\_stream}.
+    \item \textbf{httpx (ai-service):} Async HTTP client used for Phi-4 and Ollama provider calls, with timeout and connection pool configuration.
+    \item \textbf{redis-py (ai-service):} Async Redis client for AI response caching and circuit-breaker state storage.
+    \item \textbf{ORM (Prisma):} Used by learning-service for schema consistency, migration tracking, and type-safe queries.
+    \item \textbf{Validation (Joi):} Input schemas enforce contract integrity in the TypeScript services.
+    \item \textbf{Logging (Pino / Python logging):} Structured logging supports monitoring and audit trails across services.
 \end{itemize}
 
 \subsection{AI and External Integration Tools}
@@ -108,6 +115,7 @@ The development toolchain was selected to balance rapid iteration, reliability, 
 
 \begin{itemize}
     \item Node.js 18 LTS or later with npm
+    \item Python 3.11 or later with pip (for the ai-service)
     \item Docker and Docker Compose v2
     \item Flutter SDK 3.x (for mobile development)
     \item PostgreSQL 15 (optional if using Docker)
@@ -186,7 +194,7 @@ flutter run
 
 \subsection{Rationale Summary}
 
-The chosen stack provides strong typing, consistent APIs, scalable infrastructure, and cross-platform delivery. It also supports the project's non-functional goals by enabling test automation, reproducible environments, and resilience to external dependencies.
+The chosen stack provides strong typing, consistent APIs, scalable infrastructure, and cross-platform delivery. TypeScript governs the api-gateway, learning-service, and frontend, while Python governs the ai-service --- each language applied where it has the strongest ecosystem advantage. The stack supports the project's non-functional goals by enabling test automation, reproducible Docker environments, and resilience to external AI dependencies.
 
 \section{Developing the Solution}
 
@@ -196,7 +204,7 @@ This section details how the system was implemented, the coding practices that g
 
 \begin{itemize}
     \item \textbf{Layered service architecture:} Each backend service uses routes $\rightarrow$ controller $\rightarrow$ service $\rightarrow$ data access, which keeps HTTP concerns separate from business logic.
-    \item \textbf{Type safety:} Shared TypeScript types reduce runtime errors and make contracts explicit in both frontend and backend.
+    \item \textbf{Type safety:} TypeScript types enforce contracts in the frontend, api-gateway, and learning-service. The ai-service uses Python 3.11 type annotations with Pydantic models, providing equivalent schema enforcement and editor inference in the Python codebase.
     \item \textbf{Validation at boundaries:} Requests are validated using schemas at the API boundary to avoid propagating invalid data.
     \item \textbf{Consistent error handling:} Errors are normalized using \texttt{ApiError} to produce predictable response formats and HTTP status codes.
     \item \textbf{Incremental delivery:} Features were implemented in phases: (1) authentication and RBAC, (2) ontology and domain management, (3) enrollment with learner profile capture, (4) quiz generation and gatekeeper, (5) mastery decay and spaced repetition, (6) multi-path branching, (7) SSE streaming for AI explanations and AI Instructor, (8) gamification (XP, badges, streaks), (9) learning analytics and velocity tracking, (10) completion certificates, (11) instructor and admin portals. Each phase included migrations and tests before the next began.
@@ -206,7 +214,7 @@ This section details how the system was implemented, the coding practices that g
 
 \begin{itemize}
     \item \textbf{Service-to-service integration:} The learning-service calls ai-service via HTTP for both standard JSON endpoints (quiz generation) and SSE proxying (explanations, AI Instructor). Both services share Redis for caching and rate limiting.
-    \item \textbf{SSE proxy pattern:} For streaming endpoints, the learning-service pipes the ai-service SSE response directly to the client without buffering, using Node.js \texttt{ReadableStream} forwarding. Nginx SSE location blocks ensure \texttt{proxy\_buffering off} and disable gzip on stream routes.
+    \item \textbf{SSE proxy pattern:} The Python FastAPI ai-service generates tokens as an async generator and returns them as a \texttt{StreamingResponse}. The Node.js learning-service proxies this SSE stream to the browser client using \texttt{ReadableStream} forwarding without buffering. Nginx SSE location blocks ensure \texttt{proxy\_buffering off} and disable gzip on stream routes, preventing accumulation at both the Python and Node.js layers.
     \item \textbf{Client-to-service integration:} The web and mobile clients authenticate through the gateway and call the learning-service with Bearer tokens. The frontend's \texttt{useAskInstructorStream} hook reads the SSE \texttt{ReadableStream} directly via the Fetch API.
     \item \textbf{Contract testing:} Responses from ai-service are schema-validated before persistence, and OAuth flows are tested for reliability.
 \end{itemize}
@@ -329,26 +337,42 @@ if (aiResponse?.quiz?.questions?.length) {
 
 \textbf{AI provider fallback with validation (ai-service)}
 
-The AI service validates JSON outputs and falls back across providers.
+The Python AI service validates JSON outputs against a Pydantic schema and cascades across the three-tier provider chain, recording circuit-breaker outcomes at each tier.
 
-Source: \texttt{backend/services/ai-service/src/modules/ai/ai.service.ts}
+Source: \texttt{backend/services/ai-service/app/services/ai\_service.py}
 
-\begin{lstlisting}[language=JavaScript]
-const raw = await phi4Generate(prompt);
-const result = parseAndValidate<T>(raw, schema);
-if (result) {
-  await recordSuccess('phi4');
-  return result;
-}
-await recordFailure('phi4');
-const ollamaRaw = await ollamaGenerate(prompt);
-const ollamaResult = parseAndValidate<T>(ollamaRaw, schema);
-if (ollamaResult) {
-  await recordSuccess('ollama');
-  return ollamaResult;
-}
-const geminiRaw = await geminiGenerate(prompt);
-return parseAndValidate<T>(geminiRaw, schema);
+\begin{lstlisting}[language=Python]
+from typing import TypeVar, Type
+from app.clients.phi4_client import phi4_generate
+from app.clients.ollama_client import ollama_generate
+from app.clients.gemini_client import gemini_generate
+from app.circuit_breaker import is_circuit_open, record_success, record_failure
+from app.utils.parser import parse_and_validate
+
+T = TypeVar("T")
+
+async def generate(prompt: str, schema: Type[T]) -> T | None:
+    # Tier 1: Phi-4-Multimodal (primary, zero-cost)
+    if not await is_circuit_open("phi4"):
+        raw = await phi4_generate(prompt)
+        result = parse_and_validate(raw, schema)
+        if result:
+            await record_success("phi4")
+            return result
+        await record_failure("phi4")
+
+    # Tier 2: Ollama / Qwen2.5-3B (secondary, local CPU)
+    if not await is_circuit_open("ollama"):
+        raw = await ollama_generate(prompt)
+        result = parse_and_validate(raw, schema)
+        if result:
+            await record_success("ollama")
+            return result
+        await record_failure("ollama")
+
+    # Tier 3: Gemini 2.5 Flash (last resort, API)
+    raw = await gemini_generate(prompt)
+    return parse_and_validate(raw, schema)
 \end{lstlisting}
 
 \textbf{Decay scanning and notifications (learning-service)}
@@ -386,32 +410,42 @@ for (const p of mastered) {
 
 \textbf{SSE streaming for AI explanations and AI Instructor (ai-service)}
 
-Both AI explanation and AI Instructor chat use identical SSE scaffolding: headers are set and flushed before generation starts, each token is emitted as an SSE event, a \texttt{[DONE]} sentinel signals completion, and an abort controller honours client disconnection.
+The Python FastAPI ai-service uses async generators and \texttt{StreamingResponse} to stream tokens. Each token is emitted as an SSE \texttt{data:} event, a \texttt{[DONE]} sentinel signals completion, and \texttt{X-Accel-Buffering: no} prevents Nginx from accumulating tokens. Both the explanation and AI Instructor endpoints follow the same pattern.
 
-Source: \texttt{backend/services/ai-service/src/modules/ai/ai.controller.ts}
+Source: \texttt{backend/services/ai-service/app/routers/ai\_router.py}
 
-\begin{lstlisting}[language=JavaScript]
-export async function streamExplanation(
-  req: Request, res: Response,
-): Promise<void> {
-  // X-Accel-Buffering: no tells Nginx not to accumulate tokens before forwarding
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
+\begin{lstlisting}[language=Python]
+import json
+from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
+from app.models.schemas import NodeContextSchema
+from app.services import ai_service
 
-  const sendChunk = (text: string) => {
-    if (!res.writableEnded)
-      res.write(`data: ${JSON.stringify({ t: text })}\n\n`);
-  };
+router = APIRouter()
 
-  const controller = new AbortController();
-  req.on('close', () => controller.abort());    // honour client disconnect
+@router.post("/explain/stream")
+async def stream_explanation(
+    body: NodeContextSchema, request: Request
+) -> StreamingResponse:
+    async def event_generator():
+        try:
+            async for token in ai_service.stream_explanation(body):
+                # Honour client disconnect
+                if await request.is_disconnected():
+                    break
+                yield f"data: {json.dumps({'t': token})}\n\n"
+        finally:
+            yield "data: [DONE]\n\n"
 
-  await svc.streamExplanation(req.body, sendChunk, controller.signal);
-  if (!res.writableEnded) res.write('data: [DONE]\n\n');
-  res.end();
-}
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",   # disable Nginx buffering
+            "Connection": "keep-alive",
+        },
+    )
 \end{lstlisting}
 
 On the frontend the React hook reads the stream token-by-token and appends each chunk to the message state, rendering the growing text in real time:
@@ -660,7 +694,7 @@ Several integration challenges emerged during development and were resolved thro
 
 \begin{itemize}
     \item \textbf{AI response inconsistency:} LLM outputs varied in format. The solution was strict JSON parsing with multiple parse candidates (raw, code-block-stripped, extracted JSON slice), schema validation via Joi, and fallback providers across the three-tier chain (Phi-4 $\rightarrow$ Qwen2.5 $\rightarrow$ Gemini).
-    \item \textbf{SSE buffering:} Nginx and Node.js compression middleware both buffered SSE tokens before delivery, producing batched outputs instead of live streaming. The fix was adding \texttt{X-Accel-Buffering: no} response headers and a compression filter that skips routes containing \texttt{/stream}.
+    \item \textbf{SSE buffering:} Nginx, the Node.js learning-service gzip middleware, and Python's uvicorn response buffering all independently accumulated SSE tokens before forwarding, producing batched output instead of live streaming. The fix required three coordinated changes: adding \texttt{X-Accel-Buffering: no} to FastAPI response headers, disabling gzip compression on \texttt{/stream} routes in the Node.js middleware, and configuring Nginx \texttt{proxy\_buffering off} SSE location blocks.
     \item \textbf{Performance bottlenecks:} The local Qwen2.5-3B model on CPU can take 30--90 seconds per request. Redis caching with per-type TTLs and circuit-breaker thresholds prevent repeated slow calls and isolate the performance impact.
     \item \textbf{Certificate migration conflict:} Running \texttt{prisma db push} to add the certificates table would have triggered a \texttt{UserRole} enum drift, deleting three real instructor accounts. The table was added via a targeted raw SQL migration (\texttt{add\_certificates.sql}) instead.
     \item \textbf{Authorization edge cases:} Some admin and instructor routes needed additional role checks; these were added at both gateway middleware and service layers for defence in depth.
@@ -669,6 +703,6 @@ Several integration challenges emerged during development and were resolved thro
 
 \subsection{Summary}
 
-The implementation preserves the core architectural design while adding pragmatic safeguards such as caching, validation, and circuit breakers. The three-tier AI fallback strategy (Phi-4-Multimodal $\rightarrow$ Qwen2.5-3B $\rightarrow$ Gemini 2.5 Flash) ensures resilience, near-zero API cost, and graceful degradation in resource-constrained environments. Beyond the originally scoped features, the implementation delivered: real-time SSE-streamed AI explanations and an AI Instructor chatbot; a verifiable completion certificate system with client-side PDF/PNG download and a public verification page; a comprehensive gamification layer (XP, level progression, streaks, achievement badges, weekly goals); learning velocity analytics with a velocity-adjusted timeline forecast; and role-stratified instructor and administrator portals. All fire-and-forget side effects (gamification, velocity recording) are dispatched asynchronously from the gatekeeper to maintain fast quiz submission response times. The system is modular, testable, and fully aligned with the functional and non-functional requirements described in Chapter~4.
+The implementation preserves the core architectural design while adding pragmatic safeguards such as caching, validation, and circuit breakers. The system uses a deliberate language split: TypeScript governs the api-gateway, learning-service, and frontend (type-safe relational domain logic); Python 3.11 governs the ai-service (first-class AI ecosystem, idiomatic async generator streaming). The three-tier AI fallback strategy (Phi-4-Multimodal $\rightarrow$ Qwen2.5-3B via Ollama $\rightarrow$ Gemini 2.5 Flash) implemented in Python ensures resilience, near-zero API cost, and graceful degradation in resource-constrained environments. Beyond the originally scoped features, the implementation delivered: real-time SSE-streamed AI explanations and an AI Instructor chatbot; a verifiable completion certificate system with client-side PDF/PNG download and a public verification page; a comprehensive gamification layer (XP, level progression, streaks, achievement badges, weekly goals); learning velocity analytics with a velocity-adjusted timeline forecast; and role-stratified instructor and administrator portals. All fire-and-forget side effects (gamification, velocity recording) are dispatched asynchronously from the gatekeeper to maintain fast quiz submission response times. The system is modular, testable, and fully aligned with the functional and non-functional requirements described in Chapter~4.
 
 \endinput
