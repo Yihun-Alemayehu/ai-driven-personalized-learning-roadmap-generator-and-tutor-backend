@@ -4,19 +4,22 @@ interface QuizQuestionProps {
   question: QuizQuestionType;
   selectedAnswer: string | undefined;
   onSelect: (answer: string) => void;
+  hideQuestionText?: boolean;
 }
 
-export function QuizQuestion({ question, selectedAnswer, onSelect }: QuizQuestionProps) {
+export function QuizQuestion({ question, selectedAnswer, onSelect, hideQuestionText }: QuizQuestionProps) {
   const options = question.options ?? [];
 
   return (
     <div className="flex flex-col gap-5">
-      <p
-        className="text-[20px] leading-snug"
-        style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1a1614', fontWeight: 500 }}
-      >
-        {question.questionText}
-      </p>
+      {!hideQuestionText && (
+        <p
+          className="text-[20px] leading-snug"
+          style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1a1614', fontWeight: 500 }}
+        >
+          {question.questionText}
+        </p>
+      )}
 
       <div className="flex flex-col gap-2.5">
         {options.map((opt, i) => {
@@ -25,7 +28,7 @@ export function QuizQuestion({ question, selectedAnswer, onSelect }: QuizQuestio
             <button
               key={i}
               onClick={() => onSelect(opt)}
-              className="w-full text-left px-4 py-3 rounded-[10px] border-[1.5px] transition-all duration-[100ms] flex items-start gap-3"
+              className="w-full text-left px-4 py-3 rounded-[10px] border-[1.5px] transition-all duration-100 flex items-start gap-3"
               style={{
                 background: isSelected
                   ? 'color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)'
@@ -37,7 +40,7 @@ export function QuizQuestion({ question, selectedAnswer, onSelect }: QuizQuestio
               }}
             >
               <span
-                className="mt-[2px] shrink-0 w-5 h-5 rounded-full border-[1.5px] grid place-items-center transition-colors"
+                className="mt-0.5 shrink-0 w-5 h-5 rounded-full border-[1.5px] grid place-items-center transition-colors"
                 style={{
                   borderColor: isSelected ? 'oklch(0.62 0.18 28)' : '#c2b9a6',
                   background: isSelected ? 'oklch(0.62 0.18 28)' : 'transparent',

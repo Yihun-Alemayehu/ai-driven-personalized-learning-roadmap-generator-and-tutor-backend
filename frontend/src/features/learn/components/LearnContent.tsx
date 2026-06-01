@@ -5,6 +5,8 @@ import { MASTERY_CONFIG } from '@/lib/masteryConfig';
 import { useMyLearningStore } from '@/store/myLearning.store';
 import { InlineQuiz } from './InlineQuiz';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { ReadAloudButton } from '@/components/ui/ReadAloudButton';
+import { useReadAloud } from '@/hooks/useReadAloud';
 import type { RoadmapNode } from '@/types';
 
 interface Explanation {
@@ -66,6 +68,7 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
   const markExplanationVisited = useMyLearningStore((s) => s.markExplanationVisited);
   const [enabled, setEnabled] = useState(() => hasVisited && node.unlocked);
   const [view, setView] = useState<'explanation' | 'quiz'>('explanation');
+  const { state: readState, toggle: toggleRead } = useReadAloud();
 
   const { sections, isStreaming, isDone, isError } = useExplanationStream(node.id, enabled);
 
@@ -212,7 +215,25 @@ export function LearnContent({ node, enrollmentId, onExplanationRequested, onExp
 
             {/* Summary — appears first and grows as the model streams */}
             <div>
-              <SectionLabel>Summary</SectionLabel>
+              <div className="flex items-center justify-between mb-2">
+                <span
+                  className="text-[10px] tracking-[0.12em] uppercase"
+                  style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
+                >
+                  Summary
+                </span>
+                {isDone && (
+                  <ReadAloudButton
+                    text={[
+                      sections.summary,
+                      sections.keyPoints.length ? 'Key points. ' + sections.keyPoints.join('. ') : '',
+                      sections.commonMistakes.length ? 'Common mistakes. ' + sections.commonMistakes.join('. ') : '',
+                    ].filter(Boolean).join(' ')}
+                    state={readState}
+                    onToggle={toggleRead}
+                  />
+                )}
+              </div>
               <div className="text-[17px]">
                 <MarkdownRenderer context="content">{sections.summary}</MarkdownRenderer>
                 {isStreaming && !sections.keyPoints.length && <StreamCursor />}
