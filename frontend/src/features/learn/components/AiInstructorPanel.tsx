@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { XIcon, SendIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { XIcon, SendIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, MicIcon, MicOffIcon } from 'lucide-react';
 import { useAskInstructorStream } from '@/api/instructor-chat';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import type { RoadmapNode } from '@/types';
 
@@ -88,6 +89,13 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
   const suggestedPrompts = buildSuggestedPrompts(node, explanation);
 
   const { ask, isStreaming } = useAskInstructorStream(node.id);
+
+  const { state: voiceState, toggle: toggleVoice } = useVoiceInput({
+    onResult: (transcript) => {
+      setInput((prev) => (prev.trim() ? `${prev} ${transcript}` : transcript));
+      inputRef.current?.focus();
+    },
+  });
 
   const showSuggestions = messages.length === 1;
   const hasHistory = messages.length > 1;
@@ -401,9 +409,14 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
             <div
               className="flex items-end gap-2 rounded-xl px-3 py-2.5 transition-shadow"
               style={{
-                background: '#f3efe7',
-                border: inputFocused ? '1px solid oklch(0.65 0.1 60)' : '1px solid #d6cfbf',
-                boxShadow: inputFocused ? '0 0 0 3px oklch(0.93 0.06 60)' : 'none',
+                background: voiceState === 'listening' ? 'color-mix(in srgb, oklch(0.62 0.18 28) 6%, #f3efe7)' : '#f3efe7',
+                border: voiceState === 'listening'
+                  ? '1px solid oklch(0.62 0.18 28)'
+                  : inputFocused ? '1px solid oklch(0.65 0.1 60)' : '1px solid #d6cfbf',
+                boxShadow: voiceState === 'listening'
+                  ? '0 0 0 3px color-mix(in srgb, oklch(0.62 0.18 28) 12%, transparent)'
+                  : inputFocused ? '0 0 0 3px oklch(0.93 0.06 60)' : 'none',
+                transition: 'border 0.15s, box-shadow 0.15s, background 0.15s',
               }}
             >
               <textarea
@@ -414,7 +427,7 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
                 onKeyDown={handleKeyDown}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
-                placeholder="Ask anything about this lesson…"
+                placeholder={voiceState === 'listening' ? 'Listening…' : 'Ask anything about this lesson…'}
                 disabled={isStreaming}
                 className="flex-1 resize-none bg-transparent text-[13.5px] outline-none leading-relaxed placeholder:text-[#b8b0a8]"
                 style={{
@@ -429,6 +442,25 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
                   el.style.height = `${Math.min(el.scrollHeight, 80)}px`;
                 }}
               />
+
+              {/* Mic button — hidden if browser doesn't support SpeechRecognition */}
+              {voiceState !== 'unsupported' && (
+                <button
+                  onClick={toggleVoice}
+                  disabled={isStreaming}
+                  title={voiceState === 'listening' ? 'Stop listening' : 'Speak your question'}
+                  className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-all disabled:opacity-35"
+                  style={{
+                    background: voiceState === 'listening' ? 'oklch(0.62 0.18 28)' : 'transparent',
+                    color: voiceState === 'listening' ? '#fff' : '#9a9088',
+                  }}
+                >
+                  {voiceState === 'listening'
+                    ? <MicOffIcon size={13} />
+                    : <MicIcon size={13} />}
+                </button>
+              )}
+
               <button
                 disabled={!input.trim() || isStreaming}
                 onClick={() => send(input)}
@@ -445,7 +477,7 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
               className="text-[9.5px] text-center mt-1.5"
               style={{ fontFamily: 'JetBrains Mono, monospace', color: '#c0b8b0' }}
             >
-              Enter to send · Shift+Enter for new line
+              {voiceState === 'listening' ? 'Speak now — click mic to stop' : 'Enter to send · Shift+Enter for new line'}
             </p>
           </div>
         </>
