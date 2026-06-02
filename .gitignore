@@ -40,3 +40,5 @@ backend/services/learning-service/node_modules/.prisma/
 
 # Docker
 .docker/
+
+smrod/*

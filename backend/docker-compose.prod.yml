@@ -1,0 +1,113 @@
+# Production stack for DigitalOcean VPS (nginx-proxy + webgateway).
+# Images are built and pushed by .github/workflows/deploy.yml.
+# Create .env on the VPS before the first deploy (see backend/DEPLOY.md).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: learner-roadmap-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-learner_roadmap}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: learner-roadmap-redis
+    restart: always
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    image: ${DOCKER_REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-yihun-alemayehu/learner-roadmap}-api-gateway:${IMAGE_TAG:-latest}
+    container_name: learner-roadmap-api-gateway
+    restart: always
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-learner_roadmap}
+      REDIS_URL: redis://redis:6379
+      LEARNING_SERVICE_URL: http://learning-service:3001
+      AI_SERVICE_URL: http://ai-service:3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  learning-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-yihun-alemayehu/learner-roadmap}-learning-service:${IMAGE_TAG:-latest}
+    container_name: learner-roadmap-learning-service
+    restart: always
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-learner_roadmap}
+      REDIS_URL: redis://redis:6379
+      AI_SERVICE_URL: http://ai-service:3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  ai-service:
+    image: ${DOCKER_REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-yihun-alemayehu/learner-roadmap}-ai-service:${IMAGE_TAG:-latest}
+    container_name: learner-roadmap-ai-service
+    restart: always
+    env_file: .env
+    environment:
+      PORT: 3002
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  nginx:
+    image: nginx:alpine
+    container_name: learner-roadmap-nginx
+    restart: always
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      VIRTUAL_HOST: ${API_VIRTUAL_HOST:?set API_VIRTUAL_HOST in .env}
+      LETSENCRYPT_HOST: ${API_VIRTUAL_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL in .env}
+      VIRTUAL_PORT: 80
+    depends_on:
+      - api-gateway
+      - learning-service
+      - ai-service
+    networks:
+      - webgateway
+      - internal
+
+networks:
+  webgateway:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
