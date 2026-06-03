@@ -73,7 +73,7 @@ export default function CertificatePage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: '#efe9dd', padding: '28px 24px 56px' }}>
+    <div style={{ height: '100%', overflowY: 'auto', background: '#efe9dd', padding: '28px 24px 56px' }}>
       <div style={{ maxWidth: 1123, margin: '0 auto' }}>
         {/* Back link */}
         <button

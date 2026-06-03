@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate, useMatch } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useMatch, Navigate } from 'react-router-dom';
+// Navigate used below for admin-only route guard
 import {
   BarChart2Icon,
   UsersIcon,
@@ -7,17 +8,19 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Navbar } from '@/components/layout/Navbar';
+import { useAuthStore } from '@/store/auth.store';
 
 interface NavItem {
   to: string;
   label: string;
   icon: React.ReactNode;
+  adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/admin/stats',   label: 'Statistics', icon: <BarChart2Icon size={15} /> },
-  { to: '/admin/users',   label: 'Users',      icon: <UsersIcon size={15} />     },
-  { to: '/admin/domains', label: 'Domains',    icon: <GlobeIcon size={15} />     },
+  { to: '/admin/stats',   label: 'Statistics', icon: <BarChart2Icon size={15} />, adminOnly: true },
+  { to: '/admin/users',   label: 'Users',      icon: <UsersIcon size={15} />,     adminOnly: true },
+  { to: '/admin/domains', label: 'Domains',    icon: <GlobeIcon size={15} />                      },
 ];
 
 function NavItemLink({ item }: { item: NavItem }) {
@@ -27,7 +30,7 @@ function NavItemLink({ item }: { item: NavItem }) {
       className={({ isActive }) =>
         cn(
           'flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors',
-          !isActive && 'hover:bg-[#ebe6db]',
+          !isActive && 'hover:bg-muted',
         )
       }
       style={({ isActive }) => ({
@@ -58,6 +61,15 @@ function NavItemLink({ item }: { item: NavItem }) {
 export default function AdminLayout() {
   const navigate = useNavigate();
   const isBuilder = Boolean(useMatch('/admin/ontology/:id'));
+  const isStats   = Boolean(useMatch('/admin/stats'));
+  const isUsers   = Boolean(useMatch('/admin/users'));
+  const role      = useAuthStore((s) => s.user?.role);
+  const isAdmin   = role === 'admin';
+
+  // Domain experts cannot access stats or user-management pages
+  if (!isAdmin && (isStats || isUsers)) {
+    return <Navigate to="/admin/domains" replace />;
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#faf7f1' }}>
@@ -81,7 +93,7 @@ export default function AdminLayout() {
               className="text-[9px] tracking-[0.16em] uppercase"
               style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}
             >
-              Admin
+              {isAdmin ? 'Admin' : 'Domain Expert'}
             </div>
             <div
               className="text-[20px] font-medium leading-tight"
@@ -91,7 +103,7 @@ export default function AdminLayout() {
             </div>
           </div>
 
-          {/* Nav group */}
+          {/* Nav group — admin-only items hidden from domain_expert */}
           <div className="flex flex-col gap-0.5">
             <div
               className="text-[9px] tracking-[0.16em] uppercase px-3 mb-0.5"
@@ -99,7 +111,7 @@ export default function AdminLayout() {
             >
               Manage
             </div>
-            {NAV_ITEMS.map((item) => (
+            {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => (
               <NavItemLink key={item.to} item={item} />
             ))}
           </div>
@@ -108,7 +120,7 @@ export default function AdminLayout() {
         {/* Back button — pinned at bottom */}
         <button
           onClick={() => navigate('/dashboard')}
-          className="shrink-0 flex items-center gap-2 px-4 py-3 border-t transition-colors hover:bg-[#ebe6db]"
+          className="shrink-0 flex items-center gap-2 px-4 py-3 border-t transition-colors hover:bg-muted"
           style={{ borderColor: '#e8e2d9', color: '#9a9088' }}
         >
           <ArrowLeftIcon size={15} />

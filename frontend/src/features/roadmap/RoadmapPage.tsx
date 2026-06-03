@@ -76,8 +76,13 @@ export default function RoadmapPage() {
     return () => clearBreadcrumbs();
   }, [enrollment, setBreadcrumbs, clearBreadcrumbs]);
 
-  // Show banner for the first reached (unlocked) branching point
-  const activeBranchingPoint = branchingPoints?.find((bp) => bp.isReached);
+  // Show banner only when the branching point is unlocked AND the ontology
+  // actually has branch-specific paths to choose from (paths.length > 0).
+  // Branching point nodes exist in all domain ontologies but only Frontend
+  // has nodes tagged with a branchPath, so other courses correctly show nothing.
+  const activeBranchingPoint = branchingPoints?.find(
+    (bp) => bp.isReached && bp.paths.length > 0,
+  );
 
   return (
     <div

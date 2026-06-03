@@ -43,7 +43,7 @@ export async function transitionStatus(req: Request, res: Response, next: NextFu
   try {
     const { error, value } = transitionStatusSchema.validate(req.body);
     if (error) return next(ApiError.badRequest(error.message));
-    const version = await svc.transitionStatus(req.params.id, value.status as OntologyStatus, req.user!.id);
+    const version = await svc.transitionStatus(req.params.id, value.status as OntologyStatus, req.user!.id, req.user!.role);
     res.json({ version });
   } catch (err) {
     next(err);

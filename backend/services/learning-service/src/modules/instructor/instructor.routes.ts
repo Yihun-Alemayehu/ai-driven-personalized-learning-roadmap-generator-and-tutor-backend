@@ -182,4 +182,6 @@ router.get('/flagged', ctrl.getFlaggedEvents);
  */
 router.patch('/flagged/:eventId/resolve', ctrl.resolveFlaggedEvent);
 
+router.get('/domains/:domainId/analytics/ai-stream', ctrl.streamAnalyticsSummary);
+
 export default router;

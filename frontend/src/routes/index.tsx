@@ -102,18 +102,19 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Admin layout — has its own sidebar, outside AppShell
+  // Admin / Domain-Expert layout — outside AppShell
   {
     path: '/admin',
     element: (
       <ProtectedRoute>
-        <RoleGuard roles={['admin']}>
+        <RoleGuard roles={['admin', 'domain_expert']}>
           <AdminLayout />
         </RoleGuard>
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="stats" replace /> },
+      // Admins land on stats; domain_experts land on domains
+      { index: true, lazy: () => import('@/features/admin/AdminIndexRedirect').then((m) => ({ Component: m.default })) },
       {
         path: 'stats',
         lazy: () => import('@/features/admin/SystemStatsPage').then((m) => ({ Component: m.default })),
@@ -160,6 +161,14 @@ export const router = createBrowserRouter([
       {
         path: 'flagged',
         lazy: () => import('@/features/instructor/FlaggedEventsPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'domains',
+        lazy: () => import('@/features/admin/DomainManagementPage').then((m) => ({ Component: m.default })),
+      },
+      {
+        path: 'domains/ontology/:ontologyId',
+        lazy: () => import('@/features/admin/OntologyBuilderPage').then((m) => ({ Component: m.default })),
       },
     ],
   },
