@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const localBaseURL = 'http://localhost:8000/api/v1';
+// const localBaseURL = 'http://localhost:8000/api/v1';
 const productionBaseURL = 'https://api.yegna-future.site/api/v1';
 
 export const apiClient = axios.create({
