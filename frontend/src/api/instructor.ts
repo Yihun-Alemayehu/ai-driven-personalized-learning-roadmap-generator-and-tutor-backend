@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
 import { apiClient } from './client';
@@ -205,8 +206,6 @@ export function useAnalyticsAiStream(domainId: string) {
   const [state, setState] = useState<AiStreamState>(cached ? 'done' : 'idle');
   const [text, setText] = useState(cached ?? '');
   const abortRef = useRef<AbortController | null>(null);
-  const accessToken = useAuthStore((s) => s.accessToken);
-
   // Restore from cache when domainId changes
   const prevDomainRef = useRef(domainId);
   if (prevDomainRef.current !== domainId) {
@@ -257,7 +256,10 @@ export function useAnalyticsAiStream(domainId: string) {
             try {
               const p = JSON.parse(raw);
               if (p.error) { setState('error'); return; }
-              if (p.t) { full += p.t; setText((prev) => prev + p.t); }
+              if (p.t) {
+                full += p.t;
+                flushSync(() => setText((prev) => prev + p.t));
+              }
             } catch { /* skip malformed */ }
           }
         }

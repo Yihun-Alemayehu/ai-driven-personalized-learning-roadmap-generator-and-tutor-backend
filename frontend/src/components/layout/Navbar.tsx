@@ -100,7 +100,7 @@ async function handleLogout() {
   }
 }
 
-function useMenuHandlers(ref: React.RefObject<HTMLElement>, onClose: () => void) {
+function useMenuHandlers(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!ref.current) return;

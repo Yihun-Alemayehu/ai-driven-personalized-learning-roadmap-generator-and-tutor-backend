@@ -18,7 +18,7 @@ from app.cache import (
 from app.circuit_breaker import is_circuit_open, record_failure, record_success
 from app.clients.gemini_client import gemini_generate, gemini_stream
 from app.clients.ollama_client import ollama_generate, ollama_stream
-from app.clients.phi4_client import phi4_generate
+from app.clients.phi4_client import phi4_generate, phi4_stream
 from app.config import settings
 from app.prompts.ask_question import build_ask_prompt, build_stream_ask_prompt
 from app.prompts.explanation_generation import (
@@ -324,6 +324,25 @@ async def stream_explanation(input_data: NodeContextInput) -> AsyncIterator[str]
     prompt = build_stream_explanation_prompt(input_data)
     collected: list[str] = []
 
+    # Tier 0 – Phi-4 streaming (primary, zero-cost GPU)
+    if settings.phi4_base_url and not await is_circuit_open("phi4"):
+        try:
+            async for token in phi4_stream(prompt):
+                collected.append(token)
+                yield token
+            if collected:
+                await record_success("phi4")
+                text = "".join(collected)
+                asyncio.create_task(_backfill_explanation_cache(input_data.node_id, familiarity, text))
+                return
+            await record_failure("phi4")
+        except Exception as exc:
+            await record_failure("phi4")
+            log.warning("Phi-4 stream failed for %s: %s", input_data.node_id, exc)
+            if collected:
+                return  # partial output already sent
+            collected.clear()
+
     # Tier 1 – Ollama streaming
     if not await is_circuit_open("ollama"):
         try:
@@ -370,6 +389,23 @@ async def stream_explanation(input_data: NodeContextInput) -> AsyncIterator[str]
 async def stream_ask_question(input_data: AskQuestionInput) -> AsyncIterator[str]:
     prompt = build_stream_ask_prompt(input_data)
     collected: list[str] = []
+
+    # Tier 0 – Phi-4 streaming (primary, zero-cost GPU)
+    if settings.phi4_base_url and not await is_circuit_open("phi4"):
+        try:
+            async for token in phi4_stream(prompt):
+                collected.append(token)
+                yield token
+            if collected:
+                await record_success("phi4")
+                return
+            await record_failure("phi4")
+        except Exception as exc:
+            await record_failure("phi4")
+            log.warning("Phi-4 ask-stream failed for %s: %s", input_data.node_id, exc)
+            if collected:
+                return
+            collected.clear()
 
     # Tier 1 – Ollama streaming
     if not await is_circuit_open("ollama"):

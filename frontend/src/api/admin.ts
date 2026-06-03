@@ -9,7 +9,7 @@ import type {
 // ── Response-shape helpers ────────────────────────────────────────────────────
 
 function toOntologyVersion(v: Record<string, unknown>): OntologyVersion {
-  return { ...(v as OntologyVersion), version: v.versionNumber as number };
+  return { ...(v as unknown as OntologyVersion), version: v.versionNumber as number };
 }
 
 function toOntologyDetail(raw: Record<string, unknown>): OntologyDetail {
@@ -18,7 +18,7 @@ function toOntologyDetail(raw: Record<string, unknown>): OntologyDetail {
     ontologyId: raw.id as string,
     learningOutcomes: Array.isArray(n.learningOutcomes) ? n.learningOutcomes as string[] : [],
     prerequisites: undefined,
-  })) as OntologyNode[];
+  })) as unknown as OntologyNode[];
 
   const edges: OntologyEdge[] = (raw.nodes as Array<Record<string, unknown>>).flatMap((n) =>
     ((n.prerequisites ?? []) as Array<Record<string, unknown>>).map((p) => ({

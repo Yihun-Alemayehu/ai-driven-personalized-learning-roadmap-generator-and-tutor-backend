@@ -92,7 +92,9 @@ export function useAskInstructorStream(nodeId: string) {
                   callbacks.onError();
                   return;
                 }
-                if (parsed.t) callbacks.onChunk(parsed.t);
+                if (parsed.t) {
+                  callbacks.onChunk(parsed.t);
+                }
               } catch {
                 // Malformed SSE line — skip
               }

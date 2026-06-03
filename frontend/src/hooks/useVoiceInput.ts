@@ -14,7 +14,7 @@ export function useVoiceInput({ onResult, onError, lang = 'en-US' }: UseVoiceInp
       ? 'idle'
       : 'unsupported',
   );
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any | null>(null);
 
   // Clean up on unmount
   useEffect(() => {
@@ -27,8 +27,7 @@ export function useVoiceInput({ onResult, onError, lang = 'en-US' }: UseVoiceInp
     if (state === 'unsupported' || state === 'listening') return;
 
     const SpeechRecognition =
-      (window as Window & typeof globalThis & { SpeechRecognition?: typeof window.SpeechRecognition; webkitSpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition ??
-      (window as Window & typeof globalThis & { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition;
+      (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
     const rec = new SpeechRecognition();
@@ -39,7 +38,7 @@ export function useVoiceInput({ onResult, onError, lang = 'en-US' }: UseVoiceInp
 
     rec.onstart = () => setState('listening');
 
-    rec.onresult = (e) => {
+    rec.onresult = (e: any) => {
       const transcript = e.results[0]?.[0]?.transcript ?? '';
       if (transcript.trim()) onResult(transcript.trim());
     };
