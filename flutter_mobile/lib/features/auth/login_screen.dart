@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -22,6 +23,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleOAuth(String provider) async {
+    await ref.read(authProvider.notifier).loginWithOAuth(provider);
+
+    if (!context.mounted) return;
+
+    final current = ref.read(authProvider).valueOrNull;
+    if (current?.isAuthenticated ?? false) {
+      context.go('/dashboard');
+    }
   }
 
   @override
@@ -90,7 +102,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ?.copyWith(color: AppColors.accent),
                           ),
                         ],
+                        const SizedBox(height: 20),
+                        // OAuth Divider
+                        Row(
+                          children: <Widget>[
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'or',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
                         const SizedBox(height: 16),
+                        // Google OAuth Button
+                        _OAuthButton(
+                          icon: Icons.g_mobiledata,
+                          label: 'Continue with Google',
+                          isLoading: isLoading,
+                          onPressed: isLoading
+                              ? null
+                              : () => _handleOAuth('google'),
+                        ),
+                        const SizedBox(height: 10),
+                        // GitHub OAuth Button
+                        _OAuthButton(
+                          icon: LucideIcons.github,
+                          label: 'Continue with GitHub',
+                          isLoading: isLoading,
+                          onPressed: isLoading
+                              ? null
+                              : () => _handleOAuth('github'),
+                        ),
+                        const SizedBox(height: 20),
                         FilledButton(
                           onPressed: isLoading
                               ? null
@@ -139,6 +188,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _OAuthButton extends StatelessWidget {
+  const _OAuthButton({
+    required this.icon,
+    required this.label,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isLoading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        side: const BorderSide(color: AppColors.border),
+        foregroundColor: AppColors.textBody,
       ),
     );
   }

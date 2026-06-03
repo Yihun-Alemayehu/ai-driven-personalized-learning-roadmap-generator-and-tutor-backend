@@ -2,9 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../api/api_client.dart';
 import '../api/auth_api.dart';
+import '../config/app_config.dart';
 import '../models/user.dart';
 import 'users_provider.dart';
 
@@ -213,6 +215,62 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       debugPrint('[AUTH_PROVIDER] extracted error message: $errorMessage');
       state = AsyncData(
         previous.copyWith(isLoading: false, error: errorMessage),
+      );
+    }
+  }
+
+  Future<void> loginWithOAuth(String provider) async {
+    final previous = state.valueOrNull ?? AuthState.unauthenticated;
+    state = AsyncData(previous.copyWith(isLoading: true, clearError: true));
+
+    try {
+      final apiBaseUrl = AppConfig.apiBaseUrl;
+      final baseUrl = apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+      final oauthUrl = '$baseUrl/auth/oauth/$provider?redirect_uri=atlasmobile://auth/callback';
+
+      final callbackUrl = await FlutterWebAuth2.authenticate(
+        url: oauthUrl,
+        callbackUrlScheme: 'atlasmobile',
+      );
+
+      final uri = Uri.parse(callbackUrl);
+      final accessToken = uri.queryParameters['accessToken'];
+      final refreshToken = uri.queryParameters['refreshToken'];
+
+      if (accessToken == null || refreshToken == null) {
+        throw Exception('OAuth failed: missing tokens');
+      }
+
+      final tokens = AuthTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+      await _persistTokens(tokens);
+
+      final user = await _authApi.me();
+
+      if (user.role == UserRole.admin) {
+        await _clearTokens();
+        state = AsyncData(
+          previous.copyWith(
+            isLoading: false,
+            error: 'Admin dashboard is only accessible from the web.',
+            clearSession: true,
+          ),
+        );
+        return;
+      }
+
+      state = AsyncData(
+        AuthState(user: user, tokens: tokens, isLoading: false),
+      );
+    } catch (error) {
+      final message = _extractApiMessage(
+        error,
+        fallback: 'OAuth sign-in failed. Please try again.',
+      );
+      state = AsyncData(
+        previous.copyWith(isLoading: false, error: message, clearSession: true),
       );
     }
   }

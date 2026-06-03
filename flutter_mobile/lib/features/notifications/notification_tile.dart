@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/models/notification.dart';
 import '../../core/providers/notifications_provider.dart';
@@ -48,6 +49,42 @@ class NotificationTile extends ConsumerWidget {
       return '${diff.inMinutes}m ago';
     } else {
       return 'Just now';
+    }
+  }
+
+  void _navigate(BuildContext context, AppNotification notification) {
+    final data = notification.data ?? <String, dynamic>{};
+    final enrollmentId = data['enrollmentId'] as String?;
+    final nodeId = data['nodeId'] as String?;
+
+    switch (notification.type) {
+      case 'node_unlocked':
+      case 'mastery_alert':
+        if (enrollmentId != null) {
+          context.go('/enrollments/$enrollmentId/roadmap');
+        }
+        break;
+      case 'decay_reminder':
+        if (enrollmentId != null && nodeId != null) {
+          context.go('/enrollments/$enrollmentId/learn/$nodeId');
+        } else if (enrollmentId != null) {
+          context.go('/enrollments/$enrollmentId/roadmap');
+        }
+        break;
+      case 'quiz_result':
+        if (enrollmentId != null && nodeId != null) {
+          context.go('/enrollments/$enrollmentId/quiz/$nodeId');
+        } else if (enrollmentId != null) {
+          context.go('/enrollments/$enrollmentId/roadmap');
+        }
+        break;
+      case 'resource_discovered':
+        if (enrollmentId != null && nodeId != null) {
+          context.go('/enrollments/$enrollmentId/learn/$nodeId');
+        } else if (enrollmentId != null) {
+          context.go('/enrollments/$enrollmentId/roadmap');
+        }
+        break;
     }
   }
 
@@ -101,13 +138,13 @@ class NotificationTile extends ConsumerWidget {
             ],
           ),
           isThreeLine: notification.body != null,
-          onTap: notification.isRead
-              ? null
-              : () async {
-                  final api = ref.read(notificationsApiProvider);
-                  await api.markAsRead(notification.id);
-                  ref.invalidate(notificationsProvider);
-                },
+          onTap: () async {
+            final api = ref.read(notificationsApiProvider);
+            await api.markAsRead(notification.id);
+            ref.invalidate(notificationsProvider);
+            if (!context.mounted) return;
+            _navigate(context, notification);
+          },
         ),
       ),
     );

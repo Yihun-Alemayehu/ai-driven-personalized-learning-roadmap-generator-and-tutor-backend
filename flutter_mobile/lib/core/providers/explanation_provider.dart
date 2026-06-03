@@ -43,15 +43,14 @@ class ExplanationParams {
   int get hashCode => Object.hash(enrollmentId, nodeId);
 }
 
-// Notifier for generating explanations (handles the async action)
-final explanationNotifierProvider = AsyncNotifierProvider.family<ExplanationNotifier, Explanation, ExplanationParams>(
+final explanationNotifierProvider =
+    AsyncNotifierProvider.family<ExplanationNotifier, Explanation, ExplanationParams>(
   ExplanationNotifier.new,
 );
 
 class ExplanationNotifier extends FamilyAsyncNotifier<Explanation, ExplanationParams> {
   @override
   Future<Explanation> build(ExplanationParams params) async {
-    // Initially return empty explanation
     return const Explanation(
       summary: '',
       keyPoints: [],
@@ -59,13 +58,10 @@ class ExplanationNotifier extends FamilyAsyncNotifier<Explanation, ExplanationPa
     );
   }
 
-  Future<void> generate() async {
+  Future<void> _fetchNonStreaming() async {
     final api = ref.read(explanationApiProvider);
 
-    state = const AsyncLoading();
-
     try {
-      debugPrint('[EXPLANATION] Generating for node: ${arg.nodeId}');
       final response = await api.explain(
         nodeId: arg.nodeId,
       );
@@ -74,10 +70,73 @@ class ExplanationNotifier extends FamilyAsyncNotifier<Explanation, ExplanationPa
       final explanation = Explanation.fromJson(data);
 
       state = AsyncData(explanation);
-      debugPrint('[EXPLANATION] Generated successfully');
     } catch (e, stack) {
-      debugPrint('[EXPLANATION] Error generating: $e');
+      debugPrint('[EXPLANATION] Error: $e');
       state = AsyncError(e, stack);
     }
+  }
+
+  Future<void> generate() async {
+    state = const AsyncLoading();
+
+    try {
+      final api = ref.read(explanationApiProvider);
+      String accumulated = '';
+
+      final stream = api.explainStream(nodeId: arg.nodeId);
+      await for (final token in stream) {
+        accumulated += token;
+        state = AsyncData(_parseStreamText(accumulated).copyWith(isGenerating: true));
+      }
+
+      state = AsyncData(_parseStreamText(accumulated).copyWith(isGenerating: false));
+      debugPrint('[EXPLANATION] Stream complete');
+    } catch (e) {
+      debugPrint('[EXPLANATION] Stream error: $e');
+      await _fetchNonStreaming();
+    }
+  }
+
+  Explanation _parseStreamText(String text) {
+    final summaryM = _sectionRegex(text, 'SUMMARY');
+    final pointsM = _sectionRegex(text, 'KEY[_ ]POINTS');
+    final mistakesM = _sectionRegex(text, 'COMMON[_ ]MISTAKES');
+
+    final summary = _stripAndTruncate(summaryM);
+    final keyPoints = _parseBulletList(pointsM);
+    final commonMistakes = _parseBulletList(mistakesM);
+
+    return Explanation(
+      summary: summary,
+      keyPoints: keyPoints,
+      commonMistakes: commonMistakes,
+      isGenerating: true,
+    );
+  }
+
+  String? _sectionRegex(String text, String sectionName) {
+    final pattern = RegExp(
+      '\\[$sectionName\\](.*?)(?=\\[|\$)',
+      dotAll: true,
+      caseSensitive: false,
+    );
+    final match = pattern.firstMatch(text);
+    return match?.group(1)?.trim();
+  }
+
+  String _stripAndTruncate(String? section) {
+    if (section == null || section.isEmpty) return '';
+    return section.trim();
+  }
+
+  List<String> _parseBulletList(String? section) {
+    if (section == null || section.isEmpty) return [];
+    return section
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.startsWith('-'))
+        .map((l) => l.replaceFirst(RegExp(r'^-\s*'), '').trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
   }
 }

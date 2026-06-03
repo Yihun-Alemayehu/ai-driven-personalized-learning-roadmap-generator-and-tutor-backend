@@ -69,7 +69,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                     ? 2
                     : 1;
 
-        return CustomScrollView(
+        return Container(
+          color: const Color(0xFFF3EFE7),
+          child: CustomScrollView(
           slivers: <Widget>[
             SliverToBoxAdapter(
               child: Padding(
@@ -77,24 +79,35 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      'Explore Learning Domains',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontSize: 28,
-                            height: 1.15,
-                            color: const Color(0xFF3D342A),
-                            fontWeight: FontWeight.w600,
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Explore Learning Domains',
+                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                      fontSize: 28,
+                                      height: 1.15,
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Choose a domain to start your personalised roadmap',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      fontSize: 15,
+                                      color: AppColors.textBody,
+                                    ),
+                              ),
+                            ],
                           ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Choose a domain to start your personalised roadmap',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 15,
-                            color: const Color(0xFF6E645A),
-                          ),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     CatalogSearchField(
                       controller: _searchController,
                       onChanged: (value) =>
@@ -176,8 +189,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 ),
               ),
           ],
+        ),
         );
       },
     );
   }
 }
+
+

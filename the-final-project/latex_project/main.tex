@@ -69,22 +69,20 @@ This project addresses a critical gap in educational technology for developing e
 \newpage
 
 % ============================================================
-% LIST OF FIGURES
+% LIST OF FIGURES, TABLES, AND ABBREVIATIONS
 % ============================================================
-\listoffigures
-\newpage
+\makeatletter
+\addcontentsline{toc}{chapter}{List of Figures}
+\section*{List of Figures}
+\@starttoc{lof}
 
-% ============================================================
-% LIST OF TABLES
-% ============================================================
-\listoftables
-\newpage
+\addcontentsline{toc}{chapter}{List of Tables}
+\section*{List of Tables}
+\@starttoc{lot}
+\makeatother
 
-% ============================================================
-% LIST OF ABBREVIATIONS
-% ============================================================
-\chapter*{List of Abbreviations}
 \addcontentsline{toc}{chapter}{List of Abbreviations}
+\section*{List of Abbreviations}
 
 \begin{longtable}{p{3cm}p{5cm}p{6cm}}
 \toprule
@@ -141,12 +139,15 @@ RBAC & Role-Based Access Control & Permission management system \\
 \renewcommand{\bibname}{References}
 \bibliographystyle{plain}
 \bibliography{bibliography}
+\addcontentsline{toc}{chapter}{References}
 
 % ============================================================
 % APPENDICES
 % ============================================================
 \appendix
-\chapter{Source Code and Supplementary Materials}
+\refstepcounter{chapter}
+\chapter*{Source Code and Supplementary Materials}
+\addcontentsline{toc}{chapter}{Appendix A: Source Code and Supplementary Materials}
 \label{app:code}
 
 The complete source code for \projectname{} is available at the project repository. This appendix provides supplementary material referenced throughout the document.

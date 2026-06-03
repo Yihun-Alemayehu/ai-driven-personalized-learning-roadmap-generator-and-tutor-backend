@@ -19,57 +19,60 @@ class AppShell extends StatelessWidget {
     final title = _titleForLocation(location);
     final showShellAppBar = !_supportsCustomSliverAppBar(location);
 
-    if (MediaQuery.sizeOf(context).width >= 720) {
-      return Scaffold(
-        appBar: showShellAppBar ? AtlasAppBar(title: title) : null,
-        body: Row(
-          children: <Widget>[
-            NavigationRail(
-              selectedIndex: selectedIndex,
-              labelType: NavigationRailLabelType.all,
-              backgroundColor: AppColors.surface,
-              onDestinationSelected: (index) {
-                context.go(destinations[index].path);
-              },
-              destinations: destinations
+    final scaffold = MediaQuery.sizeOf(context).width >= 720
+        ? Scaffold(
+            appBar: showShellAppBar ? AtlasAppBar(title: title) : null,
+            body: Row(
+              children: <Widget>[
+                NavigationRail(
+                  selectedIndex: selectedIndex,
+                  labelType: NavigationRailLabelType.all,
+                  backgroundColor: AppColors.surface,
+                  onDestinationSelected: (index) {
+                    context.go(destinations[index].path);
+                  },
+                  destinations: destinations
+                      .map(
+                        (item) => NavigationRailDestination(
+                          icon: Icon(item.icon),
+                          label: Text(item.label),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: child),
+              ],
+            ),
+          )
+        : Scaffold(
+            appBar: showShellAppBar
+                ? AtlasAppBar(
+                    title: title,
+                    actions: _buildActions(context, location),
+                  )
+                : null,
+            body: child,
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: selectedIndex,
+              onTap: (index) => context.go(destinations[index].path),
+              items: destinations
                   .map(
-                    (item) => NavigationRailDestination(
+                    (item) => BottomNavigationBarItem(
                       icon: Icon(item.icon),
-                      label: Text(item.label),
+                      label: item.label,
                     ),
                   )
                   .toList(),
             ),
-            const VerticalDivider(width: 1),
-            Expanded(child: child),
-          ],
-        ),
-      );
-    }
+          );
 
-    // Build actions based on location
-    final actions = _buildActions(context, location);
-
-    return Scaffold(
-      appBar: showShellAppBar
-          ? AtlasAppBar(
-              title: title,
-              actions: actions,
-            )
-          : null,
-      body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: (index) => context.go(destinations[index].path),
-        items: destinations
-            .map(
-              (item) => BottomNavigationBarItem(
-                icon: Icon(item.icon),
-                label: item.label,
-              ),
-            )
-            .toList(),
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go('/dashboard');
+      },
+      child: scaffold,
     );
   }
 
