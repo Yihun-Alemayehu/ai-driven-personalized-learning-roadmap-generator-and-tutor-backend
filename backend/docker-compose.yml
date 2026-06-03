@@ -33,6 +33,7 @@ services:
       - '3000:3000'
     environment:
       NODE_ENV: development
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/learner_roadmap
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
