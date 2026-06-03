@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import * as authService from './auth.service';
@@ -10,18 +9,6 @@ import {
   refreshSchema,
   logoutSchema,
 } from './auth.validation';
-
-// In-memory store for OAuth state parameters (maps state → redirectUri)
-const oauthStateStore = new Map<string, { redirectUri: string; expiresAt: number }>();
-const OAUTH_STATE_TTL = 10 * 60 * 1000; // 10 minutes
-
-// Periodic cleanup of expired state entries
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of oauthStateStore) {
-    if (value.expiresAt < now) oauthStateStore.delete(key);
-  }
-}, 60_000);
 
 function validate<T>(schema: Joi.ObjectSchema<T>, data: unknown): T {
   const { error, value } = schema.validate(data, { abortEarly: false, stripUnknown: true });
@@ -69,14 +56,26 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
   }
 }
 
+function encodeOAuthState(redirectUri: string): string {
+  return Buffer.from(JSON.stringify({ r: redirectUri })).toString('base64');
+}
+
+function decodeOAuthState(state: string): string | null {
+  try {
+    const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+    return typeof decoded.r === 'string' && decoded.r.length > 0 ? decoded.r : null;
+  } catch {
+    return null;
+  }
+}
+
 export function googleRedirect(req: Request, res: Response): void {
   if (!config.oauth.google.clientId) {
     throw ApiError.internal('Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
   }
 
   const redirectUri = (req.query.redirect_uri as string) || config.oauth.frontendCallbackUrl;
-  const state = crypto.randomBytes(16).toString('hex');
-  oauthStateStore.set(state, { redirectUri, expiresAt: Date.now() + OAUTH_STATE_TTL });
+  const state = encodeOAuthState(redirectUri);
 
   const params = new URLSearchParams({
     client_id: config.oauth.google.clientId,
@@ -94,10 +93,7 @@ export async function googleCallback(req: Request, res: Response, next: NextFunc
     const state = req.query.state as string | undefined;
     if (!code) throw ApiError.badRequest('Missing OAuth code');
 
-    // Look up redirect URI from state store
-    const stateData = state ? oauthStateStore.get(state) : undefined;
-    const redirectTarget = stateData?.redirectUri || config.oauth.frontendCallbackUrl;
-    if (state) oauthStateStore.delete(state);
+    const redirectTarget = state ? decodeOAuthState(state) ?? config.oauth.frontendCallbackUrl : config.oauth.frontendCallbackUrl;
 
     const { tokens } = await authService.handleGoogleCallback(code);
     res.redirect(
@@ -114,8 +110,7 @@ export function githubRedirect(req: Request, res: Response): void {
   }
 
   const redirectUri = (req.query.redirect_uri as string) || config.oauth.frontendCallbackUrl;
-  const state = crypto.randomBytes(16).toString('hex');
-  oauthStateStore.set(state, { redirectUri, expiresAt: Date.now() + OAUTH_STATE_TTL });
+  const state = encodeOAuthState(redirectUri);
 
   const params = new URLSearchParams({
     client_id: config.oauth.github.clientId,
@@ -132,10 +127,7 @@ export async function githubCallback(req: Request, res: Response, next: NextFunc
     const state = req.query.state as string | undefined;
     if (!code) throw ApiError.badRequest('Missing OAuth code');
 
-    // Look up redirect URI from state store
-    const stateData = state ? oauthStateStore.get(state) : undefined;
-    const redirectTarget = stateData?.redirectUri || config.oauth.frontendCallbackUrl;
-    if (state) oauthStateStore.delete(state);
+    const redirectTarget = state ? decodeOAuthState(state) ?? config.oauth.frontendCallbackUrl : config.oauth.frontendCallbackUrl;
 
     const { tokens } = await authService.handleGithubCallback(code);
     res.redirect(
