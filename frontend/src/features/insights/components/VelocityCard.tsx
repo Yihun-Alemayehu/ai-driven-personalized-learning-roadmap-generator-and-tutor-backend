@@ -19,7 +19,7 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
   );
 }
 
-export function VelocityCard({ timeline, insights }: Props) {
+export function VelocityCard({ timeline }: Props) {
   if (!timeline) {
     return (
       <div

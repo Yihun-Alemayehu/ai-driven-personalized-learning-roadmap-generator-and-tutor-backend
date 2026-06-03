@@ -39,7 +39,7 @@ export function NodeMasteryChart({ data }: { data: NodeAnalytic[] }) {
           <XAxis type="number" domain={[0, 100]} tick={mono} tickFormatter={(v) => `${v}%`} />
           <YAxis type="category" dataKey="name" width={150} tick={{ ...mono, textAnchor: 'end' }} />
           <Tooltip
-            formatter={(v: number) => [`${v}%`, 'Mastery']}
+            formatter={(v) => [`${v ?? 0}%`, 'Mastery']}
             contentStyle={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, background: '#faf7f1', border: '1px solid #d6cfbf', borderRadius: 8 }}
           />
           <Bar dataKey="mastery" radius={[0, 4, 4, 0]}>
@@ -85,13 +85,13 @@ export function ScoreDistributionChart({ data }: { data: NodeAnalytic[] }) {
             outerRadius={85}
             paddingAngle={3}
             dataKey="value"
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
             labelLine={false}
           >
             {nonEmpty.map((entry, i) => <Cell key={i} fill={entry.color} />)}
           </Pie>
           <Tooltip
-            formatter={(v: number, name: string) => [v, name]}
+            formatter={(v, name) => [v ?? 0, name]}
             contentStyle={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, background: '#faf7f1', border: '1px solid #d6cfbf', borderRadius: 8 }}
           />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10 }} />

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { XIcon, SendIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, MicIcon, MicOffIcon } from 'lucide-react';
 import { useAskInstructorStream } from '@/api/instructor-chat';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
@@ -122,13 +123,15 @@ export function AiInstructorPanel({ node, explanation, onClose, enrollmentId }: 
       { question: q, explanation, enrollmentId },
       {
         onChunk: (chunk) => {
-          setMessages((prev) => {
-            const next = [...prev];
-            const last = next[next.length - 1];
-            if (last?.role === 'bot') {
-              next[next.length - 1] = { ...last, text: last.text + chunk };
-            }
-            return next;
+          flushSync(() => {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.role === 'bot') {
+                next[next.length - 1] = { ...last, text: last.text + chunk };
+              }
+              return next;
+            });
           });
         },
         onDone: () => {
