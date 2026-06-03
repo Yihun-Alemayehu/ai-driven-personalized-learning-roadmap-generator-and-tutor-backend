@@ -59,7 +59,20 @@ export async function requestAiExplanation(ctx: NodeContext): Promise<AiExplanat
 }
 
 export async function requestAiMicroQuiz(ctx: NodeContext): Promise<AiQuizResponse | null> {
-  return post<AiQuizResponse>('/api/v1/ai/generate-micro-quiz', ctx);
+  // Use a short timeout for interactive micro-quiz generation (10 s).
+  // The ai-service will skip slow Ollama and prefer Gemini when Ollama exceeds its own timeout.
+  try {
+    const res = await fetch(`${BASE}/api/v1/ai/generate-micro-quiz`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ctx),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as AiQuizResponse;
+  } catch {
+    return null;
+  }
 }
 
 export interface AiAskPayload {

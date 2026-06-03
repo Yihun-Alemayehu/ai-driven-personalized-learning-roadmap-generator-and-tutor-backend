@@ -84,7 +84,7 @@ services:
     environment:
       PORT: 3002
       REDIS_URL: redis://redis:6379
-      PHI4_BASE_URL: ${PHI4_BASE_URL:-}
+      PHI4_BASE_URL: ${PHI4_BASE_URL:- https://unvaporized-dori-unremonstrated.ngrok-free.dev}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: qwen2.5:3b
       GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6J4I3Rg8hx_O_9R9CxwLPkGEnQu2H57KluVv3N4OYQOtg}

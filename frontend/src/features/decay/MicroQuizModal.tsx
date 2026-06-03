@@ -1,4 +1,4 @@
-import { useState, useReducer } from 'react';
+import { useState, useReducer, useEffect } from 'react';
 import { useMicroQuizMutation, useSubmitMicroAttemptMutation, type MicroQuiz } from '@/api/decay';
 import { QuizQuestion } from '@/features/quiz/components/QuizQuestion';
 import { QuizProgressBar } from '@/features/quiz/components/QuizProgressBar';
@@ -74,20 +74,21 @@ export function MicroQuizModal({ nodeId, nodeTitle, enrollmentId, open, onClose 
   const generateMutation = useMicroQuizMutation();
   const submitMutation = useSubmitMicroAttemptMutation();
 
-  // Load quiz when modal opens
-  const handleOpen = async (isOpen: boolean) => {
-    if (isOpen && !didLoad) {
-      setDidLoad(true);
-      try {
-        const quiz = await generateMutation.mutateAsync(nodeId);
-        dispatch({ type: 'QUIZ_LOADED', quiz, startedAt: new Date().toISOString() });
-      } catch {
-        dispatch({ type: 'ERROR' });
-      }
-    }
+  // Generate the micro-quiz as soon as the modal opens
+  useEffect(() => {
+    if (!open) return;
+    if (didLoad) return;
+    setDidLoad(true);
+    generateMutation.mutateAsync(nodeId)
+      .then((quiz) => dispatch({ type: 'QUIZ_LOADED', quiz, startedAt: new Date().toISOString() }))
+      .catch(() => dispatch({ type: 'ERROR' }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Handle dialog close triggered by user (Escape / click-outside)
+  const handleOpen = (isOpen: boolean) => {
     if (!isOpen) {
       onClose();
-      // Reset after close animation
       setTimeout(() => setDidLoad(false), 300);
     }
   };

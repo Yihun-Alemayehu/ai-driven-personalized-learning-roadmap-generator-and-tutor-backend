@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useCreditStatus } from "@/api/subscription";
+import { Link } from "react-router-dom";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboardIcon,
@@ -360,6 +362,61 @@ function XpStreakWidget({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+// ── Credit widget ─────────────────────────────────────────────────────────────
+
+function CreditWidget({ collapsed }: { collapsed: boolean }) {
+  const { data } = useCreditStatus();
+  if (!data || data.unlimited) return null;
+
+  const pct = Math.round(((data.creditsRemaining ?? 0) / 30) * 100);
+  const low = (data.creditsRemaining ?? 0) <= 8;
+
+  if (collapsed) {
+    return (
+      <div className="flex justify-center pb-1" title={`${data.creditsRemaining} credits left`}>
+        <div
+          className="w-6 h-6 rounded-full border grid place-items-center text-[9px]"
+          style={{
+            borderColor: low ? 'oklch(0.62 0.18 28)' : '#d6cfbf',
+            color: low ? 'oklch(0.62 0.18 28)' : '#9a9088',
+            fontFamily: 'JetBrains Mono, monospace',
+          }}
+        >
+          {data.creditsRemaining}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-3 mb-1 rounded-[10px] border px-3 py-2.5" style={{ borderColor: low ? 'color-mix(in srgb, oklch(0.62 0.18 28) 40%, transparent)' : '#d6cfbf', background: low ? 'color-mix(in srgb, oklch(0.62 0.18 28) 5%, #faf7f1)' : '#f3efe7' }}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] tracking-widest uppercase" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}>
+          AI Credits
+        </span>
+        <span className="text-[11px] font-semibold" style={{ fontFamily: 'JetBrains Mono, monospace', color: low ? 'oklch(0.62 0.18 28)' : '#3a342e' }}>
+          {data.creditsRemaining} / 30
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#d6cfbf' }}>
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: low ? 'oklch(0.62 0.18 28)' : 'oklch(0.60 0.13 150)' }}
+        />
+      </div>
+      {low && (
+        <Link
+          to="/go-pro"
+          className="block text-center text-[10.5px] mt-1.5 hover:underline"
+          style={{ fontFamily: 'JetBrains Mono, monospace', color: 'oklch(0.52 0.18 28)' }}
+        >
+          Upgrade to Pro →
+        </Link>
+      )}
+    </div>
+  );
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
@@ -427,7 +484,7 @@ export function Sidebar() {
 
         <MyLearningSection collapsed={collapsed} />
 
-        {isInstructor && (
+        {isInstructor && !isAdmin && (
           <SidebarGroup
             label="Domain Expert"
             collapsed={collapsed}
@@ -476,6 +533,8 @@ export function Sidebar() {
         )}
 
         <div className="flex-1" />
+
+        <CreditWidget collapsed={collapsed} />
 
         <SidebarGroup
           label="Account"

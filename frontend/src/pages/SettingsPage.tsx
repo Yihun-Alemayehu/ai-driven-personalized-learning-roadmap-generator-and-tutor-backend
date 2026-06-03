@@ -5,7 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChangePasswordMutation, useDeleteAccountMutation } from '@/api/auth';
 import { useAtlasSettingsStore } from '@/store/settings.store';
 import { useMyLearningStore } from '@/store/myLearning.store';
-import type { FamiliarityLevel, LearningGoal } from '@/types';
+import type { FamiliarityLevel, LearningGoal, PreferredLearningStyle } from '@/types';
+
+const LEARNING_STYLE_OPTIONS: { value: PreferredLearningStyle; label: string; hint: string }[] = [
+  { value: 'visual',    label: 'Visual',    hint: 'Diagrams, flowcharts, comparisons' },
+  { value: 'reading',   label: 'Reading',   hint: 'Detailed prose and structured text' },
+  { value: 'hands_on',  label: 'Hands-on',  hint: 'Code snippets and exercises' },
+  { value: 'video',     label: 'Video',     hint: 'Step-by-step walkthrough style' },
+];
 import {
   Dialog,
   DialogContent,
@@ -86,7 +93,37 @@ export default function SettingsPage() {
   const setWeeklyHoursGoal = useAtlasSettingsStore((s) => s.setWeeklyHoursGoal);
   const setFamiliarityLevel = useAtlasSettingsStore((s) => s.setFamiliarityLevel);
   const setLearningGoal = useAtlasSettingsStore((s) => s.setLearningGoal);
+  const setPreferredLearningStyle = useAtlasSettingsStore((s) => s.setPreferredLearningStyle);
+  const setPriorSkills = useAtlasSettingsStore((s) => s.setPriorSkills);
+  const setAboutSelf = useAtlasSettingsStore((s) => s.setAboutSelf);
   const setNotificationPreference = useAtlasSettingsStore((s) => s.setNotificationPreference);
+
+  // Draft state — mirrors saved values; only committed on "Save defaults"
+  const [draft, setDraft] = useState(() => ({ ...learningDefaults }));
+  const [defaultsSaved, setDefaultsSaved] = useState<string | null>(null);
+
+  function updateDraft<K extends keyof typeof draft>(key: K, value: typeof draft[K]) {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+    setDefaultsSaved(null);
+  }
+
+  function handleSaveDefaults() {
+    setWeeklyHoursGoal(draft.weeklyHoursGoal);
+    setFamiliarityLevel(draft.familiarityLevel);
+    setLearningGoal(draft.learningGoal);
+    setPreferredLearningStyle(draft.preferredLearningStyle);
+    setPriorSkills(draft.priorSkills);
+    setAboutSelf(draft.aboutSelf);
+    setDefaultsSaved('Learning defaults saved.');
+  }
+
+  const defaultsDirty =
+    draft.weeklyHoursGoal !== learningDefaults.weeklyHoursGoal ||
+    draft.familiarityLevel !== learningDefaults.familiarityLevel ||
+    draft.learningGoal !== learningDefaults.learningGoal ||
+    draft.preferredLearningStyle !== learningDefaults.preferredLearningStyle ||
+    draft.priorSkills !== learningDefaults.priorSkills ||
+    draft.aboutSelf !== learningDefaults.aboutSelf;
 
   const historyEntries = useMyLearningStore((s) => s.entries);
   const clearHistory = useMyLearningStore((s) => s.clear);
@@ -243,7 +280,7 @@ export default function SettingsPage() {
         <section className="border rounded-[16px] p-6 flex flex-col gap-4" style={{ borderColor: '#d6cfbf', background: '#faf7f1' }}>
           <SectionTitle>Learning Defaults</SectionTitle>
           <p style={{ fontFamily: "'Crimson Pro', serif", color: '#6e645a', fontSize: 15 }}>
-            These defaults auto-fill when you enroll in a new course.
+            These defaults auto-fill when you enrol in a new course. Edit and click <strong>Save defaults</strong> to update.
           </p>
 
           <div className="flex flex-col gap-1.5">
@@ -252,10 +289,10 @@ export default function SettingsPage() {
               type="number"
               min={1}
               max={100}
-              value={learningDefaults.weeklyHoursGoal}
+              value={draft.weeklyHoursGoal}
               onChange={(e) => {
-                const value = Number(e.target.value);
-                if (Number.isFinite(value)) setWeeklyHoursGoal(value);
+                const v = Number(e.target.value);
+                if (Number.isFinite(v)) updateDraft('weeklyHoursGoal', v);
               }}
               className="h-10 w-44 px-3.5 rounded-[8px] border outline-none"
               style={{ borderColor: '#d6cfbf', background: '#fff', fontFamily: "'Crimson Pro', serif", color: '#1a1614' }}
@@ -266,12 +303,12 @@ export default function SettingsPage() {
             <FieldLabel>Starting Familiarity Level</FieldLabel>
             <div className="flex flex-wrap gap-2">
               {familiarityOptions.map((option) => {
-                const selected = learningDefaults.familiarityLevel === option.value;
+                const selected = draft.familiarityLevel === option.value;
                 return (
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setFamiliarityLevel(option.value)}
+                    onClick={() => updateDraft('familiarityLevel', option.value)}
                     className="px-3 py-1.5 rounded-full border text-[14px] transition-colors"
                     style={{
                       borderColor: selected ? 'oklch(0.62 0.18 28)' : '#d6cfbf',
@@ -291,12 +328,12 @@ export default function SettingsPage() {
             <FieldLabel>Learning Goal</FieldLabel>
             <div className="flex flex-wrap gap-2">
               {learningGoalOptions.map((option) => {
-                const selected = learningDefaults.learningGoal === option.value;
+                const selected = draft.learningGoal === option.value;
                 return (
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setLearningGoal(option.value)}
+                    onClick={() => updateDraft('learningGoal', option.value)}
                     className="px-3 py-1.5 rounded-full border text-[14px] transition-colors"
                     style={{
                       borderColor: selected ? 'oklch(0.55 0.13 250)' : '#d6cfbf',
@@ -310,6 +347,93 @@ export default function SettingsPage() {
                 );
               })}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel>Preferred Learning Style</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {LEARNING_STYLE_OPTIONS.map((option) => {
+                const selected = draft.preferredLearningStyle === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    title={option.hint}
+                    onClick={() => updateDraft('preferredLearningStyle', selected ? '' : option.value)}
+                    className="px-3 py-1.5 rounded-full border text-[14px] transition-colors"
+                    style={{
+                      borderColor: selected ? 'oklch(0.60 0.13 150)' : '#d6cfbf',
+                      background: selected ? 'color-mix(in srgb, oklch(0.60 0.13 150) 9%, #faf7f1)' : '#fff',
+                      color: '#3a342e',
+                      fontFamily: "'Crimson Pro', serif",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[12px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#9a9088' }}>
+              Hover a style to see a description. Leave blank to let the AI decide.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel>Prior Skills</FieldLabel>
+            <textarea
+              rows={2}
+              value={draft.priorSkills}
+              onChange={(e) => updateDraft('priorSkills', e.target.value)}
+              placeholder="e.g. HTML, CSS, basic Python — skills you already know"
+              className="px-3.5 py-2.5 rounded-[8px] border outline-none resize-none text-[14px]"
+              style={{ borderColor: '#d6cfbf', background: '#fff', fontFamily: "'Crimson Pro', serif", color: '#1a1614' }}
+            />
+            <p className="text-[12px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#9a9088' }}>
+              The AI will skip re-explaining skills you already have.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel>About Yourself</FieldLabel>
+            <textarea
+              rows={3}
+              value={draft.aboutSelf}
+              onChange={(e) => updateDraft('aboutSelf', e.target.value)}
+              placeholder="e.g. CS student aiming to land a backend role in 6 months"
+              className="px-3.5 py-2.5 rounded-[8px] border outline-none resize-none text-[14px]"
+              style={{ borderColor: '#d6cfbf', background: '#fff', fontFamily: "'Crimson Pro', serif", color: '#1a1614' }}
+            />
+            <p className="text-[12px]" style={{ fontFamily: "'Crimson Pro', serif", color: '#9a9088' }}>
+              Gives the AI Instructor extra context to tailor its tone and examples.
+            </p>
+          </div>
+
+          {/* Save button */}
+          <div className="flex items-center gap-3 pt-1 border-t" style={{ borderColor: '#ebe6db' }}>
+            <button
+              type="button"
+              onClick={handleSaveDefaults}
+              disabled={!defaultsDirty}
+              className="px-5 py-2 rounded-[9px] text-[14px] transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: '#1a1614', color: '#faf7f1', fontFamily: "'Crimson Pro', serif" }}
+            >
+              Save defaults
+            </button>
+            {defaultsDirty && (
+              <button
+                type="button"
+                onClick={() => { setDraft({ ...learningDefaults }); setDefaultsSaved(null); }}
+                className="px-4 py-2 rounded-[9px] text-[14px] border transition-colors hover:bg-muted"
+                style={{ borderColor: '#d6cfbf', color: '#6e645a', fontFamily: "'Crimson Pro', serif" }}
+              >
+                Discard
+              </button>
+            )}
+            {defaultsSaved && (
+              <span style={{ color: 'oklch(0.50 0.15 145)', fontFamily: "'Crimson Pro', serif", fontSize: 14 }}>
+                {defaultsSaved}
+              </span>
+            )}
           </div>
         </section>
 

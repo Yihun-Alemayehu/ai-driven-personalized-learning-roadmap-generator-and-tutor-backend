@@ -297,6 +297,121 @@
 .atlas-landing .stat .lbl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; }
 .atlas-landing .stat .desc { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
 
+/* ─────────── Pricing ─────────── */
+.atlas-landing .pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 960px) { .atlas-landing .pricing-grid { grid-template-columns: 1fr; max-width: 460px; } }
+
+.atlas-landing .plan {
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  padding: 28px 26px 26px;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+.atlas-landing .plan-featured {
+  border-color: var(--coral);
+  background: color-mix(in srgb, var(--coral) 3%, var(--paper));
+  box-shadow: 0 8px 32px -12px color-mix(in srgb, var(--coral) 30%, transparent);
+}
+.atlas-landing .plan-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--coral);
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.atlas-landing .plan-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.atlas-landing .plan-price {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.atlas-landing .plan-amount {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 52px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.atlas-landing .plan-featured .plan-amount { color: var(--coral-deep); }
+.atlas-landing .plan-per {
+  font-family: 'Crimson Pro', serif;
+  font-size: 17px;
+  color: var(--muted);
+}
+.atlas-landing .plan-cycle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 22px;
+}
+.atlas-landing .plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 1;
+}
+.atlas-landing .plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 14.5px;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+.atlas-landing .plan-features li.muted { color: var(--muted); }
+.atlas-landing .plan-features .check {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--m-mastered);
+  margin-top: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.atlas-landing .plan-features .muted .check,
+.atlas-landing .plan-features li.muted > span:first-child {
+  color: var(--muted-2);
+}
+.atlas-landing .plan-cta {
+  display: block;
+  text-align: center;
+  width: 100%;
+  border-radius: 999px;
+  height: 44px;
+  line-height: 44px;
+  padding: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
 /* ─────────── Big CTA ─────────── */
 .atlas-landing .cta { padding: 120px 0; background: var(--ink); color: var(--bone); position: relative; overflow: hidden; }
 .atlas-landing .cta-inner { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: end; }
