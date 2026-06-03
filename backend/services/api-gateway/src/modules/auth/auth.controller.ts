@@ -33,10 +33,34 @@ function validate<T>(schema: Joi.ObjectSchema<T>, data: unknown): T {
 }
 
 function getPublicOrigin(req: Request): string {
+  if (config.publicOrigin) return config.publicOrigin.replace(/\/$/, '');
+
   const forwardedProto = (req.get('x-forwarded-proto') || '').split(',')[0]?.trim();
+  const forwardedScheme = (req.get('x-forwarded-scheme') || '').split(',')[0]?.trim();
+  const forwardedPort = (req.get('x-forwarded-port') || '').split(',')[0]?.trim();
+  const forwardedSsl = (req.get('x-forwarded-ssl') || '').split(',')[0]?.trim();
   const forwardedHost = (req.get('x-forwarded-host') || '').split(',')[0]?.trim();
   const host = forwardedHost || req.get('host');
-  const proto = forwardedProto || req.protocol;
+
+  // Try multiple common headers used by proxies/CDNs. This avoids generating http://
+  // redirect URIs when the public request is actually https://.
+  let proto = forwardedProto || forwardedScheme;
+  if (!proto) {
+    if (forwardedPort === '443') proto = 'https';
+    else if (forwardedSsl.toLowerCase() === 'on') proto = 'https';
+  }
+  if (!proto) {
+    const cfVisitor = req.get('cf-visitor');
+    if (cfVisitor) {
+      try {
+        const parsed = JSON.parse(cfVisitor);
+        if (parsed?.scheme) proto = String(parsed.scheme);
+      } catch {
+        // ignore
+      }
+    }
+  }
+  proto = proto || req.protocol;
 
   if (!host) return 'http://localhost:3000';
   return `${proto}://${host}`;
