@@ -36,11 +36,11 @@ export function NotificationItem({ notification, onNavigate }: NotificationItemP
   return (
     <button
       onClick={handleClick}
-      className="w-full text-left flex items-start gap-3 px-4 py-3 transition-colors hover:bg-[#f3efe7]"
+      className="w-full text-left flex items-start gap-3 px-4 py-3 cursor-pointer transition-all duration-200 hover:bg-canvas hover:translate-x-0.5 group"
       style={{ background: notification.read ? 'transparent' : 'color-mix(in srgb, oklch(0.62 0.18 28) 5%, #faf7f1)' }}
     >
       {/* Unread dot */}
-      <div className="relative shrink-0 mt-0.5">
+      <div className="relative shrink-0 mt-0.5 transition-transform duration-200 group-hover:scale-110">
         <span className="text-[15px]">{icon}</span>
         {!notification.read && (
           <span

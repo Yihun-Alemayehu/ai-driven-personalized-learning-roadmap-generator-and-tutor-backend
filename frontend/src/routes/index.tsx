@@ -24,6 +24,12 @@ function Lazy({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
+  // Public landing page
+  {
+    path: '/landing',
+    lazy: () => import('@/features/landing/LandingPage').then((m) => ({ Component: m.default })),
+  },
+
   // Public routes
   {
     path: '/login',

@@ -1,5 +1,7 @@
 import { useReducer, useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ReadAloudButton } from '@/components/ui/ReadAloudButton';
+import { useReadAloud } from '@/hooks/useReadAloud';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { Button } from '@/components/ui/button';
 import {
@@ -89,6 +91,11 @@ export default function QuizPage() {
     result: null,
     shuffledOptions: {},
   });
+
+  const { state: readState, toggle: toggleRead, stop: stopRead } = useReadAloud();
+
+  // Stop reading when the learner moves to a different question
+  useEffect(() => { stopRead(); }, [state.currentQuestion, stopRead]);
 
   const readyRef = useRef(false);
   useEffect(() => {
@@ -230,10 +237,24 @@ export default function QuizPage() {
 
             {/* Question */}
             <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <p
+                  className="text-[20px] leading-snug flex-1"
+                  style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1a1614', fontWeight: 500 }}
+                >
+                  {currentQ.questionText}
+                </p>
+                <ReadAloudButton
+                  text={`${currentQ.questionText}. Options: ${currentOptions.map((o, i) => `${['A', 'B', 'C', 'D'][i]}: ${o}`).join('. ')}`}
+                  state={readState}
+                  onToggle={toggleRead}
+                />
+              </div>
               <QuizQuestion
                 question={{ ...currentQ, options: currentOptions }}
                 selectedAnswer={state.answers[currentQ.id]}
                 onSelect={(answer) => handleSelect(currentQ.id, answer)}
+                hideQuestionText
               />
             </div>
 
