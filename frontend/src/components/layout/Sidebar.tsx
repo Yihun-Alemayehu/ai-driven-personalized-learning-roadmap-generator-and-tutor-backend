@@ -1,16 +1,27 @@
-import { useState } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
-  LayoutDashboardIcon, BookOpenIcon, BellIcon,
-  UsersIcon, BarChart2Icon, FlagIcon,
-  ShieldIcon, GlobeIcon, SettingsIcon, UserIcon, BookMarkedIcon,
-  PanelLeftCloseIcon, PanelLeftOpenIcon, SparklesIcon, TrophyIcon,
+  LayoutDashboardIcon,
+  BookOpenIcon,
+  BellIcon,
+  UsersIcon,
+  BarChart2Icon,
+  FlagIcon,
+  ShieldIcon,
+  GlobeIcon,
+  SettingsIcon,
+  UserIcon,
+  BookMarkedIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  SparklesIcon,
+  TrophyIcon,
   FlameIcon,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import { useMyLearningStore } from '@/store/myLearning.store';
-import { useGamificationQuery } from '@/api/gamification';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useMyLearningStore } from "@/store/myLearning.store";
+import { useGamificationQuery } from "@/api/gamification";
 
 interface NavItem {
   to: string;
@@ -18,36 +29,51 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const COLLAPSED_KEY = 'nav-sidebar-collapsed';
+const COLLAPSED_KEY = "nav-sidebar-collapsed";
 
 function readCollapsed(): boolean {
-  try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
 }
 
-function NavItemLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+function NavItemLink({
+  item,
+  collapsed,
+}: {
+  item: NavItem;
+  collapsed: boolean;
+}) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/dashboard'}
+      end={item.to === "/dashboard"}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex items-center transition-colors rounded-lg',
-          collapsed ? 'justify-center p-2.5 mx-1' : 'gap-2.5 px-3 py-2',
-          !isActive && 'hover:bg-[#ebe6db]',
+          "flex items-center transition-colors rounded-lg",
+          collapsed ? "justify-center p-2.5 mx-1" : "gap-2.5 px-3 py-2",
+          !isActive && "hover:bg-[#ebe6db]",
         )
       }
       style={({ isActive }) => ({
         fontFamily: "'Crimson Pro', serif",
         fontSize: 13.5,
         fontWeight: isActive ? 600 : 400,
-        background: isActive ? 'color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)' : undefined,
-        color: isActive ? 'oklch(0.52 0.18 28)' : '#3a342e',
+        background: isActive
+          ? "color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)"
+          : undefined,
+        color: isActive ? "oklch(0.52 0.18 28)" : "#3a342e",
       })}
     >
       {({ isActive }) => (
         <>
-          <span className="shrink-0" style={{ color: isActive ? 'oklch(0.52 0.18 28)' : '#9a9088' }}>
+          <span
+            className="shrink-0"
+            style={{ color: isActive ? "oklch(0.52 0.18 28)" : "#9a9088" }}
+          >
             {item.icon}
           </span>
           {!collapsed && item.label}
@@ -71,12 +97,17 @@ function SidebarGroup({
       {!collapsed && (
         <div
           className="text-[9px] tracking-[0.16em] uppercase px-3 mb-0.5 mt-0.5"
-          style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}
+          style={{ fontFamily: "JetBrains Mono, monospace", color: "#b0a898" }}
         >
           {label}
         </div>
       )}
-      {collapsed && <div className="mx-2 my-1 border-t" style={{ borderColor: '#e8e2d9' }} />}
+      {collapsed && (
+        <div
+          className="mx-2 my-1 border-t"
+          style={{ borderColor: "#e8e2d9" }}
+        />
+      )}
       {items.map((item) => (
         <NavItemLink key={item.to} item={item} collapsed={collapsed} />
       ))}
@@ -89,10 +120,13 @@ function MyLearningSection({ collapsed }: { collapsed: boolean }) {
   const location = useLocation();
   const { entries, remove } = useMyLearningStore();
 
-  const activeEnrollmentId = location.pathname.match(/\/enrollments\/([^/]+)\//)?.[1];
+  const activeEnrollmentId = location.pathname.match(
+    /\/enrollments\/([^/]+)\//,
+  )?.[1];
 
   const uniqueEntries = entries.filter(
-    (entry, idx, arr) => arr.findIndex((e) => e.domainSlug === entry.domainSlug) === idx,
+    (entry, idx, arr) =>
+      arr.findIndex((e) => e.domainSlug === entry.domainSlug) === idx,
   );
 
   if (uniqueEntries.length === 0) return null;
@@ -100,23 +134,34 @@ function MyLearningSection({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
       <>
-        <div className="mx-2 my-1 border-t" style={{ borderColor: '#e8e2d9' }} />
+        <div
+          className="mx-2 my-1 border-t"
+          style={{ borderColor: "#e8e2d9" }}
+        />
         {uniqueEntries.map((entry) => {
           const isActive = entry.enrollmentId === activeEnrollmentId;
           return (
             <button
               key={entry.enrollmentId}
               title={entry.domainName}
-              onClick={() => navigate(`/enrollments/${entry.enrollmentId}/learn/${entry.lastNodeId}`)}
+              onClick={() =>
+                navigate(
+                  `/enrollments/${entry.enrollmentId}/learn/${entry.lastNodeId}`,
+                )
+              }
               className="flex justify-center items-center p-2.5 mx-1 rounded-lg transition-colors"
               style={{
                 background: isActive
-                  ? 'color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)'
+                  ? "color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)"
                   : undefined,
-                color: isActive ? 'oklch(0.52 0.18 28)' : '#9a9088',
+                color: isActive ? "oklch(0.52 0.18 28)" : "#9a9088",
               }}
-              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#ebe6db'; }}
-              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.background = "#ebe6db";
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.background = "transparent";
+              }}
             >
               <BookMarkedIcon size={15} />
             </button>
@@ -130,7 +175,7 @@ function MyLearningSection({ collapsed }: { collapsed: boolean }) {
     <div className="flex flex-col gap-0.5">
       <div
         className="text-[9px] tracking-[0.16em] uppercase px-3 mb-0.5 mt-0.5"
-        style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}
+        style={{ fontFamily: "JetBrains Mono, monospace", color: "#b0a898" }}
       >
         My Learning
       </div>
@@ -142,24 +187,34 @@ function MyLearningSection({ collapsed }: { collapsed: boolean }) {
             className="group flex items-center gap-1 px-3 py-2 rounded-lg transition-colors cursor-pointer"
             style={{
               background: isActive
-                ? 'color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)'
-                : 'transparent',
+                ? "color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)"
+                : "transparent",
             }}
-            onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#ebe6db'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? 'color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)' : 'transparent'; }}
-            onClick={() => navigate(`/enrollments/${entry.enrollmentId}/learn/${entry.lastNodeId}`)}
+            onMouseEnter={(e) => {
+              if (!isActive) e.currentTarget.style.background = "#ebe6db";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = isActive
+                ? "color-mix(in srgb, oklch(0.62 0.18 28) 10%, #faf7f1)"
+                : "transparent";
+            }}
+            onClick={() =>
+              navigate(
+                `/enrollments/${entry.enrollmentId}/learn/${entry.lastNodeId}`,
+              )
+            }
           >
             <BookMarkedIcon
               size={14}
               className="shrink-0"
-              style={{ color: isActive ? 'oklch(0.52 0.18 28)' : '#9a9088' }}
+              style={{ color: isActive ? "oklch(0.52 0.18 28)" : "#9a9088" }}
             />
             <span
               className="flex-1 min-w-0 truncate"
               style={{
                 fontFamily: "'Crimson Pro', serif",
                 fontSize: 13.5,
-                color: isActive ? 'oklch(0.52 0.18 28)' : '#3a342e',
+                color: isActive ? "oklch(0.52 0.18 28)" : "#3a342e",
                 fontWeight: isActive ? 600 : 400,
               }}
             >
@@ -167,8 +222,11 @@ function MyLearningSection({ collapsed }: { collapsed: boolean }) {
             </span>
             <button
               className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center rounded text-[12px] leading-none"
-              style={{ color: '#b0a898' }}
-              onClick={(e) => { e.stopPropagation(); remove(entry.enrollmentId); }}
+              style={{ color: "#b0a898" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                remove(entry.enrollmentId);
+              }}
               title="Remove"
             >
               ×
@@ -188,11 +246,12 @@ function XpStreakWidget({ collapsed }: { collapsed: boolean }) {
   if (!data) return null;
 
   const { xp, streak } = data;
-  const streakColor = streak.current >= 14
-    ? 'oklch(0.52 0.22 30)'
-    : streak.current >= 5
-    ? 'oklch(0.62 0.18 28)'
-    : '#9a9088';
+  const streakColor =
+    streak.current >= 14
+      ? "oklch(0.52 0.22 30)"
+      : streak.current >= 5
+        ? "oklch(0.62 0.18 28)"
+        : "#9a9088";
 
   if (collapsed) {
     // Just a flame icon with count tooltip
@@ -204,13 +263,16 @@ function XpStreakWidget({ collapsed }: { collapsed: boolean }) {
         >
           <span
             className="w-7 h-7 rounded-[8px] flex items-center justify-center"
-            style={{ background: '#ebe6db', color: 'oklch(0.62 0.18 28)' }}
+            style={{ background: "#ebe6db", color: "oklch(0.62 0.18 28)" }}
           >
             <TrophyIcon size={13} />
           </span>
           <span
             className="text-[8px]"
-            style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}
+            style={{
+              fontFamily: "JetBrains Mono, monospace",
+              color: "#b0a898",
+            }}
           >
             L{xp.level}
           </span>
@@ -222,21 +284,24 @@ function XpStreakWidget({ collapsed }: { collapsed: boolean }) {
   return (
     <div
       className="mx-3 rounded-[12px] border overflow-hidden"
-      style={{ borderColor: '#d6cfbf', background: '#f3efe7' }}
+      style={{ borderColor: "#d6cfbf", background: "#f3efe7" }}
     >
       {/* Level + XP row */}
       <div className="px-3 pt-2.5 pb-1 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span
             className="w-5 h-5 rounded-[5px] flex items-center justify-center text-[10px] font-bold"
-            style={{ background: 'oklch(0.62 0.18 28)', color: '#fff',
-                     fontFamily: 'JetBrains Mono, monospace' }}
+            style={{
+              background: "oklch(0.62 0.18 28)",
+              color: "#fff",
+              fontFamily: "JetBrains Mono, monospace",
+            }}
           >
             {xp.level}
           </span>
           <span
             className="text-[11px]"
-            style={{ fontFamily: "'Crimson Pro', serif", color: '#3a342e' }}
+            style={{ fontFamily: "'Crimson Pro', serif", color: "#3a342e" }}
           >
             Level {xp.level}
           </span>
@@ -246,7 +311,10 @@ function XpStreakWidget({ collapsed }: { collapsed: boolean }) {
           <FlameIcon size={10} style={{ color: streakColor }} />
           <span
             className="text-[9px] font-medium"
-            style={{ fontFamily: 'JetBrains Mono, monospace', color: streakColor }}
+            style={{
+              fontFamily: "JetBrains Mono, monospace",
+              color: streakColor,
+            }}
           >
             {streak.current}d
           </span>
@@ -255,19 +323,35 @@ function XpStreakWidget({ collapsed }: { collapsed: boolean }) {
 
       {/* XP progress bar */}
       <div className="px-3 pb-2.5">
-        <div className="h-1 rounded-full overflow-hidden" style={{ background: '#e8e2d9' }}>
+        <div
+          className="h-1 rounded-full overflow-hidden"
+          style={{ background: "#e8e2d9" }}
+        >
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${xp.progressPct}%`, background: 'oklch(0.62 0.18 28)' }}
+            style={{
+              width: `${xp.progressPct}%`,
+              background: "oklch(0.62 0.18 28)",
+            }}
           />
         </div>
         <div className="flex justify-between mt-0.5">
-          <span className="text-[8px]"
-            style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}>
+          <span
+            className="text-[8px]"
+            style={{
+              fontFamily: "JetBrains Mono, monospace",
+              color: "#b0a898",
+            }}
+          >
             {xp.total} XP
           </span>
-          <span className="text-[8px]"
-            style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}>
+          <span
+            className="text-[8px]"
+            style={{
+              fontFamily: "JetBrains Mono, monospace",
+              color: "#b0a898",
+            }}
+          >
             {xp.progressPct}%
           </span>
         </div>
@@ -285,7 +369,11 @@ export function Sidebar() {
   function toggle() {
     setCollapsed((v) => {
       const next = !v;
-      try { localStorage.setItem(COLLAPSED_KEY, String(next)); } catch { /* noop */ }
+      try {
+        localStorage.setItem(COLLAPSED_KEY, String(next));
+      } catch {
+        /* noop */
+      }
       return next;
     });
   }
@@ -294,10 +382,10 @@ export function Sidebar() {
     <aside
       className="flex flex-col shrink-0 overflow-hidden"
       style={{
-        background: '#faf7f1',
-        borderRight: '1px solid #d6cfbf',
+        background: "#faf7f1",
+        borderRight: "1px solid #d6cfbf",
         width: collapsed ? 52 : 220,
-        transition: 'width 0.2s ease',
+        transition: "width 0.2s ease",
       }}
     >
       {/* Scrollable nav area */}
@@ -309,11 +397,31 @@ export function Sidebar() {
           label="Learn"
           collapsed={collapsed}
           items={[
-            { to: '/dashboard',    label: 'Dashboard',    icon: <LayoutDashboardIcon size={15} /> },
-            { to: '/catalog',      label: 'Catalog',      icon: <BookOpenIcon size={15} /> },
-            { to: '/insights',     label: 'Insights',     icon: <SparklesIcon size={15} /> },
-            { to: '/achievements', label: 'Achievements', icon: <TrophyIcon size={15} /> },
-            { to: '/notifications',label: 'Notifications',icon: <BellIcon size={15} /> },
+            {
+              to: "/dashboard",
+              label: "Dashboard",
+              icon: <LayoutDashboardIcon size={15} />,
+            },
+            {
+              to: "/catalog",
+              label: "Catalog",
+              icon: <BookOpenIcon size={15} />,
+            },
+            {
+              to: "/insights",
+              label: "Insights",
+              icon: <SparklesIcon size={15} />,
+            },
+            {
+              to: "/achievements",
+              label: "Achievements",
+              icon: <TrophyIcon size={15} />,
+            },
+            {
+              to: "/notifications",
+              label: "Notifications",
+              icon: <BellIcon size={15} />,
+            },
           ]}
         />
 
@@ -324,8 +432,21 @@ export function Sidebar() {
             label="Domain Expert"
             collapsed={collapsed}
             items={[
-              { to: '/instructor/learners', label: 'Learners', icon: <UsersIcon size={15} /> },
-              { to: '/instructor/flagged', label: 'Flagged', icon: <FlagIcon size={15} /> },
+              {
+                to: "/instructor/learners",
+                label: "Learners",
+                icon: <UsersIcon size={15} />,
+              },
+              {
+                to: "/instructor/flagged",
+                label: "Flagged",
+                icon: <FlagIcon size={15} />,
+              },
+              {
+                to: "/instructor/domains",
+                label: "Domains",
+                icon: <GlobeIcon size={15} />,
+              },
             ]}
           />
         )}
@@ -335,9 +456,21 @@ export function Sidebar() {
             label="Admin"
             collapsed={collapsed}
             items={[
-              { to: '/admin/users', label: 'Users', icon: <ShieldIcon size={15} /> },
-              { to: '/admin/domains', label: 'Domains', icon: <GlobeIcon size={15} /> },
-              { to: '/admin/stats', label: 'Statistics', icon: <BarChart2Icon size={15} /> },
+              {
+                to: "/admin/users",
+                label: "Users",
+                icon: <ShieldIcon size={15} />,
+              },
+              {
+                to: "/admin/domains",
+                label: "Domains",
+                icon: <GlobeIcon size={15} />,
+              },
+              {
+                to: "/admin/stats",
+                label: "Statistics",
+                icon: <BarChart2Icon size={15} />,
+              },
             ]}
           />
         )}
@@ -348,8 +481,12 @@ export function Sidebar() {
           label="Account"
           collapsed={collapsed}
           items={[
-            { to: '/profile', label: 'Profile', icon: <UserIcon size={15} /> },
-            { to: '/settings', label: 'Settings', icon: <SettingsIcon size={15} /> },
+            { to: "/profile", label: "Profile", icon: <UserIcon size={15} /> },
+            {
+              to: "/settings",
+              label: "Settings",
+              icon: <SettingsIcon size={15} />,
+            },
           ]}
         />
       </div>
@@ -357,13 +494,13 @@ export function Sidebar() {
       {/* Collapse toggle — pinned at bottom */}
       <button
         onClick={toggle}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         className={cn(
-          'shrink-0 flex items-center border-t transition-colors',
-          collapsed ? 'justify-center p-3' : 'gap-2 px-4 py-3',
-          'hover:bg-[#ebe6db]',
+          "shrink-0 flex items-center border-t transition-colors",
+          collapsed ? "justify-center p-3" : "gap-2 px-4 py-3",
+          "hover:bg-[#ebe6db]",
         )}
-        style={{ borderColor: '#e8e2d9', color: '#9a9088' }}
+        style={{ borderColor: "#e8e2d9", color: "#9a9088" }}
       >
         {collapsed ? (
           <PanelLeftOpenIcon size={15} />
@@ -372,7 +509,10 @@ export function Sidebar() {
             <PanelLeftCloseIcon size={15} />
             <span
               className="text-[12px]"
-              style={{ fontFamily: 'JetBrains Mono, monospace', color: '#b0a898' }}
+              style={{
+                fontFamily: "JetBrains Mono, monospace",
+                color: "#b0a898",
+              }}
             >
               Collapse
             </span>

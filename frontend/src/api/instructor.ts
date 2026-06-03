@@ -1,4 +1,6 @@
+import { useCallback, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/auth.store';
 import { apiClient } from './client';
 
 // ── Response shapes ───────────────────────────────────────────────────────────
@@ -180,4 +182,108 @@ export function useResolveEventMutation() {
         .then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: instructorKeys.flagged() }),
   });
+}
+
+// ── Analytics AI stream ───────────────────────────────────────────────────────
+
+export type AiStreamState = 'idle' | 'streaming' | 'done' | 'error';
+
+const CACHE_KEY = (domainId: string) => `atlas-ai-analysis:${domainId}`;
+
+function readCache(domainId: string): string | null {
+  try { return localStorage.getItem(CACHE_KEY(domainId)); } catch { return null; }
+}
+function writeCache(domainId: string, text: string) {
+  try { localStorage.setItem(CACHE_KEY(domainId), text); } catch { /* storage full */ }
+}
+function clearCache(domainId: string) {
+  try { localStorage.removeItem(CACHE_KEY(domainId)); } catch { /* noop */ }
+}
+
+export function useAnalyticsAiStream(domainId: string) {
+  const cached = domainId ? readCache(domainId) : null;
+  const [state, setState] = useState<AiStreamState>(cached ? 'done' : 'idle');
+  const [text, setText] = useState(cached ?? '');
+  const abortRef = useRef<AbortController | null>(null);
+  const accessToken = useAuthStore((s) => s.accessToken);
+
+  // Restore from cache when domainId changes
+  const prevDomainRef = useRef(domainId);
+  if (prevDomainRef.current !== domainId) {
+    prevDomainRef.current = domainId;
+    const c = readCache(domainId);
+    setState(c ? 'done' : 'idle');
+    setText(c ?? '');
+  }
+
+  const stream = useCallback((isRegenerate = false) => {
+    if (!domainId) return;
+    // If we have cached text and this isn't an explicit regenerate, skip
+    if (!isRegenerate && readCache(domainId)) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setState('streaming');
+    setText('');
+
+    void (async () => {
+      try {
+        const token = useAuthStore.getState().accessToken;
+        const res = await fetch(`/api/v1/instructor/domains/${domainId}/analytics/ai-stream`, {
+          headers: { Authorization: `Bearer ${token ?? ''}` },
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) { setState('error'); return; }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let full = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (raw === '[DONE]') {
+              if (full) writeCache(domainId, full);
+              setState('done');
+              return;
+            }
+            try {
+              const p = JSON.parse(raw);
+              if (p.error) { setState('error'); return; }
+              if (p.t) { full += p.t; setText((prev) => prev + p.t); }
+            } catch { /* skip malformed */ }
+          }
+        }
+        if (full) writeCache(domainId, full);
+        setState('done');
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return;
+        setState('error');
+      }
+    })();
+  }, [domainId]);
+
+  // generate — uses cache if available
+  const generate = useCallback(() => stream(false), [stream]);
+  // regenerate — clears cache and streams fresh
+  const regenerate = useCallback(() => {
+    clearCache(domainId);
+    stream(true);
+  }, [domainId, stream]);
+
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    clearCache(domainId);
+    setState('idle');
+    setText('');
+  }, [domainId]);
+
+  return { state, text, generate, regenerate, reset };
 }
