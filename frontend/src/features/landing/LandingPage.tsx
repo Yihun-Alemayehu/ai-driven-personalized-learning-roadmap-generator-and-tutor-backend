@@ -56,6 +56,7 @@ export default function LandingPage() {
           <nav className="nav-links">
             <a href="#how">How it works</a>
             <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
             <a href="#instructors">For Instructors</a>
             <a href="#domains">Domains</a>
           </nav>
@@ -275,6 +276,92 @@ export default function LandingPage() {
                 <div className="desc">{s.desc}</div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ════ PRICING ════ */}
+        <section className="sec" id="pricing">
+          <div className="container">
+            <div className="sec-head">
+              <div>
+                <div className="sec-num">04 / pricing</div>
+                <h2 className="sec-title">Free to start.<br /><em>Honest</em> to scale.</h2>
+              </div>
+              <p className="sec-lede">
+                Learning should not cost money. Atlas is free for individual learners with a generous monthly credit allowance.
+                Scale up to Pro when you need unlimited AI, or deploy your own instance at zero recurring cost.
+              </p>
+            </div>
+
+            <div className="pricing-grid">
+
+              {/* ── Free ── */}
+              <div className="plan">
+                <div className="plan-name">Explorer</div>
+                <div className="plan-price"><span className="plan-amount">Free</span></div>
+                <div className="plan-cycle">30 AI credits / month &middot; resets on the 1st</div>
+                <ul className="plan-features">
+                  <li><span className="check">✓</span> All 5 domains &amp; full roadmap DAG</li>
+                  <li><span className="check">✓</span> Quiz generation &amp; gatekeeper progression</li>
+                  <li><span className="check">✓</span> Mastery decay &amp; spaced repetition</li>
+                  <li><span className="check">✓</span> Gamification — XP, badges, streaks</li>
+                  <li><span className="check">✓</span> Completion certificates</li>
+                  <li><span className="check">✓</span> Learning analytics &amp; velocity dashboard</li>
+                  <li className="muted"><span>~</span> 30 AI credits / month (explanations + chat)</li>
+                  <li className="muted"><span>~</span> Earn bonus credits by mastering nodes</li>
+                </ul>
+                <Link viewTransition to="/register" className="btn btn-outline plan-cta">
+                  Get started free
+                </Link>
+              </div>
+
+              {/* ── Pro ── */}
+              <div className="plan plan-featured">
+                <div className="plan-badge">Most popular</div>
+                <div className="plan-name">Scholar</div>
+                <div className="plan-price">
+                  <span className="plan-amount">$6</span>
+                  <span className="plan-per">&nbsp;/ month</span>
+                </div>
+                <div className="plan-cycle">~75 ETB / month &middot; cancel any time</div>
+                <ul className="plan-features">
+                  <li><span className="check">✓</span> Everything in Explorer</li>
+                  <li><span className="check">✓</span> <strong>Unlimited AI credits</strong></li>
+                  <li><span className="check">✓</span> Priority AI routing — best model first</li>
+                  <li><span className="check">✓</span> Unlimited certificates across all domains</li>
+                  <li><span className="check">✓</span> Full velocity history &amp; advanced insights</li>
+                  <li><span className="check">✓</span> Early access to new domains</li>
+                  <li><span className="check">✓</span> 48 h support response</li>
+                </ul>
+                <Link viewTransition to="/go-pro" className="btn btn-coral plan-cta">
+                  Go Pro &rarr;
+                </Link>
+              </div>
+
+              {/* ── Enterprise ── */}
+              <div className="plan">
+                <div className="plan-name">Campus</div>
+                <div className="plan-price"><span className="plan-amount">Custom</span></div>
+                <div className="plan-cycle">One-time setup &middot; optional maintenance</div>
+                <ul className="plan-features">
+                  <li><span className="check">✓</span> <strong>Self-hosted on your own servers</strong></li>
+                  <li><span className="check">✓</span> No per-learner or per-month charges</li>
+                  <li><span className="check">✓</span> Bring your own AI API keys</li>
+                  <li><span className="check">✓</span> Full data sovereignty — nothing leaves your infra</li>
+                  <li><span className="check">✓</span> Unlimited learners for universities &amp; faculties</li>
+                  <li><span className="check">✓</span> Custom domain branding</li>
+                  <li><span className="check">✓</span> Setup assistance &amp; optional maintenance SLA</li>
+                </ul>
+                <a href="mailto:contact@atlas.learn" className="btn btn-outline plan-cta">
+                  Contact us
+                </a>
+              </div>
+
+            </div>
+
+            <p style={{ textAlign: 'center', marginTop: 28, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--muted)', letterSpacing: '0.05em' }}>
+              Ethiopian learners pay ~12% of the global price &middot; PPP-adjusted &middot; Chapa &amp; Telebirr accepted
+            </p>
           </div>
         </section>
 

@@ -2,6 +2,8 @@ import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/ApiError';
 import { classifyScore } from '../gatekeeper/gatekeeper.service';
 import { createNotification } from '../notifications/notifications.service';
+import { requestAiMicroQuiz } from '../../lib/aiClient';
+import type { QuestionType, Prisma } from '@prisma/client';
 
 const STRONG_PASS_DAYS = 14;
 const MARGINAL_PASS_DAYS = 7;
@@ -176,30 +178,100 @@ export async function generateMicroQuiz(nodeId: string, userId: string) {
     throw ApiError.badRequest('Node is not in a state requiring review');
   }
 
+  // Try to sample from an existing stored quiz first (fastest, no AI cost)
   const mainQuiz = await prisma.quiz.findFirst({
     where: { nodeId, isMicroQuiz: false },
     include: { questions: { orderBy: { orderIndex: 'asc' } } },
   });
-  if (!mainQuiz) throw ApiError.notFound('No quiz found for this node');
 
-  const count = Math.min(mainQuiz.questions.length, 3);
-  const selected = [...mainQuiz.questions].sort(() => Math.random() - 0.5).slice(0, count);
+  let questionsToCreate: Prisma.QuizQuestionCreateManyQuizInput[];
+
+  if (mainQuiz && mainQuiz.questions.length > 0) {
+    // Sample 2-3 questions from the stored quiz
+    const count = Math.min(mainQuiz.questions.length, 3);
+    const selected = [...mainQuiz.questions].sort(() => Math.random() - 0.5).slice(0, count);
+    questionsToCreate = selected.map((q, i) => ({
+      questionType: q.questionType,
+      questionText: q.questionText,
+      options: q.options ?? undefined,
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation ?? undefined,
+      orderIndex: i,
+    }));
+  } else {
+    // No stored quiz — fetch node details for AI generation or synthetic fallback
+    const node = await prisma.learningNode.findUnique({
+      where: { id: nodeId },
+      select: { title: true, description: true, learningOutcomes: true },
+    });
+    if (!node) throw ApiError.notFound('Node not found');
+
+    const outcomes = Array.isArray(node.learningOutcomes) ? (node.learningOutcomes as string[]) : [];
+
+    // Check if a micro-quiz was already generated for this node recently (last 24 h)
+    const recentMicro = await prisma.quiz.findFirst({
+      where: {
+        nodeId,
+        isMicroQuiz: true,
+        createdAt: { gte: new Date(Date.now() - 24 * 3_600_000) },
+      },
+      include: {
+        questions: {
+          select: {
+            id: true, questionType: true, questionText: true,
+            options: true, orderIndex: true, explanation: true,
+          },
+          orderBy: { orderIndex: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (recentMicro?.questions.length) return recentMicro;
+
+    // Try AI generation with a short 12-second timeout
+    const aiResponse = await requestAiMicroQuiz({
+      nodeId,
+      nodeTitle: node.title,
+      description: node.description ?? undefined,
+      learningOutcomes: outcomes,
+      questionCount: 3,
+    });
+
+    if (aiResponse?.quiz?.questions?.length) {
+      questionsToCreate = aiResponse.quiz.questions.map((q, i) => ({
+        questionType: 'multiple_choice' as QuestionType,
+        questionText: q.questionText,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation ?? undefined,
+        orderIndex: i,
+      }));
+    } else {
+      // AI unavailable — synthesise questions from learning outcomes
+      const safeOutcomes = outcomes.slice(0, 3);
+      if (safeOutcomes.length === 0) throw ApiError.internal('No learning outcomes to generate a quiz from');
+      questionsToCreate = safeOutcomes.map((outcome, i) => ({
+        questionType: 'multiple_choice' as QuestionType,
+        questionText: `Which statement best describes the following concept: "${outcome}"?`,
+        options: [
+          outcome,
+          `${outcome} (but only in specific edge cases)`,
+          'This concept does not apply to this topic',
+          'This is an advanced topic not covered here',
+        ],
+        correctAnswer: outcome,
+        explanation: `This is a key learning outcome for ${node.title}.`,
+        orderIndex: i,
+      }));
+    }
+  }
 
   const microQuiz = await prisma.quiz.create({
     data: {
       nodeId,
       isMicroQuiz: true,
-      generatedBy: 'decay_engine',
-      questions: {
-        create: selected.map((q, i) => ({
-          questionType: q.questionType,
-          questionText: q.questionText,
-          options: q.options ?? undefined,
-          correctAnswer: q.correctAnswer,
-          explanation: q.explanation ?? undefined,
-          orderIndex: i,
-        })),
-      },
+      generatedBy: mainQuiz ? 'decay_engine' : 'ai_tutor',
+      questions: { create: questionsToCreate },
     },
     include: {
       questions: {
@@ -210,7 +282,7 @@ export async function generateMicroQuiz(nodeId: string, userId: string) {
           options: true,
           orderIndex: true,
           explanation: true,
-          // correctAnswer intentionally omitted
+          // correctAnswer intentionally omitted — never sent to client
         },
         orderBy: { orderIndex: 'asc' },
       },

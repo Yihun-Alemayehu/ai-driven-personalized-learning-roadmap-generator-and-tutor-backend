@@ -24,10 +24,14 @@ function Lazy({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
-  // Public landing page
+  // Keep /landing as an alias
   {
     path: '/landing',
     lazy: () => import('@/features/landing/LandingPage').then((m) => ({ Component: m.default })),
+  },
+  {
+    path: '/go-pro',
+    lazy: () => import('@/features/landing/GoPro').then((m) => ({ Component: m.default })),
   },
 
   // Public routes
@@ -59,7 +63,6 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard',  element: <DashboardPage /> },
       { path: 'profile',    element: <ProfilePage /> },
       { path: 'settings',   element: <SettingsPage /> },
