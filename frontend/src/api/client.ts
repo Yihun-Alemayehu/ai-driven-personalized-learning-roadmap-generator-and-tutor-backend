@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const localBaseURL = 'http://localhost:8000/api/v1';
+const productionBaseURL = 'https://api.yegna-future.site/api/v1';
+
 export const apiClient = axios.create({
-  baseURL: (import.meta.env.VITE_API_BASE_URL as string) ?? '/api/v1',
+  // baseURL: (import.meta.env.VITE_API_BASE_URL as string) ?? '/api/v1',  // Use relative URL for dev (proxy) and allow override in prod with env var
+  baseURL: productionBaseURL, // Override with env var if needed
   headers: { 'Content-Type': 'application/json' },
   withCredentials: false,
 });
@@ -41,7 +45,7 @@ apiClient.interceptors.response.use(
   async (error: import('axios').AxiosError) => {
     const original = error.config as import('axios').InternalAxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status !== 401 || original._retry) {
+    if (error.response?.status !== 401 || original._retry || original.url?.includes('/auth/')) {
       return Promise.reject(error);
     }
     original._retry = true;
