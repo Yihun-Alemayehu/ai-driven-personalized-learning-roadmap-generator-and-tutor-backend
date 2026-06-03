@@ -245,15 +245,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: <Widget>[
             const Text(
-              'Settings',
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
               'Manage your security, learning defaults, and account preferences.',
               style: TextStyle(fontSize: 15, color: Color(0xFF6E645A)),
             ),

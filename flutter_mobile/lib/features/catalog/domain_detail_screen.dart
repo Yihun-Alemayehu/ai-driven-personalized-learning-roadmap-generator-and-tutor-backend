@@ -85,15 +85,15 @@ class DomainDetailScreen extends ConsumerWidget {
                             children: <Widget>[
                               Text(
                                 domain.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      fontSize: 32,
-                                      height: 1.15,
-                                      color: const Color(0xFF3D342A),
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontSize: 32,
+                                        height: 1.15,
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                               ),
                               if (domain.description != null &&
                                   domain.description!.trim().isNotEmpty) ...<Widget>[
@@ -106,7 +106,7 @@ class DomainDetailScreen extends ConsumerWidget {
                                       ?.copyWith(
                                         fontSize: 16,
                                         height: 1.4,
-                                        color: const Color(0xFF6E645A),
+                                        color: AppColors.textBody,
                                       ),
                                 ),
                               ],
@@ -163,9 +163,9 @@ class DomainDetailScreen extends ConsumerWidget {
                         children: <Widget>[
                           Text(
                             'Personalised Roadmap',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontSize: 17,
-                                  color: const Color(0xFF3D342A),
+                                  color: AppColors.textPrimary,
                                   fontWeight: FontWeight.w600,
                                 ),
                           ),
@@ -177,7 +177,7 @@ class DomainDetailScreen extends ConsumerWidget {
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontSize: 14,
                                   height: 1.45,
-                                  color: const Color(0xFF6E645A),
+                                  color: AppColors.textBody,
                                 ),
                           ),
                         ],
@@ -324,7 +324,7 @@ class _StatItem extends StatelessWidget {
         Text(
           '$label:',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF6E645A),
+                color: AppColors.textBody,
                 fontSize: 14,
               ),
         ),
@@ -332,7 +332,7 @@ class _StatItem extends StatelessWidget {
         Text(
           value,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF3D342A),
+                color: AppColors.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),

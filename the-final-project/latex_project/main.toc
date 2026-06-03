@@ -1,124 +1,127 @@
 \contentsline {chapter}{Acknowledgement}{2}{chapter*.1}%
 \contentsline {chapter}{Abstract}{3}{chapter*.2}%
-\contentsline {chapter}{List of Abbreviations}{14}{chapter*.6}%
-\contentsline {chapter}{\numberline {1}Introduction}{16}{chapter.1}%
-\contentsline {section}{\numberline {1.1}Statement of the Problem}{16}{section.1.1}%
-\contentsline {section}{\numberline {1.2}Objectives}{18}{section.1.2}%
-\contentsline {subsection}{\numberline {1.2.1}General Objective}{18}{subsection.1.2.1}%
-\contentsline {subsection}{\numberline {1.2.2}Specific Objectives}{18}{subsection.1.2.2}%
-\contentsline {section}{\numberline {1.3}Scope and Limitations}{21}{section.1.3}%
-\contentsline {subsection}{\numberline {1.3.1}In-Scope Elements}{21}{subsection.1.3.1}%
-\contentsline {subsection}{\numberline {1.3.2}Out-of-Scope Elements}{22}{subsection.1.3.2}%
-\contentsline {subsection}{\numberline {1.3.3}Limitations}{23}{subsection.1.3.3}%
-\contentsline {section}{\numberline {1.4}Methodology and Approach}{24}{section.1.4}%
-\contentsline {subsection}{\numberline {1.4.1}Development Methodology: Agile-Scrum}{24}{subsection.1.4.1}%
-\contentsline {subsection}{\numberline {1.4.2}System Architecture: Microservices with Layered Design}{24}{subsection.1.4.2}%
-\contentsline {subsection}{\numberline {1.4.3}Hybrid AI Strategy: Skeleton \& Flesh}{25}{subsection.1.4.3}%
-\contentsline {subsection}{\numberline {1.4.4}Gatekeeper Pattern: Three-Tier Progression Logic}{25}{subsection.1.4.4}%
-\contentsline {subsection}{\numberline {1.4.5}Spaced Repetition Integration: Mastery Decay Algorithm}{26}{subsection.1.4.5}%
-\contentsline {subsection}{\numberline {1.4.6}Multi-Path Branching Logic}{26}{subsection.1.4.6}%
-\contentsline {subsection}{\numberline {1.4.7}Resource Aggregation: PSE API Integration}{27}{subsection.1.4.7}%
-\contentsline {subsection}{\numberline {1.4.8}Technology Stack and Justifications}{27}{subsection.1.4.8}%
-\contentsline {subsection}{\numberline {1.4.9}LLM Selection Rationale}{28}{subsection.1.4.9}%
-\contentsline {subsection}{\numberline {1.4.10}Development Phases}{29}{subsection.1.4.10}%
-\contentsline {section}{\numberline {1.5}Plan of Activities}{29}{section.1.5}%
-\contentsline {section}{\numberline {1.6}Budget Breakdown}{30}{section.1.6}%
-\contentsline {section}{\numberline {1.7}Significance of the Project}{31}{section.1.7}%
-\contentsline {subsection}{\numberline {1.7.1}Academic Significance}{31}{subsection.1.7.1}%
-\contentsline {subsection}{\numberline {1.7.2}Regional and Socioeconomic Significance (Ethiopian Context)}{31}{subsection.1.7.2}%
-\contentsline {subsection}{\numberline {1.7.3}Technical and Practical Significance}{32}{subsection.1.7.3}%
-\contentsline {subsection}{\numberline {1.7.4}User and Stakeholder Significance}{32}{subsection.1.7.4}%
-\contentsline {section}{\numberline {1.8}Outline of the Study}{33}{section.1.8}%
-\contentsline {chapter}{\numberline {2}Literature Review}{35}{chapter.2}%
-\contentsline {section}{\numberline {2.1}Study of Related Works}{35}{section.2.1}%
-\contentsline {subsection}{\numberline {2.1.1}Evolution of Intelligent Tutoring Systems}{35}{subsection.2.1.1}%
-\contentsline {subsection}{\numberline {2.1.2}Knowledge Space Theory and Ontology-Based Curriculum Design}{36}{subsection.2.1.2}%
-\contentsline {subsection}{\numberline {2.1.3}Knowledge Representation: From Ontologies to Retrieval-Augmented Generation}{37}{subsection.2.1.3}%
-\contentsline {subsection}{\numberline {2.1.4}Bayesian Knowledge Tracing and Mastery State Machines}{38}{subsection.2.1.4}%
-\contentsline {subsection}{\numberline {2.1.5}Adaptive Assessment and Item Response Theory}{39}{subsection.2.1.5}%
-\contentsline {subsection}{\numberline {2.1.6}Adaptive Learning, Mastery-Based Progression, and Assessment-Driven Adaptation}{39}{subsection.2.1.6}%
-\contentsline {subsection}{\numberline {2.1.7}Spaced Repetition and Knowledge Decay}{41}{subsection.2.1.7}%
-\contentsline {subsection}{\numberline {2.1.8}Personalisation, Adaptive Hypermedia, and Multi-Path Learning}{42}{subsection.2.1.8}%
-\contentsline {subsection}{\numberline {2.1.9}Resource Aggregation and Content Curation}{44}{subsection.2.1.9}%
-\contentsline {subsection}{\numberline {2.1.10}Gamification in Educational Technology}{45}{subsection.2.1.10}%
-\contentsline {subsection}{\numberline {2.1.11}Large Language Models as Educational Tools}{46}{subsection.2.1.11}%
-\contentsline {subsection}{\numberline {2.1.12}Learning Analytics and Progress Dashboards}{46}{subsection.2.1.12}%
-\contentsline {subsection}{\numberline {2.1.13}Academic Foundations: Synthesis of Educational Psychology}{47}{subsection.2.1.13}%
-\contentsline {section}{\numberline {2.2}Identifying Milestones of the Related Literatures and Finding the Gaps}{49}{section.2.2}%
-\contentsline {subsection}{\numberline {2.2.1}Key Milestones}{49}{subsection.2.2.1}%
-\contentsline {subsection}{\numberline {2.2.2}Critical Gaps in Existing Solutions}{51}{subsection.2.2.2}%
-\contentsline {section}{\numberline {2.3}Lessons Learned from Literatures}{51}{section.2.3}%
-\contentsline {chapter}{\numberline {3}Problem Analysis and Modeling}{55}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Existing System and Its Problems}{55}{section.3.1}%
+\contentsline {chapter}{List of Figures}{10}{chapter*.3}%
+\contentsline {chapter}{List of Tables}{10}{chapter*.3}%
+\contentsline {chapter}{List of Abbreviations}{12}{chapter*.3}%
+\contentsline {chapter}{\numberline {1}Introduction}{14}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Statement of the Problem}{14}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Objectives}{16}{section.1.2}%
+\contentsline {subsection}{\numberline {1.2.1}General Objective}{16}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {1.2.2}Specific Objectives}{16}{subsection.1.2.2}%
+\contentsline {section}{\numberline {1.3}Scope and Limitations}{19}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}In-Scope Elements}{19}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}Out-of-Scope Elements}{21}{subsection.1.3.2}%
+\contentsline {subsection}{\numberline {1.3.3}Limitations}{21}{subsection.1.3.3}%
+\contentsline {section}{\numberline {1.4}Methodology and Approach}{22}{section.1.4}%
+\contentsline {subsection}{\numberline {1.4.1}Development Methodology: Agile-Scrum}{22}{subsection.1.4.1}%
+\contentsline {subsection}{\numberline {1.4.2}System Architecture: Microservices with Layered Design}{23}{subsection.1.4.2}%
+\contentsline {subsection}{\numberline {1.4.3}Hybrid AI Strategy: Skeleton \& Flesh}{23}{subsection.1.4.3}%
+\contentsline {subsection}{\numberline {1.4.4}Gatekeeper Pattern: Three-Tier Progression Logic}{24}{subsection.1.4.4}%
+\contentsline {subsection}{\numberline {1.4.5}Spaced Repetition Integration: Mastery Decay Algorithm}{24}{subsection.1.4.5}%
+\contentsline {subsection}{\numberline {1.4.6}Multi-Path Branching Logic}{25}{subsection.1.4.6}%
+\contentsline {subsection}{\numberline {1.4.7}Resource Generation: Ontology-Grounded AI Content}{25}{subsection.1.4.7}%
+\contentsline {subsection}{\numberline {1.4.8}Technology Stack and Justifications}{26}{subsection.1.4.8}%
+\contentsline {subsection}{\numberline {1.4.9}LLM Selection Rationale}{26}{subsection.1.4.9}%
+\contentsline {subsection}{\numberline {1.4.10}Development Phases}{27}{subsection.1.4.10}%
+\contentsline {section}{\numberline {1.5}Plan of Activities}{28}{section.1.5}%
+\contentsline {section}{\numberline {1.6}Budget Breakdown}{29}{section.1.6}%
+\contentsline {section}{\numberline {1.7}Significance of the Project}{29}{section.1.7}%
+\contentsline {subsection}{\numberline {1.7.1}Academic Significance}{29}{subsection.1.7.1}%
+\contentsline {subsection}{\numberline {1.7.2}Regional and Socioeconomic Significance (Ethiopian Context)}{30}{subsection.1.7.2}%
+\contentsline {subsection}{\numberline {1.7.3}Technical and Practical Significance}{30}{subsection.1.7.3}%
+\contentsline {subsection}{\numberline {1.7.4}User and Stakeholder Significance}{31}{subsection.1.7.4}%
+\contentsline {section}{\numberline {1.8}Outline of the Study}{31}{section.1.8}%
+\contentsline {chapter}{\numberline {2}Literature Review}{33}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Study of Related Works}{33}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Evolution of Intelligent Tutoring Systems}{33}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Knowledge Space Theory and Ontology-Based Curriculum Design}{34}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}Knowledge Representation: From Ontologies to Retrieval-Augmented Generation}{35}{subsection.2.1.3}%
+\contentsline {subsection}{\numberline {2.1.4}Bayesian Knowledge Tracing and Mastery State Machines}{36}{subsection.2.1.4}%
+\contentsline {subsection}{\numberline {2.1.5}Adaptive Assessment and Item Response Theory}{37}{subsection.2.1.5}%
+\contentsline {subsection}{\numberline {2.1.6}Adaptive Learning, Mastery-Based Progression, and Assessment-Driven Adaptation}{37}{subsection.2.1.6}%
+\contentsline {subsection}{\numberline {2.1.7}Spaced Repetition and Knowledge Decay}{39}{subsection.2.1.7}%
+\contentsline {subsection}{\numberline {2.1.8}Personalisation, Adaptive Hypermedia, and Multi-Path Learning}{41}{subsection.2.1.8}%
+\contentsline {subsection}{\numberline {2.1.9}Resource Aggregation and Content Curation}{42}{subsection.2.1.9}%
+\contentsline {subsection}{\numberline {2.1.10}Gamification in Educational Technology}{44}{subsection.2.1.10}%
+\contentsline {subsection}{\numberline {2.1.11}Large Language Models as Educational Tools}{44}{subsection.2.1.11}%
+\contentsline {subsection}{\numberline {2.1.12}Learning Analytics and Progress Dashboards}{45}{subsection.2.1.12}%
+\contentsline {subsection}{\numberline {2.1.13}Academic Foundations: Synthesis of Educational Psychology}{46}{subsection.2.1.13}%
+\contentsline {section}{\numberline {2.2}Identifying Milestones of the Related Literatures and Finding the Gaps}{47}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Key Milestones}{47}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Critical Gaps in Existing Solutions}{49}{subsection.2.2.2}%
+\contentsline {section}{\numberline {2.3}Lessons Learned from Literatures}{50}{section.2.3}%
+\contentsline {chapter}{\numberline {3}Problem Analysis and Modeling}{54}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Existing System and Its Problems}{54}{section.3.1}%
 \contentsline {section}{\numberline {3.2}Requirements Elicitation and Specification}{57}{section.3.2}%
-\contentsline {section}{\numberline {3.3}System Modeling}{61}{section.3.3}%
-\contentsline {subsection}{\numberline {3.3.1}Use Case Model}{61}{subsection.3.3.1}%
+\contentsline {section}{\numberline {3.3}System Modeling}{63}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Use Case Model}{63}{subsection.3.3.1}%
 \contentsline {subsection}{\numberline {3.3.2}Functional Requirements Traceability}{63}{subsection.3.3.2}%
 \contentsline {subsection}{\numberline {3.3.3}UML Class Diagram}{63}{subsection.3.3.3}%
-\contentsline {subsection}{\numberline {3.3.4}Dynamic Models of a System}{64}{subsection.3.3.4}%
-\contentsline {subsubsection}{Sequence Diagrams}{64}{subsubsection*.14}%
-\contentsline {paragraph}{Quiz Attempt and Gatekeeper Flow}{64}{paragraph*.15}%
-\contentsline {paragraph}{Mastery Decay and Spaced Repetition Trigger}{64}{paragraph*.17}%
-\contentsline {paragraph}{Multi-Path Branching Selection}{65}{paragraph*.19}%
-\contentsline {subsubsection}{Activity Diagrams}{66}{subsubsection*.21}%
-\contentsline {paragraph}{Learner Progression Activity Flow}{66}{paragraph*.22}%
-\contentsline {paragraph}{Gatekeeper Decision Activity}{67}{paragraph*.24}%
-\contentsline {subsubsection}{State Machine Diagram}{68}{subsubsection*.26}%
-\contentsline {paragraph}{Node Mastery State Machine}{68}{paragraph*.27}%
-\contentsline {section}{\numberline {3.4}Model Validation}{69}{section.3.4}%
-\contentsline {chapter}{\numberline {4}System Design}{71}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Overview}{71}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Specifying the Design Goals}{71}{section.4.2}%
-\contentsline {section}{\numberline {4.3}System Design}{72}{section.4.3}%
-\contentsline {subsection}{\numberline {4.3.1}Proposed Software Architecture}{72}{subsection.4.3.1}%
-\contentsline {subsection}{\numberline {4.3.2}Subsystem Decomposition}{74}{subsection.4.3.2}%
-\contentsline {subsection}{\numberline {4.3.3}Database Design}{75}{subsection.4.3.3}%
-\contentsline {subsection}{\numberline {4.3.4}Deployment Diagram}{82}{subsection.4.3.4}%
-\contentsline {subsection}{\numberline {4.3.5}User Interface Design}{83}{subsection.4.3.5}%
-\contentsline {subsubsection}{Figma UI Screen Designs}{85}{subsubsection*.29}%
-\contentsline {subsection}{\numberline {4.3.6}System Integration}{89}{subsection.4.3.6}%
-\contentsline {subsection}{\numberline {4.3.7}Security Design}{91}{subsection.4.3.7}%
-\contentsline {section}{\numberline {4.4}Verifying the Requirements in the Design}{93}{section.4.4}%
-\contentsline {subsection}{\numberline {4.4.1}Requirements Traceability Approach}{93}{subsection.4.4.1}%
-\contentsline {subsection}{\numberline {4.4.2}Functional Requirements Verification Matrix}{93}{subsection.4.4.2}%
-\contentsline {subsection}{\numberline {4.4.3}Non-Functional Requirements Verification Matrix}{95}{subsection.4.4.3}%
-\contentsline {subsection}{\numberline {4.4.4}Verification Methods and Evidence}{96}{subsection.4.4.4}%
-\contentsline {subsection}{\numberline {4.4.5}Discrepancy Identification and Resolution}{97}{subsection.4.4.5}%
-\contentsline {subsection}{\numberline {4.4.6}Evidence Sources}{97}{subsection.4.4.6}%
-\contentsline {chapter}{\numberline {5}System Implementation}{98}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Reviewing the Design Solution}{98}{section.5.1}%
-\contentsline {section}{\numberline {5.2}Deciding on the Development Tools}{99}{section.5.2}%
-\contentsline {subsection}{\numberline {5.2.1}Programming Languages}{99}{subsection.5.2.1}%
-\contentsline {subsection}{\numberline {5.2.2}Frameworks and Core Libraries}{100}{subsection.5.2.2}%
-\contentsline {subsection}{\numberline {5.2.3}AI and External Integration Tools}{100}{subsection.5.2.3}%
-\contentsline {subsection}{\numberline {5.2.4}Frontend and Mobile Tooling}{100}{subsection.5.2.4}%
-\contentsline {subsection}{\numberline {5.2.5}Testing and Quality Tooling}{100}{subsection.5.2.5}%
-\contentsline {subsection}{\numberline {5.2.6}Infrastructure and Runtime Tooling}{101}{subsection.5.2.6}%
-\contentsline {subsection}{\numberline {5.2.7}Development Environment Setup}{101}{subsection.5.2.7}%
-\contentsline {subsection}{\numberline {5.2.8}Rationale Summary}{103}{subsection.5.2.8}%
-\contentsline {section}{\numberline {5.3}Developing the Solution}{103}{section.5.3}%
-\contentsline {subsection}{\numberline {5.3.1}Coding Practices and Development Workflow}{103}{subsection.5.3.1}%
-\contentsline {subsection}{\numberline {5.3.2}Integration Strategy During Development}{103}{subsection.5.3.2}%
-\contentsline {subsection}{\numberline {5.3.3}Major Functionality Code Excerpts}{104}{subsection.5.3.3}%
-\contentsline {subsection}{\numberline {5.3.4}Integration Challenges and Resolutions}{110}{subsection.5.3.4}%
-\contentsline {subsection}{\numberline {5.3.5}Summary}{110}{subsection.5.3.5}%
-\contentsline {chapter}{\numberline {6}System Evaluation}{111}{chapter.6}%
-\contentsline {section}{\numberline {6.1}Preparing Sample Test Plans}{111}{section.6.1}%
-\contentsline {subsection}{\numberline {6.1.1}Functional Test Plans}{112}{subsection.6.1.1}%
-\contentsline {subsection}{\numberline {6.1.2}Non-Functional Test Plans}{116}{subsection.6.1.2}%
-\contentsline {subsection}{\numberline {6.1.3}Automated Test Suite Implementation}{117}{subsection.6.1.3}%
-\contentsline {subsubsection}{Continuous Integration}{119}{subsubsection*.30}%
-\contentsline {subsubsection}{Coverage Analysis}{119}{subsubsection*.31}%
-\contentsline {section}{\numberline {6.2}Evaluating the Proposed Design and Solutions}{120}{section.6.2}%
-\contentsline {subsection}{\numberline {6.2.1}Functional Test Results}{120}{subsection.6.2.1}%
-\contentsline {subsection}{\numberline {6.2.2}Non-Functional Test Results}{123}{subsection.6.2.2}%
-\contentsline {subsection}{\numberline {6.2.3}Security Test Results}{125}{subsection.6.2.3}%
-\contentsline {subsection}{\numberline {6.2.4}AI Provider Failover Test Results}{125}{subsection.6.2.4}%
-\contentsline {section}{\numberline {6.3}Discussing the Results}{126}{section.6.3}%
-\contentsline {chapter}{\numberline {7}Conclusions and Recommendations}{128}{chapter.7}%
-\contentsline {section}{\numberline {7.1}Conclusion of the Study}{128}{section.7.1}%
-\contentsline {section}{\numberline {7.2}Recommendations of the Study}{130}{section.7.2}%
-\contentsline {chapter}{\numberline {A}Source Code and Supplementary Materials}{137}{appendix.A}%
-\contentsline {section}{\numberline {A.1}Core Algorithm Pseudocode}{137}{section.A.1}%
-\contentsline {section}{\numberline {A.2}Adaptive Difficulty Computation}{137}{section.A.2}%
-\contentsline {section}{\numberline {A.3}Mastery Decay Transition Logic}{138}{section.A.3}%
+\contentsline {subsection}{\numberline {3.3.4}Dynamic Models of a System}{65}{subsection.3.3.4}%
+\contentsline {subsubsection}{Sequence Diagrams}{66}{subsubsection*.10}%
+\contentsline {paragraph}{Quiz Attempt and Gatekeeper Flow}{66}{paragraph*.11}%
+\contentsline {paragraph}{Mastery Decay and Spaced Repetition Trigger}{66}{paragraph*.13}%
+\contentsline {paragraph}{Multi-Path Branching Selection}{67}{paragraph*.15}%
+\contentsline {subsubsection}{Activity Diagrams}{68}{subsubsection*.17}%
+\contentsline {paragraph}{Learner Progression Activity Flow}{68}{paragraph*.18}%
+\contentsline {paragraph}{Gatekeeper Decision Activity}{69}{paragraph*.20}%
+\contentsline {subsubsection}{State Machine Diagram}{70}{subsubsection*.22}%
+\contentsline {paragraph}{Node Mastery State Machine}{70}{paragraph*.23}%
+\contentsline {section}{\numberline {3.4}Model Validation}{71}{section.3.4}%
+\contentsline {chapter}{\numberline {4}System Design}{73}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Overview}{73}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Specifying the Design Goals}{73}{section.4.2}%
+\contentsline {section}{\numberline {4.3}System Design}{74}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Proposed Software Architecture}{74}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}Subsystem Decomposition}{76}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}Database Design}{77}{subsection.4.3.3}%
+\contentsline {subsection}{\numberline {4.3.4}Deployment Diagram}{87}{subsection.4.3.4}%
+\contentsline {subsection}{\numberline {4.3.5}User Interface Design}{88}{subsection.4.3.5}%
+\contentsline {subsubsection}{Figma UI Screen Designs}{90}{subsubsection*.25}%
+\contentsline {subsection}{\numberline {4.3.6}System Integration}{94}{subsection.4.3.6}%
+\contentsline {subsection}{\numberline {4.3.7}Security Design}{96}{subsection.4.3.7}%
+\contentsline {section}{\numberline {4.4}Verifying the Requirements in the Design}{98}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Requirements Traceability Approach}{98}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Functional Requirements Verification Matrix}{98}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}Non-Functional Requirements Verification Matrix}{103}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Verification Methods and Evidence}{104}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.5}Discrepancy Identification and Resolution}{105}{subsection.4.4.5}%
+\contentsline {subsection}{\numberline {4.4.6}Evidence Sources}{105}{subsection.4.4.6}%
+\contentsline {chapter}{\numberline {5}System Implementation}{107}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Reviewing the Design Solution}{107}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Deciding on the Development Tools}{109}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Programming Languages}{109}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Frameworks and Core Libraries}{109}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}AI and External Integration Tools}{110}{subsection.5.2.3}%
+\contentsline {subsection}{\numberline {5.2.4}Frontend and Mobile Tooling}{110}{subsection.5.2.4}%
+\contentsline {subsection}{\numberline {5.2.5}Testing and Quality Tooling}{110}{subsection.5.2.5}%
+\contentsline {subsection}{\numberline {5.2.6}Infrastructure and Runtime Tooling}{110}{subsection.5.2.6}%
+\contentsline {subsection}{\numberline {5.2.7}Development Environment Setup}{111}{subsection.5.2.7}%
+\contentsline {subsection}{\numberline {5.2.8}Rationale Summary}{113}{subsection.5.2.8}%
+\contentsline {section}{\numberline {5.3}Developing the Solution}{113}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Coding Practices and Development Workflow}{113}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Integration Strategy During Development}{113}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}Major Functionality Code Excerpts}{114}{subsection.5.3.3}%
+\contentsline {subsection}{\numberline {5.3.4}Integration Challenges and Resolutions}{125}{subsection.5.3.4}%
+\contentsline {subsection}{\numberline {5.3.5}Summary}{126}{subsection.5.3.5}%
+\contentsline {chapter}{\numberline {6}System Evaluation}{127}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Preparing Sample Test Plans}{127}{section.6.1}%
+\contentsline {subsection}{\numberline {6.1.1}Functional Test Plans}{128}{subsection.6.1.1}%
+\contentsline {subsection}{\numberline {6.1.2}Non-Functional Test Plans}{137}{subsection.6.1.2}%
+\contentsline {subsection}{\numberline {6.1.3}Automated Test Suite Implementation}{138}{subsection.6.1.3}%
+\contentsline {subsubsection}{Continuous Integration}{141}{subsubsection*.26}%
+\contentsline {subsubsection}{Coverage Analysis}{141}{subsubsection*.27}%
+\contentsline {section}{\numberline {6.2}Evaluating the Proposed Design and Solutions}{142}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}Functional Test Results}{142}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}Non-Functional Test Results}{149}{subsection.6.2.2}%
+\contentsline {subsection}{\numberline {6.2.3}Security Test Results}{152}{subsection.6.2.3}%
+\contentsline {subsection}{\numberline {6.2.4}AI Provider Failover Test Results}{152}{subsection.6.2.4}%
+\contentsline {section}{\numberline {6.3}Discussing the Results}{152}{section.6.3}%
+\contentsline {chapter}{\numberline {7}Conclusions and Recommendations}{155}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Conclusion of the Study}{155}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Recommendations of the Study}{158}{section.7.2}%
+\contentsline {chapter}{References}{165}{chapter*.28}%
+\contentsline {chapter}{Appendix A: Source Code and Supplementary Materials}{166}{appendix*.29}%
+\contentsline {section}{\numberline {A.1}Core Algorithm Pseudocode}{166}{section.A.1}%
+\contentsline {section}{\numberline {A.2}Adaptive Difficulty Computation}{166}{section.A.2}%
+\contentsline {section}{\numberline {A.3}Mastery Decay Transition Logic}{167}{section.A.3}%

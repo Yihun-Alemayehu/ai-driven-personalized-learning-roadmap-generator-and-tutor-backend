@@ -86,7 +86,7 @@ services:
       PHI4_BASE_URL: ${PHI4_BASE_URL:-}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: qwen2.5:3b
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-AIzaSyA-36tnuEosM8YP_AYDDWGGCuN1LRS-Z2Q}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6J4I3Rg8hx_O_9R9CxwLPkGEnQu2H57KluVv3N4OYQOtg}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
     extra_hosts:
       - 'host.docker.internal:host-gateway'

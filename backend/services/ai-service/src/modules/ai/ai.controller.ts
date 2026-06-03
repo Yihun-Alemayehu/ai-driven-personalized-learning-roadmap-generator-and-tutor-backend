@@ -37,13 +37,8 @@ const nodeContextSchema = Joi.object({
   difficultyLevel: Joi.number().integer().min(1).max(5).optional(),
   adaptedDifficulty: Joi.number().integer().min(1).max(5).optional(),
   questionCount: Joi.number().integer().min(2).max(8).optional(),
-  explanation: Joi.object({
-    summary: Joi.string().required(),
-    keyPoints: Joi.array().items(Joi.string()).required(),
-    commonMistakes: Joi.array().items(Joi.string()).optional(),
-  }).allow(null).optional(),
   weakAreas: Joi.array().items(Joi.string()).max(10).optional(),
-  explanation: explanationSchema,
+  explanation: explanationSchema.allow(null),
   learnerContext: learnerContextSchema,
 });
 

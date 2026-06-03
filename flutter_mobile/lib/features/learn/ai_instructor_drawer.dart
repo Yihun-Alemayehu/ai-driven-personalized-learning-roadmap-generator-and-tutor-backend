@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -6,6 +10,8 @@ import '../../core/api/api_client.dart';
 import '../../core/api/instructor_chat_api.dart';
 import '../../core/models/explanation.dart';
 import '../../core/models/roadmap_node.dart';
+import '../../core/providers/voice_providers.dart';
+import '../../core/services/speech_service.dart';
 import '../../core/theme/app_colors.dart';
 
 final instructorChatApiProvider = Provider<InstructorChatApi>(
@@ -53,8 +59,12 @@ class _AiInstructorDrawerState extends ConsumerState<AiInstructorDrawer> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocus = FocusNode();
+  StreamSubscription<String>? _streamSubscription;
+  CancelToken? _cancelToken;
   bool _isSending = false;
   bool _inputFocused = false;
+  bool _isListening = false;
+  bool _listeningInitialized = false;
 
   @override
   void initState() {
@@ -87,10 +97,40 @@ class _AiInstructorDrawerState extends ConsumerState<AiInstructorDrawer> {
 
   @override
   void dispose() {
+    _streamSubscription?.cancel();
+    _cancelToken?.cancel();
     _inputController.dispose();
     _scrollController.dispose();
     _inputFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleVoiceInput() async {
+    final speech = ref.read(speechServiceProvider);
+    if (_isListening) {
+      await speech.stop();
+    } else {
+      _inputController.clear();
+      setState(() {});
+      await speech.listen(
+        onInterim: (text) {
+          if (!mounted) return;
+          _inputController.text = text;
+          _inputController.selection = TextSelection.fromPosition(
+            TextPosition(offset: text.length),
+          );
+          setState(() {});
+        },
+        onResult: (text) {
+          if (!mounted) return;
+          _inputController.text = text;
+          _inputController.selection = TextSelection.fromPosition(
+            TextPosition(offset: text.length),
+          );
+          setState(() {});
+        },
+      );
+    }
   }
 
   List<String> _suggestedPrompts() {
@@ -118,11 +158,16 @@ class _AiInstructorDrawerState extends ConsumerState<AiInstructorDrawer> {
         (exp.summary.isNotEmpty || exp.keyPoints.isNotEmpty);
   }
 
-  Future<void> _send(String question) async {
+  void _send(String question) {
     final q = question.trim();
-    if (q.isEmpty || _isSending) {
-      return;
-    }
+    if (q.isEmpty || _isSending) return;
+
+    // Cancel any previous stream
+    _streamSubscription?.cancel();
+    _cancelToken?.cancel();
+
+    final token = CancelToken();
+    _cancelToken = token;
 
     setState(() {
       _isSending = true;
@@ -131,45 +176,50 @@ class _AiInstructorDrawerState extends ConsumerState<AiInstructorDrawer> {
     });
     _scrollToBottom();
 
+    final botMsg = _ChatMessage(isUser: false, text: '', streaming: true);
+    _messages.add(botMsg);
+    setState(() {});
+
     try {
       final api = ref.read(instructorChatApiProvider);
-      final answer = await api.ask(
+      final stream = api.askStream(
         nodeId: widget.node.id,
         question: q,
         enrollmentId: widget.enrollmentId,
         explanation: widget.explanation,
+        cancelToken: token,
       );
 
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _messages.add(
-          _ChatMessage(
-            isUser: false,
-            text: answer?.trim().isNotEmpty == true
-                ? answer!
-                : 'I wasn\'t able to generate an answer. Please try again.',
-          ),
-        );
-        _isSending = false;
-      });
+      _streamSubscription = stream.listen(
+        (token) {
+          if (!mounted) return;
+          botMsg.text += token;
+          setState(() {});
+          _scrollToBottom();
+        },
+        onDone: () {
+          if (!mounted) return;
+          botMsg.streaming = false;
+          if (botMsg.text.trim().isEmpty) {
+            botMsg.text = 'I wasn\'t able to generate an answer. Please try again.';
+          }
+          setState(() => _isSending = false);
+          _scrollToBottom();
+        },
+        onError: (_) {
+          if (!mounted) return;
+          botMsg.text = 'Something went wrong. Please try again.';
+          botMsg.streaming = false;
+          setState(() => _isSending = false);
+          _scrollToBottom();
+        },
+      );
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _messages.add(
-          const _ChatMessage(
-            isUser: false,
-            text: 'Something went wrong. Please try again.',
-          ),
-        );
-        _isSending = false;
-      });
+      if (!mounted) return;
+      botMsg.text = 'Something went wrong. Please try again.';
+      botMsg.streaming = false;
+      setState(() => _isSending = false);
     }
-    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -194,6 +244,12 @@ class _AiInstructorDrawerState extends ConsumerState<AiInstructorDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_listeningInitialized) {
+      _listeningInitialized = true;
+      ref.listen<SpeechState>(speechStateProvider, (_, next) {
+        if (mounted) setState(() => _isListening = next == SpeechState.listening);
+      });
+    }
     final showSuggestions = _messages.length == 1 && !_isSending;
     final suggestions = _suggestedPrompts();
     final canSend =
@@ -214,13 +270,9 @@ class _AiInstructorDrawerState extends ConsumerState<AiInstructorDrawer> {
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                itemCount: _messages.length + (_isSending ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= _messages.length) {
-                    return const _TypingRow();
-                  }
-                  return _ChatBubble(message: _messages[index]);
-                },
+                itemCount: _messages.length,
+                itemBuilder: (context, index) =>
+                    _ChatBubble(message: _messages[index]),
               ),
             ),
             if (showSuggestions)
@@ -238,8 +290,10 @@ class _AiInstructorDrawerState extends ConsumerState<AiInstructorDrawer> {
               isFocused: _inputFocused,
               isSending: _isSending,
               canSend: canSend,
+              isListening: _isListening,
               onSend: () => _send(_inputController.text),
               onChanged: (_) => setState(() {}),
+              onVoiceToggle: _toggleVoiceInput,
             ),
           ],
         ),
@@ -497,8 +551,10 @@ class _InstructorInputBar extends StatelessWidget {
     required this.isFocused,
     required this.isSending,
     required this.canSend,
+    required this.isListening,
     required this.onSend,
     required this.onChanged,
+    required this.onVoiceToggle,
   });
 
   final TextEditingController controller;
@@ -506,8 +562,10 @@ class _InstructorInputBar extends StatelessWidget {
   final bool isFocused;
   final bool isSending;
   final bool canSend;
+  final bool isListening;
   final VoidCallback onSend;
   final ValueChanged<String> onChanged;
+  final VoidCallback onVoiceToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -587,36 +645,29 @@ class _InstructorInputBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
-                Material(
-                  color: canSend
-                      ? AppColors.textPrimary
-                      : _InstructorPalette.sendDisabled,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    onTap: canSend ? onSend : null,
-                    customBorder: const CircleBorder(),
-                    child: const SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: Icon(
-                        Icons.arrow_upward_rounded,
-                        size: 18,
-                        color: AppColors.background,
-                      ),
-                    ),
-                  ),
+                _MicButton(
+                  isListening: isListening,
+                  onPressed: onVoiceToggle,
+                ),
+                const SizedBox(width: 2),
+                _SendButton(
+                  canSend: canSend,
+                  onSend: onSend,
                 ),
               ],
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap send to ask · multi-line supported',
+            isListening
+                ? 'Listening... tap mic to stop'
+                : 'Tap send to ask · tap mic for voice',
             textAlign: TextAlign.center,
             style: GoogleFonts.jetBrainsMono(
               fontSize: 9.5,
-              color: const Color(0xFFC0B8B0),
+              color: isListening
+                  ? AppColors.accent
+                  : const Color(0xFFC0B8B0),
             ),
           ),
         ],
@@ -625,11 +676,72 @@ class _InstructorInputBar extends StatelessWidget {
   }
 }
 
+class _MicButton extends StatelessWidget {
+  const _MicButton({required this.isListening, required this.onPressed});
+
+  final bool isListening;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isListening ? AppColors.accent : Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(
+            isListening ? Icons.mic : Icons.mic_none,
+            size: 18,
+            color: isListening
+                ? AppColors.background
+                : _InstructorPalette.hintText,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SendButton extends StatelessWidget {
+  const _SendButton({required this.canSend, required this.onSend});
+
+  final bool canSend;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: canSend
+          ? AppColors.textPrimary
+          : _InstructorPalette.sendDisabled,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: canSend ? onSend : null,
+        customBorder: const CircleBorder(),
+        child: const SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(
+            Icons.arrow_upward_rounded,
+            size: 18,
+            color: AppColors.background,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ChatMessage {
-  const _ChatMessage({required this.isUser, required this.text});
+  _ChatMessage({required this.isUser, required this.text, this.streaming = false});
 
   final bool isUser;
-  final String text;
+  String text;
+  bool streaming;
 }
 
 class _ChatBubble extends StatelessWidget {
@@ -640,6 +752,7 @@ class _ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final isStreaming = !isUser && message.streaming;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -693,62 +806,139 @@ class _ChatBubble extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Text(
-                message.text,
-                style: GoogleFonts.crimsonText(
-                  fontSize: 13.5,
-                  height: 1.45,
-                  color: isUser ? const Color(0xFFF5F0EA) : AppColors.textBody,
-                ),
-              ),
+              child: _buildContent(isUser, isStreaming),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildContent(bool isUser, bool isStreaming) {
+    if (isUser) {
+      return Text(
+        message.text,
+        style: GoogleFonts.crimsonText(
+          fontSize: 13.5,
+          height: 1.45,
+          color: const Color(0xFFF5F0EA),
+        ),
+      );
+    }
+
+    if (isStreaming && message.text.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: _TypingDots(),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: MarkdownBody(
+            data: message.text,
+            fitContent: false,
+            styleSheet: MarkdownStyleSheet(
+              p: GoogleFonts.crimsonText(
+                fontSize: 13.5,
+                height: 1.45,
+                color: AppColors.textBody,
+              ),
+              a: GoogleFonts.crimsonText(
+                fontSize: 13.5,
+                color: const Color(0xFF8F4A2E),
+                decoration: TextDecoration.underline,
+              ),
+              code: GoogleFonts.jetBrainsMono(
+                fontSize: 12,
+                color: AppColors.textBody,
+                backgroundColor: const Color(0xFFF0E8E0),
+              ),
+              codeblockDecoration: BoxDecoration(
+                color: const Color(0xFFF0E8E0),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              listBullet: GoogleFonts.crimsonText(
+                fontSize: 13.5,
+                color: AppColors.textBody,
+              ),
+              strong: GoogleFonts.crimsonText(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textBody,
+              ),
+              em: GoogleFonts.crimsonText(
+                fontSize: 13.5,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textBody,
+              ),
+              h1: GoogleFonts.crimsonText(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+              h2: GoogleFonts.crimsonText(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+              h3: GoogleFonts.crimsonText(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ),
+        if (isStreaming)
+          const Padding(
+            padding: EdgeInsets.only(left: 2, bottom: 2),
+            child: _StreamCursor(),
+          ),
+      ],
+    );
+  }
 }
 
-class _TypingRow extends StatelessWidget {
-  const _TypingRow();
+class _StreamCursor extends StatefulWidget {
+  const _StreamCursor();
+
+  @override
+  State<_StreamCursor> createState() => _StreamCursorState();
+}
+
+class _StreamCursorState extends State<_StreamCursor>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          Container(
-            width: 26,
-            height: 26,
-            decoration: const BoxDecoration(
-              color: _InstructorPalette.avatarFill,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.smart_toy_outlined,
-              size: 13,
-              color: _InstructorPalette.avatarIcon,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: _InstructorPalette.botBubbleFill,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(14),
-                topRight: Radius.circular(14),
-                bottomRight: Radius.circular(14),
-                bottomLeft: Radius.circular(3),
-              ),
-              border: Border.all(color: _InstructorPalette.botBubbleBorder),
-            ),
-            child: const _TypingDots(),
-          ),
-        ],
+    return FadeTransition(
+      opacity: _controller,
+      child: Container(
+        width: 2,
+        height: 16,
+        decoration: BoxDecoration(
+          color: const Color(0xFF8F4A2E),
+          borderRadius: BorderRadius.circular(1),
+        ),
       ),
     );
   }

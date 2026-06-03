@@ -40,7 +40,7 @@ class DashboardScreen extends ConsumerWidget {
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontSize: 32,
                     height: 1.15,
-                    color: const Color(0xFF3D342A),
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -49,7 +49,7 @@ class DashboardScreen extends ConsumerWidget {
               'Pick up where you left off or explore a new domain.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontSize: 15,
-                    color: const Color(0xFF6E645A),
+                    color: AppColors.textBody,
                   ),
             ),
             const SizedBox(height: 28),
@@ -62,7 +62,7 @@ class DashboardScreen extends ConsumerWidget {
                     'My Enrollments',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontSize: 20,
-                          color: const Color(0xFF3D342A),
+                          color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                   ),
@@ -112,7 +112,7 @@ class DashboardScreen extends ConsumerWidget {
                 'Review Reminders',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: 20,
-                      color: const Color(0xFF3D342A),
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
               ),
@@ -173,7 +173,7 @@ class _ReviewRemindersFallback extends ConsumerWidget {
             child: Text(
               'All caught up — no topics need review right now.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF6E645A),
+                    color: AppColors.textBody,
                   ),
             ),
           ),

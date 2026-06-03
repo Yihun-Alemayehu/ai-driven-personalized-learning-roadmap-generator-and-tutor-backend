@@ -66,10 +66,10 @@ class EnrolledDomainCard extends StatelessWidget {
                         enrollment.domainTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF3D342A),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -88,7 +88,7 @@ class EnrolledDomainCard extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: progress,
                           minHeight: 6,
-                          backgroundColor: const Color(0xFFE8E3D8),
+                          backgroundColor: const Color(0xFFD6CFBF),
                           color: meta.accent,
                         ),
                       ),
@@ -141,7 +141,7 @@ class DashboardEmptyState extends StatelessWidget {
           Text(
             'No enrollments yet',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(0xFF6E645A),
+                  color: AppColors.textBody,
                   fontWeight: FontWeight.w600,
                 ),
           ),
