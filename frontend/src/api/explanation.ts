@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { apiClient } from './client';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -137,7 +138,10 @@ export function useExplanationStream(
                 return;
               }
               if (parsed.t) {
-                setText((prev) => prev + parsed.t);
+                // flushSync forces React to render this token immediately
+                // before processing the next one, bypassing React 18's
+                // automatic batching which collapses rapid updates into one render.
+                flushSync(() => setText((prev) => prev + parsed.t));
               }
             } catch {
               // Malformed SSE line — skip

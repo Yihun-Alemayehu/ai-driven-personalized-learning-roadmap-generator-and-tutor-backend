@@ -144,12 +144,20 @@ export async function getVersion(id: string) {
   return version;
 }
 
-export async function transitionStatus(id: string, newStatus: OntologyStatus, userId: string) {
+// Transitions that require admin role (domain_expert may only submit for review)
+const ADMIN_ONLY_TARGETS: OntologyStatus[] = ['verified', 'published'];
+
+export async function transitionStatus(id: string, newStatus: OntologyStatus, userId: string, userRole?: string) {
   const version = await prisma.ontologyVersion.findUnique({
     where: { id },
     select: { status: true },
   });
   if (!version) throw ApiError.notFound('Ontology version not found');
+
+  // Enforce role: only admins can verify or publish
+  if (ADMIN_ONLY_TARGETS.includes(newStatus) && userRole !== 'admin') {
+    throw ApiError.forbidden('Only admins can verify or publish an ontology. Submit for review and await admin approval.');
+  }
 
   const current = version.status as OntologyStatus;
   const allowed = TRANSITIONS[current];

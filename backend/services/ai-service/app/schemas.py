@@ -1,7 +1,20 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
-class LearnerContext(BaseModel):
+def _camel(s: str) -> str:
+    """snake_case → camelCase for JSON interop with the TypeScript services."""
+    parts = s.split("_")
+    return parts[0] + "".join(p.capitalize() for p in parts[1:])
+
+
+# All models accept both snake_case field names and camelCase aliases so the
+# TypeScript learning-service can send camelCase without any adapter layer.
+class _CamelModel(BaseModel):
+    model_config = ConfigDict(alias_generator=_camel, populate_by_name=True)
+
+
+class LearnerContext(_CamelModel):
     familiarity_level: str | None = None
     learning_goal: str | None = None
     weekly_hours: int | None = None
@@ -16,13 +29,13 @@ class LearnerContext(BaseModel):
     total_nodes: int = 0
 
 
-class ExplanationContext(BaseModel):
+class ExplanationContext(_CamelModel):
     summary: str
     key_points: list[str]
     common_mistakes: list[str] | None = None
 
 
-class NodeContextInput(BaseModel):
+class NodeContextInput(_CamelModel):
     node_id: str
     node_title: str
     description: str | None = None
@@ -35,10 +48,10 @@ class NodeContextInput(BaseModel):
     learner_context: LearnerContext | None = None
 
 
-class AskQuestionInput(BaseModel):
+class AskQuestionInput(_CamelModel):
     node_id: str
     node_title: str
-    question: str = Field(min_length=3, max_length=1000)
+    question: str = Field(min_length=3, max_length=5000)
     description: str | None = None
     learning_outcomes: list[str] | None = None
     explanation: ExplanationContext | None = None

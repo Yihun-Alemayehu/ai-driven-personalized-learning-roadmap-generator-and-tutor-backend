@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuthStore } from '@/store/auth.store';
 import {
   ReactFlow,
   Background,
@@ -162,16 +163,24 @@ const NODE_TYPES = { editableNode: EditableNode };
 
 // ── Status pipeline ────────────────────────────────────────────────────────────
 
-const STATUS_NEXT: Partial<Record<OntologyStatus, { next: OntologyStatus; label: string }>> = {
+// All transitions available to admin
+const STATUS_NEXT_ADMIN: Partial<Record<OntologyStatus, { next: OntologyStatus; label: string }>> = {
   draft:     { next: 'in_review', label: 'Submit for Review →' },
   in_review: { next: 'verified',  label: 'Verify →' },
   verified:  { next: 'published', label: 'Publish →' },
+};
+
+// Domain experts can only submit for review; the rest requires admin approval
+const STATUS_NEXT_EXPERT: Partial<Record<OntologyStatus, { next: OntologyStatus; label: string }>> = {
+  draft: { next: 'in_review', label: 'Submit for Review →' },
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OntologyBuilderPage() {
   const { ontologyId = '' } = useParams<{ ontologyId: string }>();
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
+  const STATUS_NEXT = isAdmin ? STATUS_NEXT_ADMIN : STATUS_NEXT_EXPERT;
 
   const { data: ontology, isLoading } = useOntologyDetailQuery(ontologyId);
   const updateStatus = useUpdateOntologyStatusMutation();
@@ -336,7 +345,7 @@ export default function OntologyBuilderPage() {
         style={{ borderColor: '#d6cfbf' }}
       >
         <Link
-          to="/admin/domains"
+          to={isAdmin ? '/admin/domains' : '/instructor/domains'}
           className="text-[12px] hover:underline"
           style={{ fontFamily: 'JetBrains Mono, monospace', color: '#9a9088' }}
         >
@@ -349,6 +358,33 @@ export default function OntologyBuilderPage() {
         >
           Ontology v{ontology.version}
           <OntologyStatusBadge status={ontology.status as OntologyStatus} />
+          {/* Pending-review notice for domain experts */}
+          {!isAdmin && ontology.status === 'in_review' && (
+            <span
+              className="text-[11px] px-2.5 py-1 rounded-full"
+              style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                background: 'color-mix(in srgb, oklch(0.72 0.13 70) 15%, #faf7f1)',
+                color: '#8a6a1a',
+                border: '1px solid color-mix(in srgb, oklch(0.72 0.13 70) 40%, transparent)',
+              }}
+            >
+              ⏳ Awaiting admin approval
+            </span>
+          )}
+          {!isAdmin && ontology.status === 'verified' && (
+            <span
+              className="text-[11px] px-2.5 py-1 rounded-full"
+              style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                background: 'color-mix(in srgb, oklch(0.60 0.13 150) 12%, #faf7f1)',
+                color: 'oklch(0.45 0.13 150)',
+                border: '1px solid color-mix(in srgb, oklch(0.60 0.13 150) 35%, transparent)',
+              }}
+            >
+              ✓ Verified — admin will publish
+            </span>
+          )}
         </div>
 
         {/* Actions */}

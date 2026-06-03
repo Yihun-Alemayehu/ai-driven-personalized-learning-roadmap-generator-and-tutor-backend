@@ -10,7 +10,7 @@ export async function getQuizForNode(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const quiz = await svc.getQuizForNode(req.params.nodeId, req.user!.id);
+    const quiz = await svc.getQuizForNode(req.params.nodeId, req.user!.id, req.user!.role);
     res.json({ quiz });
   } catch (err) {
     next(err);
@@ -78,7 +78,7 @@ export async function getNodeExplanation(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const result = await svc.getNodeExplanation(req.params.nodeId, req.user!.id);
+    const result = await svc.getNodeExplanation(req.params.nodeId, req.user!.id, req.user!.role);
     res.json(result);
   } catch (err) {
     next(err);
@@ -92,6 +92,10 @@ export async function streamNodeExplanation(
 ): Promise<void> {
   try {
     // Build context (auth + DB queries) before opening the stream
+    // Consume credit before opening the stream
+    const { consumeCredits } = await import('../subscription/subscription.service');
+    await consumeCredits(req.user!.id, req.user!.role, 'explanation');
+
     const ctx = await svc.buildExplanationStreamContext(req.params.nodeId, req.user!.id);
 
     // SSE headers — X-Accel-Buffering: no disables nginx buffering for this response
@@ -129,6 +133,10 @@ export async function streamAskNodeQuestion(
       res.status(400).json({ error: { message: 'question is required' } });
       return;
     }
+
+    // Consume credit before opening the stream
+    const { consumeCredits } = await import('../subscription/subscription.service');
+    await consumeCredits(req.user!.id, req.user!.role, 'ask');
 
     // Build AI payload (auth + DB queries) before opening the stream
     const payload = await svc.buildAskStreamContext(

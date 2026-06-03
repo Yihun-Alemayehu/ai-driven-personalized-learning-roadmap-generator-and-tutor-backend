@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/quiz.dart';
 import '../../core/providers/decay_provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../quiz/quiz_question_card.dart';
 
 class MicroQuizSheet extends ConsumerStatefulWidget {
@@ -55,11 +56,8 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
     
     setState(() => _isSubmitting = true);
     
-    // Calculate score locally for micro-quiz
     int correct = 0;
     for (final _ in _answers.entries) {
-      // For micro-quiz, we assume any answer is better than none
-      // Real implementation would check against correct answer
       correct++;
     }
     
@@ -73,7 +71,6 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
       _isSubmitting = false;
     });
     
-    // Refresh decay status
     final enrollmentId = widget.enrollmentId;
     if (enrollmentId != null) {
       ref.invalidate(decayStatusProvider(enrollmentId));
@@ -99,45 +96,56 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
-        return Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border(
+              top: BorderSide(color: AppColors.border),
+              left: BorderSide(color: AppColors.border),
+              right: BorderSide(color: AppColors.border),
             ),
-            
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.quiz, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Quick Review',
-                      style: theme.textTheme.titleLarge,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                child: Row(
+                  children: [
+                    Icon(Icons.quiz_outlined, size: 20, color: const Color(0xFFD97706)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Quick Review',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      color: AppColors.textMuted,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            
-            // Content
-            Expanded(
-              child: _buildContent(theme),
-            ),
-          ],
+              const Divider(color: AppColors.border, height: 1),
+              Expanded(
+                child: _buildContent(theme),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -153,13 +161,13 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            Icon(Icons.error_outline, size: 48, color: AppColors.accent),
             const SizedBox(height: 16),
             Text('Failed to load quiz', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(_error!, style: theme.textTheme.bodySmall),
+            Text(_error!, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
             const SizedBox(height: 16),
-            ElevatedButton(
+            FilledButton(
               onPressed: _loadQuiz,
               child: const Text('Retry'),
             ),
@@ -173,7 +181,12 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
     }
 
     if (_quiz == null || _quiz!.questions.isEmpty) {
-      return const Center(child: Text('No questions available'));
+      return Center(
+        child: Text(
+          'No questions available',
+          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textBody),
+        ),
+      );
     }
 
     return _buildQuiz(theme);
@@ -187,7 +200,7 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
       children: [
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             itemCount: questions.length,
             itemBuilder: (context, index) {
               final question = questions[index];
@@ -195,33 +208,51 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
               final selectedOption = selectedIndex != null && selectedIndex < question.options.length
                   ? question.options[selectedIndex]
                   : null;
-              return QuizQuestionCard(
-                prompt: '${index + 1}. ${question.prompt}',
-                options: question.options,
-                selected: selectedOption,
-                onChanged: (option) {
-                  final idx = question.options.indexOf(option);
-                  if (idx >= 0) {
-                    setState(() => _answers[question.id] = idx);
-                  }
-                },
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: QuizQuestionCard(
+                  prompt: '${index + 1}. ${question.prompt}',
+                  options: question.options,
+                  selected: selectedOption,
+                  onChanged: (option) {
+                    final idx = question.options.indexOf(option);
+                    if (idx >= 0) {
+                      setState(() => _answers[question.id] = idx);
+                    }
+                  },
+                ),
               );
             },
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(16),
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            border: Border(
+              top: BorderSide(color: AppColors.border.withValues(alpha: 0.8)),
+            ),
+          ),
           child: SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
+            child: FilledButton(
               onPressed: allAnswered && !_isSubmitting ? _submit : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: AppColors.background,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               child: _isSubmitting
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Submit'),
+                  : const Text('Submit answers',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ),
         ),
@@ -231,55 +262,87 @@ class _MicroQuizSheetState extends ConsumerState<MicroQuizSheet> {
 
   Widget _buildResults(ThemeData theme) {
     final passed = (_scorePercent ?? 0) >= 70;
-    final color = passed ? Colors.green : Colors.orange;
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            passed ? Icons.check_circle : Icons.refresh,
-            size: 64,
-            color: color,
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: passed
+                  ? const Color(0xFF16A34A).withValues(alpha: 0.1)
+                  : const Color(0xFFD97706).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              passed ? Icons.check_circle : Icons.refresh,
+              size: 40,
+              color: passed ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+            ),
           ),
           const SizedBox(height: 24),
           Text(
             passed ? 'Mastery confirmed!' : 'Review needed',
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
+              color: passed ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Text(
-            'Score: ${_scorePercent!.toStringAsFixed(0)}%',
-            style: theme.textTheme.titleLarge,
+            passed
+                ? 'Great job! Your knowledge is solid.'
+                : 'You might need to revisit this topic.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: AppColors.textBody,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              'Score: ${_scorePercent!.toStringAsFixed(0)}%',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           const SizedBox(height: 32),
-          if (passed)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Mastery confirmed!')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: passed
+                  ? () {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Mastery confirmed!')),
+                      );
+                    }
+                  : _retry,
+              style: FilledButton.styleFrom(
+                backgroundColor: passed ? const Color(0xFF16A34A) : const Color(0xFFD97706),
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Done'),
-            )
-          else
-            ElevatedButton(
-              onPressed: _retry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
+              child: Text(
+                passed ? 'Done' : 'Try again',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-              child: const Text('Try again'),
             ),
+          ),
         ],
       ),
     );

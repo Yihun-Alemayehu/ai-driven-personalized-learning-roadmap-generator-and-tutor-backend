@@ -50,5 +50,18 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.atlas.mobile</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>atlasmobile</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

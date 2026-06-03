@@ -14,6 +14,10 @@ const config = {
   env: optional('NODE_ENV', 'development'),
   port: parseInt(optional('API_GATEWAY_PORT', '3000'), 10),
 
+  // Public origin used to build absolute URLs when running behind proxies/LBs.
+  // Example: https://api.yegna-future.site
+  publicOrigin: optional('PUBLIC_ORIGIN', ''),
+
   db: {
     url: optional('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/learner_roadmap'),
   },

@@ -56,16 +56,33 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
   }
 }
 
-export function googleRedirect(_req: Request, res: Response): void {
+function encodeOAuthState(redirectUri: string): string {
+  return Buffer.from(JSON.stringify({ r: redirectUri })).toString('base64');
+}
+
+function decodeOAuthState(state: string): string | null {
+  try {
+    const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+    return typeof decoded.r === 'string' && decoded.r.length > 0 ? decoded.r : null;
+  } catch {
+    return null;
+  }
+}
+
+export function googleRedirect(req: Request, res: Response): void {
   if (!config.oauth.google.clientId) {
     throw ApiError.internal('Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
   }
+
+  const redirectUri = (req.query.redirect_uri as string) || config.oauth.frontendCallbackUrl;
+  const state = encodeOAuthState(redirectUri);
 
   const params = new URLSearchParams({
     client_id: config.oauth.google.clientId,
     redirect_uri: config.oauth.google.callbackUrl,
     response_type: 'code',
     scope: 'openid email profile',
+    state,
   });
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 }
@@ -73,26 +90,33 @@ export function googleRedirect(_req: Request, res: Response): void {
 export async function googleCallback(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const code = req.query.code as string;
+    const state = req.query.state as string | undefined;
     if (!code) throw ApiError.badRequest('Missing OAuth code');
+
+    const redirectTarget = state ? decodeOAuthState(state) ?? config.oauth.frontendCallbackUrl : config.oauth.frontendCallbackUrl;
+
     const { tokens } = await authService.handleGoogleCallback(code);
-    // Redirect to frontend with tokens in query params (or set httpOnly cookie — kept simple here)
     res.redirect(
-      `${config.oauth.frontendCallbackUrl}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
+      `${redirectTarget}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
     );
   } catch (err) {
     next(err);
   }
 }
 
-export function githubRedirect(_req: Request, res: Response): void {
+export function githubRedirect(req: Request, res: Response): void {
   if (!config.oauth.github.clientId) {
     throw ApiError.internal('GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.');
   }
+
+  const redirectUri = (req.query.redirect_uri as string) || config.oauth.frontendCallbackUrl;
+  const state = encodeOAuthState(redirectUri);
 
   const params = new URLSearchParams({
     client_id: config.oauth.github.clientId,
     redirect_uri: config.oauth.github.callbackUrl,
     scope: 'user:email',
+    state,
   });
   res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
 }
@@ -100,10 +124,14 @@ export function githubRedirect(_req: Request, res: Response): void {
 export async function githubCallback(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const code = req.query.code as string;
+    const state = req.query.state as string | undefined;
     if (!code) throw ApiError.badRequest('Missing OAuth code');
+
+    const redirectTarget = state ? decodeOAuthState(state) ?? config.oauth.frontendCallbackUrl : config.oauth.frontendCallbackUrl;
+
     const { tokens } = await authService.handleGithubCallback(code);
     res.redirect(
-      `${config.oauth.frontendCallbackUrl}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
+      `${redirectTarget}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
     );
   } catch (err) {
     next(err);

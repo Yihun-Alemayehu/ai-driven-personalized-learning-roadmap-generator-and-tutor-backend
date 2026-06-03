@@ -4,6 +4,7 @@ import { classifyScore, applyGatekeeperOutcome } from '../gatekeeper/gatekeeper.
 import { getAdaptedResources } from '../adaptation/adaptation.service';
 import { buildLearnerContext, computeAdaptiveDifficulty, detectWeakAreas } from '../progress/learner-context.service';
 import { requestAiQuiz, requestAiExplanation, requestAiAsk, invalidateRemedialQuizCache } from '../../lib/aiClient';
+import { consumeCredits } from '../subscription/subscription.service';
 import type { AiAskPayload } from '../../lib/aiClient';
 import type { SubmitAttemptInput, AttemptFilters } from './quizzes.types';
 
@@ -23,7 +24,7 @@ async function assertNodeUnlocked(nodeId: string, userId: string) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export async function getQuizForNode(nodeId: string, userId: string) {
+export async function getQuizForNode(nodeId: string, userId: string, userRole = 'learner') {
   const progress = await assertNodeUnlocked(nodeId, userId);
 
   const learnerContext = await buildLearnerContext(userId, progress.enrollmentId, nodeId);
@@ -46,8 +47,11 @@ export async function getQuizForNode(nodeId: string, userId: string) {
         },
       },
     });
-    if (freshAiQuiz) return freshAiQuiz;
+    if (freshAiQuiz) return freshAiQuiz; // Cache hit — no credits consumed
   }
+
+  // AI call needed — consume credits before generating
+  await consumeCredits(userId, userRole, 'quiz');
 
   const node = await prisma.learningNode.findUnique({
     where: { id: nodeId },
@@ -135,7 +139,7 @@ export async function getQuizForNode(nodeId: string, userId: string) {
   return staticQuiz;
 }
 
-export async function getNodeExplanation(nodeId: string, userId: string) {
+export async function getNodeExplanation(nodeId: string, userId: string, userRole = 'learner') {
   const progress = await assertNodeUnlocked(nodeId, userId);
 
   const node = await prisma.learningNode.findUnique({
@@ -151,6 +155,9 @@ export async function getNodeExplanation(nodeId: string, userId: string) {
   const weakAreas = learnerContext.currentNodeAttempts > 0
     ? await detectWeakAreas(userId, nodeId)
     : [];
+
+  // Consume credits before AI call
+  await consumeCredits(userId, userRole, 'explanation');
 
   const aiResponse = await requestAiExplanation({
     nodeId,
@@ -241,6 +248,7 @@ export async function askNodeQuestion(
   question: string,
   explanation: AiAskPayload['explanation'],
   enrollmentId?: string,
+  userRole = 'learner',
 ) {
   const progress = await assertNodeUnlocked(nodeId, userId);
 
@@ -256,6 +264,9 @@ export async function askNodeQuestion(
     enrollmentId ?? progress.enrollmentId,
     nodeId,
   );
+
+  await consumeCredits(userId, userRole, 'ask');
+
   const result = await requestAiAsk({
     nodeId,
     nodeTitle: node.title,

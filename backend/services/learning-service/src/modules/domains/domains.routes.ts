@@ -78,7 +78,7 @@ router.get('/domains/:slug', authenticate, ctrl.getDomainBySlug);
  *       409:
  *         description: Duplicate name or slug
  */
-router.post('/domains', authenticate, authorize('admin'), ctrl.createDomain);
+router.post('/domains', authenticate, authorize('admin', 'domain_expert'), ctrl.createDomain);
 
 /**
  * @swagger
@@ -101,6 +101,6 @@ router.post('/domains', authenticate, authorize('admin'), ctrl.createDomain);
  *       404:
  *         description: Not found
  */
-router.patch('/domains/:id', authenticate, authorize('admin'), ctrl.updateDomain);
+router.patch('/domains/:id', authenticate, authorize('admin', 'domain_expert'), ctrl.updateDomain);
 
 export default router;

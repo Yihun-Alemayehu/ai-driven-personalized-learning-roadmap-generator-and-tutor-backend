@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/explanation.dart';
+import '../../core/models/roadmap_node.dart';
 import '../../core/providers/explanation_provider.dart';
 import '../../core/providers/my_learning_provider.dart';
 import '../../core/providers/roadmap_provider.dart';
@@ -61,6 +63,23 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
     }
   }
 
+  void _showAiInstructor(RoadmapNode node, Explanation? explanation) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: AiInstructorDrawer(
+          key: ValueKey<String>(widget.nodeId),
+          node: node,
+          enrollmentId: widget.enrollmentId,
+          explanation: explanation,
+        ),
+      ),
+    );
+  }
+
   double _drawerWidth(BuildContext context) {
     return math.min(320, MediaQuery.sizeOf(context).width * 0.88);
   }
@@ -114,21 +133,11 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
         return Scaffold(
           key: _scaffoldKey,
           drawerEnableOpenDragGesture: true,
-          endDrawerEnableOpenDragGesture: true,
           drawer: Drawer(
             width: drawerWidth,
             child: LearnOutlineDrawer(
               enrollmentId: widget.enrollmentId,
               activeNodeId: widget.nodeId,
-            ),
-          ),
-          endDrawer: Drawer(
-            width: drawerWidth,
-            child: AiInstructorDrawer(
-              key: ValueKey<String>(widget.nodeId),
-              node: node,
-              enrollmentId: widget.enrollmentId,
-              explanation: explanation,
             ),
           ),
           appBar: AtlasAppBar(
@@ -142,7 +151,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
               IconButton(
                 icon: const Icon(Icons.smart_toy_outlined),
                 tooltip: 'AI Instructor',
-                onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                onPressed: () => _showAiInstructor(node, explanation),
               ),
             ],
           ),

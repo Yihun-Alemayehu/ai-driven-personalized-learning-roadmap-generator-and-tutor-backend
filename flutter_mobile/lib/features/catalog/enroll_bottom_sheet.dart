@@ -259,7 +259,7 @@ class _StepIntro extends StatelessWidget {
             'Enroll in ${domain.name}',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontSize: 22,
-                  color: const Color(0xFF3D342A),
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -269,7 +269,7 @@ class _StepIntro extends StatelessWidget {
             Text(
               domain.description!.trim(),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF6E645A),
+                    color: AppColors.textBody,
                     fontSize: 14,
                   ),
             ),
@@ -279,7 +279,7 @@ class _StepIntro extends StatelessWidget {
             "Before we generate your roadmap, we'd like to personalise it based "
             'on your background, goals, and available time.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF6E645A),
+                  color: AppColors.textBody,
                   fontSize: 14,
                   height: 1.45,
                 ),
@@ -291,7 +291,7 @@ class _StepIntro extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onClose,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF6E645A),
+                    foregroundColor: AppColors.textBody,
                     side: const BorderSide(color: AppColors.border),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -374,7 +374,7 @@ class _StepForm extends StatelessWidget {
                 'Tell us about yourself',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: 20,
-                      color: const Color(0xFF3D342A),
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
               ),
@@ -382,7 +382,7 @@ class _StepForm extends StatelessWidget {
               Text(
                 'This helps us tailor the roadmap to your needs.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF6E645A),
+                      color: AppColors.textBody,
                       fontSize: 14,
                     ),
               ),
@@ -525,7 +525,7 @@ class _StepForm extends StatelessWidget {
                     icon: const Icon(Icons.chevron_left, size: 18),
                     label: const Text('Back'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF6E645A),
+                      foregroundColor: AppColors.textBody,
                       side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -610,7 +610,7 @@ class _StepSuccess extends StatelessWidget {
             'Roadmap ready!',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontSize: 22,
-                  color: const Color(0xFF3D342A),
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -618,7 +618,7 @@ class _StepSuccess extends StatelessWidget {
           Text(
             'Your personalized learning path has been created.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF6E645A),
+                  color: AppColors.textBody,
                   fontSize: 14,
                 ),
           ),
@@ -791,7 +791,7 @@ class _RadioOption<T> extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A1614),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                         Text(
@@ -860,7 +860,7 @@ class _ChipOption<T> extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       color: selected
-                          ? const Color(0xFF1A1614)
+                          ? AppColors.textPrimary
                           : AppColors.textBody,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -897,7 +897,7 @@ class _StatBox extends StatelessWidget {
             value,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontSize: 22,
-                  color: const Color(0xFF1A1614),
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
           ),
@@ -934,7 +934,7 @@ class _SummaryRow extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF3A342E)),
+              style: const TextStyle(fontSize: 14, color: AppColors.textBody),
             ),
           ),
         ],

@@ -52,7 +52,7 @@ export function CurrentStatePanel({ stats, insights, timeline }: Props) {
   const completion = stats?.completionPercent ?? 0;
   const mastered = stats?.masteredCount ?? 0;
   const total = stats?.totalNodes ?? 0;
-  const streak = stats?.currentStreak ?? 0;
+  const streak = 0;
 
   return (
     <div className="flex flex-col gap-4">

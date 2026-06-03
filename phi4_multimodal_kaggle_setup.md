@@ -164,7 +164,44 @@ async def generate_audio(prompt: str = Form(...), audio: UploadFile = File(...),
 def health():
     return {"status": "ok", "model": "Phi-4-multimodal-instruct"}
 
-print("✅ FastAPI app ready")
+
+# ── Streaming endpoint ────────────────────────────────────────────────────────
+from transformers import TextIteratorStreamer
+from threading import Thread
+from fastapi.responses import StreamingResponse as FastAPIStreamingResponse
+
+@app.post("/generate/text/stream")
+async def generate_text_stream(prompt: str = Form(...), max_new_tokens: int = Form(2048)):
+    """Stream tokens word-by-word as Phi-4 generates them (SSE-compatible plain text)."""
+    messages = build_messages(prompt)
+    text_input = processor.apply_chat_template(
+        messages, add_generation_prompt=True, tokenize=False
+    )
+    inputs = processor(text=text_input, return_tensors="pt").to("cuda")
+
+    streamer = TextIteratorStreamer(
+        processor.tokenizer, skip_special_tokens=True, skip_prompt=True
+    )
+    gen_kwargs = {
+        **inputs,
+        "max_new_tokens": max_new_tokens,
+        "streamer": streamer,
+        "do_sample": False,
+        "temperature": 1.0,
+    }
+
+    thread = Thread(target=model.generate, kwargs=gen_kwargs)
+    thread.start()
+
+    def token_generator():
+        for token in streamer:
+            yield token
+        thread.join()
+
+    return FastAPIStreamingResponse(token_generator(), media_type="text/plain")
+
+
+print("✅ FastAPI app ready (incl. /generate/text/stream)")
 ```
 
 ---
@@ -194,7 +231,8 @@ print(f"📖 Swagger docs: {public_url}/docs")
 
 | Endpoint | Input | Use case |
 |---|---|---|
-| `POST /generate/text` | `prompt` (form field) | Text-only generation |
+| `POST /generate/text` | `prompt` (form field) | JSON generation (quizzes, explanations) |
+| `POST /generate/text/stream` | `prompt` (form field) | **Token-by-token streaming** (AI Instructor, explanations) |
 | `POST /generate/image` | `prompt` + `image` (file) | Image understanding |
 | `POST /generate/audio` | `prompt` + `audio` (file) | Audio understanding |
 | `GET /health` | — | Server health check |
