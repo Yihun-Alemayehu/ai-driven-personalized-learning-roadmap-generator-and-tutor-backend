@@ -11,11 +11,8 @@ import {
   logoutSchema,
 } from './auth.validation';
 
-// In-memory store for OAuth state parameters (maps state → redirectUri/providerCallbackUri)
-const oauthStateStore = new Map<
-  string,
-  { redirectUri: string; providerCallbackUri: string; expiresAt: number }
->();
+// In-memory store for OAuth state parameters (maps state → redirectUri)
+const oauthStateStore = new Map<string, { redirectUri: string; expiresAt: number }>();
 const OAUTH_STATE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Periodic cleanup of expired state entries
@@ -30,44 +27,6 @@ function validate<T>(schema: Joi.ObjectSchema<T>, data: unknown): T {
   const { error, value } = schema.validate(data, { abortEarly: false, stripUnknown: true });
   if (error) throw ApiError.badRequest('Validation error', error.details.map((d) => d.message));
   return value as T;
-}
-
-function getPublicOrigin(req: Request): string {
-  if (config.publicOrigin) return config.publicOrigin.replace(/\/$/, '');
-
-  const forwardedProto = (req.get('x-forwarded-proto') || '').split(',')[0]?.trim();
-  const forwardedScheme = (req.get('x-forwarded-scheme') || '').split(',')[0]?.trim();
-  const forwardedPort = (req.get('x-forwarded-port') || '').split(',')[0]?.trim();
-  const forwardedSsl = (req.get('x-forwarded-ssl') || '').split(',')[0]?.trim();
-  const forwardedHost = (req.get('x-forwarded-host') || '').split(',')[0]?.trim();
-  const host = forwardedHost || req.get('host');
-
-  // Try multiple common headers used by proxies/CDNs. This avoids generating http://
-  // redirect URIs when the public request is actually https://.
-  let proto = forwardedProto || forwardedScheme;
-  if (!proto) {
-    if (forwardedPort === '443') proto = 'https';
-    else if (forwardedSsl.toLowerCase() === 'on') proto = 'https';
-  }
-  if (!proto) {
-    const cfVisitor = req.get('cf-visitor');
-    if (cfVisitor) {
-      try {
-        const parsed = JSON.parse(cfVisitor);
-        if (parsed?.scheme) proto = String(parsed.scheme);
-      } catch {
-        // ignore
-      }
-    }
-  }
-  proto = proto || req.protocol;
-
-  if (!host) return 'http://localhost:3000';
-  return `${proto}://${host}`;
-}
-
-function getProviderCallbackUrl(req: Request, provider: 'google' | 'github'): string {
-  return `${getPublicOrigin(req)}/api/v1/auth/oauth/${provider}/callback`;
 }
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -116,17 +75,12 @@ export function googleRedirect(req: Request, res: Response): void {
   }
 
   const redirectUri = (req.query.redirect_uri as string) || config.oauth.frontendCallbackUrl;
-  const providerCallbackUri = getProviderCallbackUrl(req, 'google');
   const state = crypto.randomBytes(16).toString('hex');
-  oauthStateStore.set(state, {
-    redirectUri,
-    providerCallbackUri,
-    expiresAt: Date.now() + OAUTH_STATE_TTL,
-  });
+  oauthStateStore.set(state, { redirectUri, expiresAt: Date.now() + OAUTH_STATE_TTL });
 
   const params = new URLSearchParams({
     client_id: config.oauth.google.clientId,
-    redirect_uri: providerCallbackUri,
+    redirect_uri: config.oauth.google.callbackUrl,
     response_type: 'code',
     scope: 'openid email profile',
     state,
@@ -143,12 +97,9 @@ export async function googleCallback(req: Request, res: Response, next: NextFunc
     // Look up redirect URI from state store
     const stateData = state ? oauthStateStore.get(state) : undefined;
     const redirectTarget = stateData?.redirectUri || config.oauth.frontendCallbackUrl;
-    // If state data is missing (e.g., process restarted), recompute callback URI from request
-    // to avoid redirect_uri mismatch during token exchange.
-    const providerCallbackUri = stateData?.providerCallbackUri || getProviderCallbackUrl(req, 'google');
     if (state) oauthStateStore.delete(state);
 
-    const { tokens } = await authService.handleGoogleCallback(code, providerCallbackUri);
+    const { tokens } = await authService.handleGoogleCallback(code);
     res.redirect(
       `${redirectTarget}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
     );
@@ -163,17 +114,12 @@ export function githubRedirect(req: Request, res: Response): void {
   }
 
   const redirectUri = (req.query.redirect_uri as string) || config.oauth.frontendCallbackUrl;
-  const providerCallbackUri = getProviderCallbackUrl(req, 'github');
   const state = crypto.randomBytes(16).toString('hex');
-  oauthStateStore.set(state, {
-    redirectUri,
-    providerCallbackUri,
-    expiresAt: Date.now() + OAUTH_STATE_TTL,
-  });
+  oauthStateStore.set(state, { redirectUri, expiresAt: Date.now() + OAUTH_STATE_TTL });
 
   const params = new URLSearchParams({
     client_id: config.oauth.github.clientId,
-    redirect_uri: providerCallbackUri,
+    redirect_uri: config.oauth.github.callbackUrl,
     scope: 'user:email',
     state,
   });
@@ -189,10 +135,9 @@ export async function githubCallback(req: Request, res: Response, next: NextFunc
     // Look up redirect URI from state store
     const stateData = state ? oauthStateStore.get(state) : undefined;
     const redirectTarget = stateData?.redirectUri || config.oauth.frontendCallbackUrl;
-    const providerCallbackUri = stateData?.providerCallbackUri || getProviderCallbackUrl(req, 'github');
     if (state) oauthStateStore.delete(state);
 
-    const { tokens } = await authService.handleGithubCallback(code, providerCallbackUri);
+    const { tokens } = await authService.handleGithubCallback(code);
     res.redirect(
       `${redirectTarget}?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
     );
